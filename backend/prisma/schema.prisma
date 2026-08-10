@@ -38,25 +38,72 @@ enum LeaveStatus {
   REJECTED
 }
 
+enum PayrollStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum DeviceType {
+  HIKVISION
+  ZKTECO
+  ANVIZ
+  HANVON
+  OTHER
+}
+
+enum VacancyStatus {
+  DRAFT
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+enum CandidatePipelineStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  TEST_TASK
+  OFFER
+  HIRED
+  REJECTED
+}
+
+enum OnboardingStage {
+  DAY_1
+  WEEK_1
+  MONTH_1
+  MONTH_3
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id        String    @id @default(uuid())
+  email     String    @unique
   password  String
-  role      Role     @default(EMPLOYEE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      Role      @default(EMPLOYEE)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   employee  Employee?
 }
 
 model Department {
-  id        String       @id @default(uuid())
-  name      String
-  parentId  String?
-  parent    Department?  @relation("SubDepartments", fields: [parentId], references: [id])
-  children  Department[] @relation("SubDepartments")
-  employees Employee[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id                  String               @id @default(uuid())
+  name                String
+  parentId            String?
+  parent              Department?          @relation("SubDepartments", fields: [parentId], references: [id])
+  children            Department[]         @relation("SubDepartments")
+  employees           Employee[]
+  geofences           GeofenceZone[]
+  jobVacancies        JobVacancy[]
+  onboardingTemplates OnboardingTemplate[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 }
 
 model Position {
@@ -68,34 +115,61 @@ model Position {
 }
 
 model Employee {
-  id            String         @id @default(uuid())
-  userId        String         @unique
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstName     String
-  lastName      String
-  departmentId  String?
-  department    Department?    @relation(fields: [departmentId], references: [id])
-  positionId    String?
-  position      Position?      @relation(fields: [positionId], references: [id])
-  attendances   Attendance[]
-  leaveRequests LeaveRequest[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                  String               @id @default(uuid())
+  userId              String               @unique
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName           String
+  lastName            String
+  leaveBalance        Float                @default(20.0)
+  departmentId        String?
+  department          Department?          @relation(fields: [departmentId], references: [id])
+  positionId          String?
+  position            Position?            @relation(fields: [positionId], references: [id])
+  attendances         Attendance[]
+  leaveRequests       LeaveRequest[]
+  payrolls            Payroll[]
+  performanceReviews  PerformanceReview[]
+  onboarding          EmployeeOnboarding?  @relation("EmployeeOnboardingRelation")
+  mentoredOnboardings EmployeeOnboarding[] @relation("MentorRelation")
+  policySignatures    PolicySignature[]
+  courseProgresses    CourseProgress[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 }
 
 model Attendance {
-  id         String           @id @default(uuid())
-  employeeId String
-  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  date       DateTime         @db.Date
-  checkIn    DateTime?
-  checkOut   DateTime?
-  status     AttendanceStatus @default(PRESENT)
-  note       String?
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  id                String           @id @default(uuid())
+  employeeId        String
+  employee          Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date              DateTime         @db.Date
+  checkIn           DateTime?
+  checkOut          DateTime?
+  checkInLat        Float?
+  checkInLng        Float?
+  checkInAddress    String?
+  checkOutLat       Float?
+  checkOutLng       Float?
+  checkOutAddress   String?
+  isOutsideGeofence Boolean          @default(false)
+  isSpoofed         Boolean          @default(false)
+  status            AttendanceStatus @default(PRESENT)
+  note              String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@unique([employeeId, date])
+}
+
+model GeofenceZone {
+  id           String      @id @default(uuid())
+  name         String
+  latitude     Float
+  longitude    Float
+  radius       Float       @default(100.0)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 }
 
 model LeaveRequest {
@@ -110,4 +184,244 @@ model LeaveRequest {
   approvedBy String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+}
+
+model Payroll {
+  id         String        @id @default(uuid())
+  employeeId String
+  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month      Int
+  year       Int
+  baseSalary Float
+  bonus      Float         @default(0)
+  deductions Float         @default(0)
+  netSalary  Float
+  status     PayrollStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([employeeId, month, year])
+}
+
+model PerformanceReview {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewerId String
+  score      Float
+  feedback   String
+  period     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model DeviceLog {
+  id         String     @id @default(uuid())
+  deviceType DeviceType
+  deviceId   String?
+  rawPayload Json
+  createdAt  DateTime   @default(now())
+}
+
+model JobVacancy {
+  id             String           @id @default(uuid())
+  title          String
+  description    String
+  requirements   String
+  status         VacancyStatus    @default(OPEN)
+  departmentId   String?
+  department     Department?      @relation(fields: [departmentId], references: [id])
+  candidates     Candidate[]
+  vacancyMatches CandidateMatch[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model Candidate {
+  id               String                 @id @default(uuid())
+  fullName         String
+  email            String
+  phone            String
+  resumeUrl        String
+  parsedSkills     String[]
+  source           String                 @default("DIRECT")
+  stage            CandidatePipelineStage @default(APPLIED)
+  primaryVacancyId String?
+  primaryVacancy   JobVacancy?            @relation(fields: [primaryVacancyId], references: [id])
+  vacancyMatches   CandidateMatch[]
+  feedbacks        CandidateFeedback[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+}
+
+model CandidateMatch {
+  id          String     @id @default(uuid())
+  candidateId String
+  candidate   Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancyId   String
+  vacancy     JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  matchScore  Float
+  aiReason    String?
+  createdAt   DateTime   @default(now())
+
+  @@unique([candidateId, vacancyId])
+}
+
+model CandidateFeedback {
+  id          String    @id @default(uuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  reviewerId  String
+  score       Float
+  comment     String
+  createdAt   DateTime  @default(now())
+}
+
+model OnboardingTemplate {
+  id           String             @id @default(uuid())
+  title        String
+  description  String?
+  departmentId String?
+  department   Department?        @relation(fields: [departmentId], references: [id])
+  tasks        OnboardingTask[]
+  courses      OnboardingCourse[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model OnboardingTask {
+  id               String                   @id @default(uuid())
+  templateId       String
+  template         OnboardingTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  stage            OnboardingStage          @default(DAY_1)
+  assignedEmployee EmployeeOnboardingTask[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+}
+
+model EmployeeOnboarding {
+  id        String                     @id @default(uuid())
+  employeeId String                    @unique
+  employee  Employee                   @relation("EmployeeOnboardingRelation", fields: [employeeId], references: [id], onDelete: Cascade)
+  mentorId  String?
+  mentor    Employee?                  @relation("MentorRelation", fields: [mentorId], references: [id])
+  status    TaskStatus                 @default(IN_PROGRESS)
+  tasks     EmployeeOnboardingTask[]
+  courses   EmployeeOnboardingCourse[]
+  createdAt DateTime                   @default(now())
+  updatedAt DateTime                   @updatedAt
+}
+
+model EmployeeOnboardingTask {
+  id           String             @id @default(uuid())
+  onboardingId String
+  onboarding   EmployeeOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  taskId       String
+  task         OnboardingTask     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  status       TaskStatus         @default(PENDING)
+  completedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([onboardingId, taskId])
+}
+
+model OnboardingCourse {
+  id          String                     @id @default(uuid())
+  templateId  String
+  template    OnboardingTemplate         @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title       String
+  videoUrl    String
+  description String?
+  enrollments EmployeeOnboardingCourse[]
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+}
+
+model EmployeeOnboardingCourse {
+  id           String             @id @default(uuid())
+  onboardingId String
+  onboarding   EmployeeOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  courseId     String
+  course       OnboardingCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  isCompleted  Boolean            @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([onboardingId, courseId])
+}
+model CompanyPolicy {
+  id          String             @id @default(uuid())
+  title       String
+  description String?
+  documentUrl String
+  isRequired  Boolean            @default(true)
+  signatures  PolicySignature[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model PolicySignature {
+  id         String        @id @default(uuid())
+  policyId   String
+  policy     CompanyPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  signedAt   DateTime      @default(now())
+
+  @@unique([policyId, employeeId])
+}
+
+model AcademyCourse {
+  id          String             @id @default(uuid())
+  title       String
+  description String?
+  coverUrl    String?
+  isRequired  Boolean            @default(false)
+  lessons     AcademyLesson[]
+  quizzes     AcademyQuiz[]
+  progress    CourseProgress[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model AcademyLesson {
+  id          String        @id @default(uuid())
+  courseId    String
+  course      AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  videoUrl    String
+  content     String?
+  order       Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model AcademyQuiz {
+  id        String          @id @default(uuid())
+  courseId  String
+  course    AcademyCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  question  String
+  options   String[]
+  answer    Int
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model CourseProgress {
+  id          String        @id @default(uuid())
+  courseId    String
+  course      AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  isCompleted Boolean       @default(false)
+  quizScore   Float?
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([courseId, employeeId])
 }
