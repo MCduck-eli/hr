@@ -2,6 +2,24 @@ import { Request, Response, NextFunction } from "express";
 import { academyService } from "./academy-service";
 
 export class AcademyController {
+    async createCategory(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await academyService.createCategory(req.body);
+            res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getAllCategories(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await academyService.getAllCategories();
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async createCourse(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await academyService.createCourse(req.body);
@@ -18,6 +36,22 @@ export class AcademyController {
     ) {
         try {
             const result = await academyService.addLesson(
+                req.params.courseId,
+                req.body,
+            );
+            res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async addResource(
+        req: Request<{ courseId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await academyService.addResource(
                 req.params.courseId,
                 req.body,
             );
@@ -46,7 +80,11 @@ export class AcademyController {
     async getAllCourses(req: Request, res: Response, next: NextFunction) {
         try {
             const userId = (req as any).user.id;
-            const result = await academyService.getAllCourses(userId);
+            const categoryId = req.query.categoryId as string | undefined;
+            const result = await academyService.getAllCourses(
+                userId,
+                categoryId,
+            );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -80,6 +118,52 @@ export class AcademyController {
                 req.params.courseId,
                 req.body.answers,
             );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async createEvent(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await academyService.createEvent(req.body);
+            res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getEvents(req: Request, res: Response, next: NextFunction) {
+        try {
+            const userId = (req as any).user.id;
+            const result = await academyService.getEvents(userId);
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async registerEvent(
+        req: Request<{ eventId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const userId = (req as any).user.id;
+            const result = await academyService.registerEvent(
+                userId,
+                req.params.eventId,
+            );
+            res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getMyCertificates(req: Request, res: Response, next: NextFunction) {
+        try {
+            const userId = (req as any).user.id;
+            const result = await academyService.getMyCertificates(userId);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

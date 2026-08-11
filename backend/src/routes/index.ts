@@ -12,6 +12,8 @@ import recruitmentRouter from "../modules/recruitment/recruitment-route";
 import onboardingRouter from "../modules/onboarding/onboarding-route";
 import policyRouter from "../modules/policies/policy-route";
 import academyRouter from "../modules/academy/academy-route";
+import orgChartRouter from "../modules/org-chart/org-chart-route";
+import lifecycleRouter from "../modules/lifecycle/lifecycle-route";
 
 const mainRouter = Router();
 
@@ -28,5 +30,7 @@ mainRouter.use("/v1/recruitment", recruitmentRouter);
 mainRouter.use("/v1/onboarding", onboardingRouter);
 mainRouter.use("/v1/policies", policyRouter);
 mainRouter.use("/v1/academy", academyRouter);
+mainRouter.use("/v1/org-chart", orgChartRouter);
+mainRouter.use("/v1/lifecycle", lifecycleRouter);
 
 export default mainRouter;

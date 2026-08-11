@@ -82,6 +82,11 @@ enum TaskStatus {
   COMPLETED
 }
 
+enum EventType {
+  ONLINE
+  OFFLINE
+}
+
 model User {
   id        String    @id @default(uuid())
   email     String    @unique
@@ -115,26 +120,36 @@ model Position {
 }
 
 model Employee {
-  id                  String               @id @default(uuid())
-  userId              String               @unique
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String                  @id @default(uuid())
+  userId              String                  @unique
+  user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName           String
   lastName            String
-  leaveBalance        Float                @default(20.0)
+  leaveBalance        Float                   @default(20.0)
   departmentId        String?
-  department          Department?          @relation(fields: [departmentId], references: [id])
+  department          Department?             @relation(fields: [departmentId], references: [id])
   positionId          String?
-  position            Position?            @relation(fields: [positionId], references: [id])
+  position            Position?               @relation(fields: [positionId], references: [id])
+  managerId           String?
+  manager             Employee?               @relation("EmployeeManager", fields: [managerId], references: [id])
+  subordinates        Employee[]              @relation("EmployeeManager")
   attendances         Attendance[]
   leaveRequests       LeaveRequest[]
   payrolls            Payroll[]
   performanceReviews  PerformanceReview[]
-  onboarding          EmployeeOnboarding?  @relation("EmployeeOnboardingRelation")
-  mentoredOnboardings EmployeeOnboarding[] @relation("MentorRelation")
+  onboarding          EmployeeOnboarding?     @relation("EmployeeOnboardingRelation")
+  mentoredOnboardings EmployeeOnboarding[]    @relation("MentorRelation")
   policySignatures    PolicySignature[]
   courseProgresses    CourseProgress[]
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  certificates        CourseCertificate[]
+  eventRegistrations  EventRegistration[]
+  historyLogs         OrgStructureHistory[]   @relation("EmployeeHistory")
+  changesMade         OrgStructureHistory[]   @relation("ChangedByHistory")
+  lifecycleEvents     EmployeeLifecycleEvent[]
+  offboarding         OffboardingRequest?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  lifecycleChecklists EmployeeLifecycleChecklist[]
 }
 
 model Attendance {
@@ -302,16 +317,16 @@ model OnboardingTask {
 }
 
 model EmployeeOnboarding {
-  id        String                     @id @default(uuid())
-  employeeId String                    @unique
-  employee  Employee                   @relation("EmployeeOnboardingRelation", fields: [employeeId], references: [id], onDelete: Cascade)
-  mentorId  String?
-  mentor    Employee?                  @relation("MentorRelation", fields: [mentorId], references: [id])
-  status    TaskStatus                 @default(IN_PROGRESS)
-  tasks     EmployeeOnboardingTask[]
-  courses   EmployeeOnboardingCourse[]
-  createdAt DateTime                   @default(now())
-  updatedAt DateTime                   @updatedAt
+  id         String                   @id @default(uuid())
+  employeeId String                   @unique
+  employee   Employee                 @relation("EmployeeOnboardingRelation", fields: [employeeId], references: [id], onDelete: Cascade)
+  mentorId   String?
+  mentor     Employee?                @relation("MentorRelation", fields: [mentorId], references: [id])
+  status     TaskStatus               @default(IN_PROGRESS)
+  tasks      EmployeeOnboardingTask[]
+  courses    EmployeeOnboardingCourse[]
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
 }
 
 model EmployeeOnboardingTask {
@@ -353,62 +368,92 @@ model EmployeeOnboardingCourse {
 
   @@unique([onboardingId, courseId])
 }
+
 model CompanyPolicy {
-  id          String             @id @default(uuid())
+  id          String            @id @default(uuid())
   title       String
   description String?
+  content     String?           @db.Text
   documentUrl String
-  isRequired  Boolean            @default(true)
+  version     Int               @default(1)
+  isRequired  Boolean           @default(true)
+  parentId    String?
+  parent      CompanyPolicy?    @relation("SubPolicies", fields: [parentId], references: [id])
+  children    CompanyPolicy[]   @relation("SubPolicies")
   signatures  PolicySignature[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 }
 
 model PolicySignature {
-  id         String        @id @default(uuid())
-  policyId   String
-  policy     CompanyPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  employeeId String
-  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  signedAt   DateTime      @default(now())
+  id            String        @id @default(uuid())
+  policyId      String
+  policy        CompanyPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  signedVersion Int           @default(1)
+  signedAt      DateTime      @default(now())
 
   @@unique([policyId, employeeId])
 }
 
-model AcademyCourse {
-  id          String             @id @default(uuid())
-  title       String
+model AcademyCategory {
+  id          String          @id @default(uuid())
+  name        String
   description String?
-  coverUrl    String?
-  isRequired  Boolean            @default(false)
-  lessons     AcademyLesson[]
-  quizzes     AcademyQuiz[]
-  progress    CourseProgress[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  courses     AcademyCourse[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model AcademyCourse {
+  id           String              @id @default(uuid())
+  categoryId   String?
+  category     AcademyCategory?    @relation(fields: [categoryId], references: [id])
+  title        String
+  description  String?
+  coverUrl     String?
+  isRequired   Boolean             @default(false)
+  lessons      AcademyLesson[]
+  quizzes      AcademyQuiz[]
+  resources    AcademyResource[]
+  progress     CourseProgress[]
+  certificates CourseCertificate[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 }
 
 model AcademyLesson {
-  id          String        @id @default(uuid())
-  courseId    String
-  course      AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title       String
-  videoUrl    String
-  content     String?
-  order       Int           @default(1)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id        String        @id @default(uuid())
+  courseId  String
+  course    AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  videoUrl  String
+  content   String?
+  order     Int           @default(1)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model AcademyResource {
+  id        String        @id @default(uuid())
+  courseId  String
+  course    AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  fileUrl   String
+  fileType  String
+  createdAt DateTime      @default(now())
 }
 
 model AcademyQuiz {
-  id        String          @id @default(uuid())
+  id        String        @id @default(uuid())
   courseId  String
-  course    AcademyCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course    AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
   question  String
   options   String[]
   answer    Int
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }
 
 model CourseProgress {
@@ -424,4 +469,161 @@ model CourseProgress {
   updatedAt   DateTime      @updatedAt
 
   @@unique([courseId, employeeId])
+}
+
+model CourseCertificate {
+  id                String        @id @default(uuid())
+  courseId          String
+  course            AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  employeeId        String
+  employee          Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  certificateNumber String        @unique
+  issuedAt          DateTime      @default(now())
+
+  @@unique([courseId, employeeId])
+}
+
+model TrainingEvent {
+  id            String              @id @default(uuid())
+  title         String
+  description   String?
+  eventType     EventType           @default(ONLINE)
+  locationOrUrl String
+  eventDate     DateTime
+  capacity      Int                 @default(20)
+  registrations EventRegistration[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model EventRegistration {
+  id           String        @id @default(uuid())
+  eventId      String
+  event        TrainingEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  employeeId   String
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  registeredAt DateTime      @default(now())
+
+  @@unique([eventId, employeeId])
+}
+model OrgStructureHistory {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation("EmployeeHistory", fields: [employeeId], references: [id], onDelete: Cascade)
+  oldDepartmentId String?
+  newDepartmentId String?
+  oldPositionId   String?
+  newPositionId   String?
+  oldManagerId    String?
+  newManagerId    String?
+  changedById     String
+  changedBy       Employee @relation("ChangedByHistory", fields: [changedById], references: [id], onDelete: Cascade)
+  reason          String?
+  createdAt       DateTime @default(now())
+}
+enum LifecycleEventType {
+  VACANCY_CREATED
+  CANDIDATE_APPLIED
+  OFFER_ACCEPTED
+  HIRED
+  ONBOARDING_STARTED
+  ONBOARDING_COMPLETED
+  PROBATION_PASSED
+  PROMOTED
+  DEPARTMENT_CHANGED
+  COURSE_COMPLETED
+  CERTIFICATE_EARNED
+  PERFORMANCE_REVIEWED
+  OFFBOARDING_STARTED
+  EXIT_INTERVIEW_COMPLETED
+  TERMINATED
+}
+
+model EmployeeLifecycleEvent {
+  id          String             @id @default(uuid())
+  employeeId  String
+  employee    Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  eventType   LifecycleEventType
+  title       String
+  description String?
+  eventDate   DateTime           @default(now())
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+}
+
+model OffboardingRequest {
+  id                 String                @id @default(uuid())
+  employeeId         String                @unique
+  employee           Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reason             String
+  lastWorkingDay     DateTime              @db.Date
+  exitInterviewNotes String?               @db.Text
+  isAssetsReturned   Boolean               @default(false)
+  status             TaskStatus            @default(IN_PROGRESS)
+  tasks              OffboardingTaskItem[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+enum LifecycleStage {
+  PRE_HIRE
+  ONBOARDING
+  PROBATION
+  REGULAR_WORK
+  PROMOTION
+  OFFBOARDING
+}
+
+model LifecycleTemplate {
+  id          String                  @id @default(uuid())
+  title       String
+  description String?
+  stage       LifecycleStage          @default(ONBOARDING)
+  tasks       LifecycleTemplateTask[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+}
+
+model LifecycleTemplateTask {
+  id          String                   @id @default(uuid())
+  templateId  String
+  template    LifecycleTemplate        @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDays     Int                      @default(1)
+  assignments EmployeeLifecycleChecklist[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+}
+
+model EmployeeLifecycleChecklist {
+  id          String                @id @default(uuid())
+  employeeId  String
+  employee    Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  taskId      String
+  task        LifecycleTemplateTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  dueDate     DateTime
+  status      TaskStatus            @default(PENDING)
+  completedAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([employeeId, taskId])
+}
+enum OffboardingTaskCategory {
+  IT_ACCESS
+  ASSET_RETURN
+  FINANCE
+  HR_DOCUMENTS
+}
+
+model OffboardingTaskItem {
+  id            String                  @id @default(uuid())
+  offboardingId String
+  offboarding   OffboardingRequest      @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
+  category      OffboardingTaskCategory @default(HR_DOCUMENTS)
+  title         String
+  isCompleted   Boolean                 @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
 }
