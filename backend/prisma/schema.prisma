@@ -95,6 +95,8 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   employee  Employee?
+  notifications Notification[]
+deviceTokens  UserDeviceToken[]
 }
 
 model Department {
@@ -109,6 +111,7 @@ model Department {
   onboardingTemplates OnboardingTemplate[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  objectives Objective[]
 }
 
 model Position {
@@ -150,6 +153,14 @@ model Employee {
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
   lifecycleChecklists EmployeeLifecycleChecklist[]
+  objectives Objective[]
+  discAssessments DiscAssessment[]
+  feedbackTargets   FeedbackAssignment[] @relation("FeedbackTarget")
+feedbackReviewers FeedbackAssignment[] @relation("FeedbackReviewer")
+gradeId           String?
+grade             JobGrade?          @relation(fields: [gradeId], references: [id])
+promotions        PromotionRequest[] @relation("EmployeePromotion")
+careerHistories   CareerHistory[]
 }
 
 model Attendance {
@@ -626,4 +637,274 @@ model OffboardingTaskItem {
   completedAt   DateTime?
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
+}
+enum OkrLevel {
+  COMPANY
+  DEPARTMENT
+  INDIVIDUAL
+}
+
+enum OkrStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model OkrCycle {
+  id         String      @id @default(uuid())
+  title      String
+  startDate  DateTime    @db.Date
+  endDate    DateTime    @db.Date
+  isCurrent  Boolean     @default(false)
+  objectives Objective[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Objective {
+  id           String      @id @default(uuid())
+  cycleId      String
+  cycle        OkrCycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  level        OkrLevel    @default(INDIVIDUAL)
+  title        String
+  description  String?
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  employeeId   String?
+  employee     Employee?   @relation(fields: [employeeId], references: [id])
+  parentId     String?
+  parent       Objective?  @relation("CascadingObjectives", fields: [parentId], references: [id])
+  children     Objective[] @relation("CascadingObjectives")
+  status       OkrStatus   @default(DRAFT)
+  progress     Float       @default(0.0)
+  keyResults   KeyResult[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model KeyResult {
+  id           String       @id @default(uuid())
+  objectiveId  String
+  objective    Objective    @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  title        String
+  initialValue Float        @default(0.0)
+  targetValue  Float
+  currentValue Float        @default(0.0)
+  unit         String       @default("%")
+  progress     Float        @default(0.0)
+  checkIns     OkrCheckIn[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model OkrCheckIn {
+  id          String    @id @default(uuid())
+  keyResultId String
+  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  value       Float
+  comment     String?
+  createdById String
+  createdAt   DateTime  @default(now())
+}
+enum DiscType {
+  D // Dominance
+  I // Influence
+  S // Steadiness
+  C // Conscientiousness
+}
+
+model DiscQuestion {
+  id        String       @id @default(uuid())
+  text      String
+  order     Int          @default(1)
+  options   DiscOption[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model DiscOption {
+  id         String       @id @default(uuid())
+  questionId String
+  question   DiscQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  discType   DiscType
+  score      Int          @default(1)
+}
+
+model DiscAssessment {
+  id            String             @id @default(uuid())
+  employeeId    String
+  employee      Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dScore        Float              @default(0.0)
+  iScore        Float              @default(0.0)
+  sScore        Float              @default(0.0)
+  cScore        Float              @default(0.0)
+  primaryType   DiscType
+  secondaryType DiscType?
+  responses     DiscUserResponse[]
+  createdAt     DateTime           @default(now())
+}
+
+model DiscUserResponse {
+  id           String         @id @default(uuid())
+  assessmentId String
+  assessment   DiscAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  questionId   String
+  optionId     String
+  discType     DiscType
+}
+enum FeedbackReviewerType {
+  SELF
+  MANAGER
+  PEER
+  SUBORDINATE
+}
+
+enum FeedbackCycleStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model FeedbackCycle {
+  id           String              @id @default(uuid())
+  title        String
+  description  String?
+  startDate    DateTime            @db.Date
+  endDate      DateTime            @db.Date
+  status       FeedbackCycleStatus @default(DRAFT)
+  assignments  FeedbackAssignment[]
+  questions    FeedbackQuestion[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model FeedbackQuestion {
+  id          String            @id @default(uuid())
+  cycleId     String
+  cycle       FeedbackCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  competency  String
+  text        String
+  order       Int               @default(1)
+  answers     FeedbackAnswer[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model FeedbackAssignment {
+  id          String               @id @default(uuid())
+  cycleId     String
+  cycle       FeedbackCycle        @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  targetId    String
+  target      Employee             @relation("FeedbackTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  reviewerId  String
+  reviewer    Employee             @relation("FeedbackReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  type        FeedbackReviewerType @default(PEER)
+  isCompleted Boolean              @default(false)
+  answers     FeedbackAnswer[]
+  createdAt   DateTime             @default(now())
+
+  @@unique([cycleId, targetId, reviewerId])
+}
+
+model FeedbackAnswer {
+  id           String             @id @default(uuid())
+  assignmentId String
+  assignment   FeedbackAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     FeedbackQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  score        Int                // 1-5 mashtabida
+  comment      String?            @db.Text
+  createdAt    DateTime           @default(now())
+
+  @@unique([assignmentId, questionId])
+}
+enum PromotionStatus {
+  PENDING
+  APPROVED_BY_MANAGER
+  APPROVED_BY_HR
+  REJECTED
+  CANCELLED
+}
+
+model JobGrade {
+  id              String      @id @default(uuid())
+  code            String      @unique // Masalan: "SE-G1", "SE-G2"
+  title           String      // Masalan: "Junior Software Engineer", "Middle Software Engineer"
+  level           Int         @default(1)
+  minSalary       Float
+  maxSalary       Float
+  requirements    String?     @db.Text
+  responsibilities String?    @db.Text
+  employees       Employee[]
+  promotionTarget PromotionRequest[] @relation("TargetGrade")
+  promotionCurrent PromotionRequest[] @relation("CurrentGrade")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model PromotionRequest {
+  id               String          @id @default(uuid())
+  employeeId       String
+  employee         Employee        @relation("EmployeePromotion", fields: [employeeId], references: [id], onDelete: Cascade)
+  currentGradeId   String?
+  currentGrade     JobGrade?       @relation("CurrentGrade", fields: [currentGradeId], references: [id])
+  targetGradeId    String
+  targetGrade      JobGrade        @relation("TargetGrade", fields: [targetGradeId], references: [id])
+  proposedSalary   Float
+  reason           String          @db.Text
+  okrScore         Float?          // OKR bajarilish foizi
+  feedback360Score Float?          // 360-degree o'rtacha balli
+  status           PromotionStatus @default(PENDING)
+  managerApproval  Boolean         @default(false)
+  hrApproval       Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model CareerHistory {
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  oldGradeTitle String?
+  newGradeTitle String
+  oldSalary     Float?
+  newSalary     Float
+  changedAt     DateTime  @default(now())
+  reason        String?
+}
+enum NotificationType {
+  LEAVE_REQUEST
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  OKR_ASSIGNED
+  OKR_CHECKIN_REMINDER
+  COURSE_ASSIGNED
+  OFFBOARDING_TASK
+  GENERAL
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(GENERAL)
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+}
+
+model UserDeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fcmToken  String   @unique
+  deviceOs  String?  // "iOS" yoki "Android"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

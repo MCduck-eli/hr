@@ -14,6 +14,11 @@ import policyRouter from "../modules/policies/policy-route";
 import academyRouter from "../modules/academy/academy-route";
 import orgChartRouter from "../modules/org-chart/org-chart-route";
 import lifecycleRouter from "../modules/lifecycle/lifecycle-route";
+import okrRouter from "../modules/okr/okr-route";
+import discRouter from "../modules/disc/disc-route";
+import feedback360Router from "../modules/feedback360/feedback360-route";
+import gradingRouter from "../modules/grading/grading-route";
+import notificationRouter from "../modules/notification/notification-route";
 
 const mainRouter = Router();
 
@@ -32,5 +37,10 @@ mainRouter.use("/v1/policies", policyRouter);
 mainRouter.use("/v1/academy", academyRouter);
 mainRouter.use("/v1/org-chart", orgChartRouter);
 mainRouter.use("/v1/lifecycle", lifecycleRouter);
+mainRouter.use("/v1/okr", okrRouter);
+mainRouter.use("/v1/disc", discRouter);
+mainRouter.use("/v1/feedback-360", feedback360Router);
+mainRouter.use("/v1/grading", gradingRouter);
+mainRouter.use("/v1/notifications", notificationRouter);
 
 export default mainRouter;

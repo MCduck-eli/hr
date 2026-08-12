@@ -6,6 +6,7 @@
     "express": "^5.2.1",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^9.0.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -13,6 +14,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^8.0.1",
     "prisma": "^6.19.3"
   }
 }
