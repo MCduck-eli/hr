@@ -1,0 +1,40 @@
+{
+    "Navbar": {
+        "okr": "OKR",
+        "grading": "Grading",
+        "disc": "DISC",
+        "feedback": "360 Feedback",
+        "login": "LOGIN",
+        "signup": "SIGN UP"
+    },
+    "Home": {
+        "title": "Meet HR Platform",
+        "subtitle": "High-performance serverless infrastructure for intensive workloads.",
+        "about": "About Us",
+        "heading": "Building the future of AI infrastructure.",
+        "p1": "HR Platform is a global, high-performance serverless platform for running AI applications across CPUs, GPUs, and accelerators.",
+        "p2": "The rise of Generative AI and agentic workloads redefined cloud infrastructure with a dramatic increase in scale and a set of new requirements. To support these workloads, we provide serverless GPUs, specialized accelerators, and CPU workloads with capabilities to increase efficiency, enable new use-cases and control costs."
+    },
+    "Footer": {
+        "description": "Build the serverless platform for modern AI and HR operations.",
+        "platform": "Platform",
+        "okr": "OKR Management",
+        "grading": "Grading System",
+        "disc": "DISC Assessment",
+        "company": "Company",
+        "about": "About Us",
+        "careers": "Careers",
+        "contact": "Contact",
+        "legal": "Legal",
+        "privacy": "Privacy Policy",
+        "terms": "Terms of Service",
+        "rights": "© 2026 HR Platform. All rights reserved."
+    },
+    "Login": {
+        "title": "Sign In",
+        "email": "Email",
+        "password": "Password",
+        "submit": "Sign In",
+        "loading": "Loading..."
+    }
+}

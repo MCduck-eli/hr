@@ -1,0 +1,40 @@
+{
+    "Navbar": {
+        "okr": "OKR",
+        "grading": "Greyding",
+        "disc": "DISC",
+        "feedback": "360 Baholash",
+        "login": "KIRISH",
+        "signup": "RO'YHATDAN O'TISH"
+    },
+    "Home": {
+        "title": "HR Platformasi",
+        "subtitle": "Katta yuklamalar uchun yuqori unumdorlikka ega serverless infratuzilma.",
+        "about": "Biz Haqimizda",
+        "heading": "Sun'iy intellekt infratuzilmasining kelajagini quramiz.",
+        "p1": "HR Platformasi CPU, GPU va akseleratorlarda AI ilovalarini ishga tushirish uchun global, yuqori unumdor serverless platformadir.",
+        "p2": "Generativ AI va agentlik yuklamalarining ortishi bulutli infratuzilmani yangi talablar va miqyosning keskin oshishi bilan qayta shakllantirdi."
+    },
+    "Footer": {
+        "description": "Zamonaviy AI va HR operatsiyalari uchun serverless platforma yarating.",
+        "platform": "Platforma",
+        "okr": "OKR Boshqaruvi",
+        "grading": "Greyding Tizimi",
+        "disc": "DISC Baholash",
+        "company": "Kompaniya",
+        "about": "Biz Haqimizda",
+        "careers": "Vakansiyalar",
+        "contact": "Bog'lanish",
+        "legal": "Huquqiy",
+        "privacy": "Maxfiylik Siyosati",
+        "terms": "Foydalanish Shartlari",
+        "rights": "© 2026 HR Platformasi. Barcha huquqlar himoyalangan."
+    },
+    "Login": {
+        "title": "Tizimga Kirish",
+        "email": "Elektron pochta",
+        "password": "Parol",
+        "submit": "Kirish",
+        "loading": "Yuklanmoqda..."
+    }
+}

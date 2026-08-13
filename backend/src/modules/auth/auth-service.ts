@@ -3,48 +3,25 @@ import { hashPassword, comparePassword } from "../../utils/password";
 import { generateToken } from "../../utils/jwt";
 
 export class AuthService {
-    async register(payload: any) {
-        const existingUser = await prisma.user.findUnique({
-            where: { email: payload.email },
-        });
+    async onApplicationBootstrap() {
+        const adminEmail =
+            process.env.SUPER_ADMIN_EMAIL || "admin@hrplatform.com";
+        const adminPassword =
+            process.env.SUPER_ADMIN_PASSWORD || "SuperAdmin123!";
+        const hashedPassword = await hashPassword(adminPassword);
 
-        if (existingUser) {
-            throw new Error("User already exists");
-        }
-
-        const hashedPassword = await hashPassword(payload.password);
-
-        const user = await prisma.user.create({
-            data: {
-                email: payload.email,
+        await prisma.user.upsert({
+            where: { email: adminEmail },
+            update: {
                 password: hashedPassword,
-                employee: {
-                    create: {
-                        firstName: payload.firstName,
-                        lastName: payload.lastName,
-                    },
-                },
+                role: "SUPER_ADMIN",
             },
-            include: {
-                employee: true,
+            create: {
+                email: adminEmail,
+                password: hashedPassword,
+                role: "SUPER_ADMIN",
             },
         });
-
-        const token = generateToken({
-            id: user.id,
-            email: user.email,
-            role: user.role,
-        });
-
-        return {
-            token,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                employee: user.employee,
-            },
-        };
     }
 
     async login(payload: any) {
@@ -85,3 +62,4 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
+authService.onApplicationBootstrap();
