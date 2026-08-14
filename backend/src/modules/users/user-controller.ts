@@ -30,6 +30,18 @@ export class UserController {
         }
     }
 
+    async create(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await userService.createUser(req.body);
+            res.status(201).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async update(
         req: Request<{ id: string }>,
         res: Response,
@@ -43,6 +55,22 @@ export class UserController {
             res.status(200).json({
                 status: "success",
                 data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async delete(
+        req: Request<{ id: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            await userService.deleteUser(req.params.id);
+            res.status(200).json({
+                status: "success",
+                message: "User deleted successfully",
             });
         } catch (error) {
             next(error);

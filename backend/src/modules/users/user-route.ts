@@ -13,12 +13,26 @@ userRouter.get(
     authorize("SUPER_ADMIN", "HR_ADMIN"),
     userController.getAll,
 );
+
+userRouter.post(
+    "/",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    userController.create,
+);
+
 userRouter.get("/:id", userController.getOne);
+
 userRouter.patch(
     "/:id",
     authorize("SUPER_ADMIN", "HR_ADMIN"),
     validate(updateUserSchema),
     userController.update,
+);
+
+userRouter.delete(
+    "/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    userController.delete,
 );
 
 export default userRouter;

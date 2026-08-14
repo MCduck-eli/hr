@@ -36,5 +36,40 @@
         "password": "Parol",
         "submit": "Kirish",
         "loading": "Yuklanmoqda..."
+    },
+    "Dashboard": {
+        "title": "Super Admin Boshqaruvi",
+        "addUser": "Yangi Foydalanuvchi Qo'shish",
+        "firstName": "Ism",
+        "lastName": "Familiya",
+        "email": "Elektron pochta",
+        "password": "Parol",
+        "role": "Rol",
+        "hrAdmin": "HR Admin",
+        "manager": "Rahbar",
+        "recruiter": "Rekruter",
+        "employee": "Xodim",
+        "submit": "Foydalanuvchi Qo'shish",
+        "loading": "Qo'shilmoqda...",
+        "userList": "Foydalanuvchilar Ro'yxati",
+        "noUsers": "Foydalanuvchilar topilmadi",
+        "generate": "Avto Generatsiya",
+        "delete": "O'chirish",
+        "confirmDelete": "Bu foydalanuvchini o'chirishga ishonchingiz komilmi?",
+        "actions": "Amallar",
+        "name": "Ism Familiya",
+        "edit": "Tahrirlash",
+        "loginAs": "Kirish",
+        "editUser": "Foydalanuvchini Tahrirlash",
+        "saveChanges": "O'zgarishlarni Saqlash",
+        "cancel": "Bekor Qilish"
+    },
+    "HRDashboard": {
+        "title": "HR Boshqaruv Paneli",
+        "welcome": "Inson resurslarini boshqarish bo'limiga xush kelibsiz",
+        "employees": "Xodimlar",
+        "recruiting": "Rekruting",
+        "onboarding": "Onboarding",
+        "academy": "Akademiya"
     }
 }

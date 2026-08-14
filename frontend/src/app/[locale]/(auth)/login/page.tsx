@@ -22,15 +22,30 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const data = await loginApi({ email, password });
+            const responseData = await loginApi({
+                email: email.trim(),
+                password: password.trim(),
+            });
 
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("user", JSON.stringify(data.user));
+            const actualData = responseData.data
+                ? responseData.data
+                : responseData;
 
-            const role = data.user?.role;
+            if (!actualData.token || !actualData.user) {
+                throw new Error(
+                    "Token yoki foydalanuvchi ma'lumotlari kelmadi!",
+                );
+            }
 
-            if (role === "SUPER_ADMIN" || role === "HR_ADMIN") {
+            localStorage.setItem("token", actualData.token);
+            localStorage.setItem("user", JSON.stringify(actualData.user));
+
+            const role = actualData.user?.role;
+
+            if (role === "SUPER_ADMIN") {
                 router.push(`/${locale}/dashboard`);
+            } else if (role === "HR_ADMIN") {
+                router.push(`/${locale}/hr/dashboard`);
             } else if (role === "MANAGER") {
                 router.push(`/${locale}/manager/okr`);
             } else if (role === "RECRUITER") {
