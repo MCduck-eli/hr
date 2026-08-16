@@ -1,9 +1,8 @@
-import { GetEvents } from "./../../generated/prisma/internal/prismaNamespace";
 import {
     addLessonSchema,
     addResourceSchema,
+    assignAcademySchema,
     createCategorySchema,
-    createCourseSchema,
     createEventSchema,
     submitQuizSchema,
 } from "./academy-validation";
@@ -11,6 +10,25 @@ import { Router } from "express";
 import { authenticate, authorize } from "../../middlewares/auth-middleware";
 import { academyController } from "./academy-controller";
 import { validate } from "../../middlewares/validate-middleware";
+import multer from "multer";
+import fs from "fs";
+
+const uploadDir = "uploads/";
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9.]/g, "_");
+        cb(null, `${Date.now()}-${safeName}`);
+    },
+});
+
+const upload = multer({ storage });
 
 const academyRouter = Router();
 
@@ -41,8 +59,17 @@ academyRouter.post(
 academyRouter.post(
     "/courses",
     authorize("SUPER_ADMIN", "HR_ADMIN"),
-    validate(createCourseSchema),
+    upload.fields([
+        { name: "cover", maxCount: 1 },
+        { name: "video", maxCount: 1 },
+    ]),
     academyController.createCourse,
+);
+
+academyRouter.delete(
+    "/courses/:courseId",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    academyController.deleteCourse,
 );
 
 academyRouter.post(
@@ -70,6 +97,22 @@ academyRouter.post(
     authorize("SUPER_ADMIN", "HR_ADMIN"),
     validate(createEventSchema),
     academyController.createEvent,
+);
+
+academyRouter.patch(
+    "/courses/:courseId",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    upload.fields([
+        { name: "cover", maxCount: 1 },
+        { name: "video", maxCount: 1 },
+    ]),
+    academyController.updateCourse,
+);
+academyRouter.post(
+    "/assign",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    validate(assignAcademySchema),
+    academyController.assignAcademy,
 );
 
 export default academyRouter;

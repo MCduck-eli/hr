@@ -1,9 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import EmployeeAssigner from "../components/employee-assigner";
 
 export default function HRAdminDashboard() {
     const t = useTranslations("HRDashboard");
+    const params = useParams();
+    const locale = params.locale as string;
 
     return (
         <div className="max-w-[1400px] mx-auto p-8">
@@ -14,42 +19,68 @@ export default function HRAdminDashboard() {
                 {t("welcome")}
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4">
-                    <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
-                        <span className="text-lg">👥</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
+                <Link href={`/${locale}/hr/employees`}>
+                    <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4 h-full">
+                        <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">👥</span>
+                        </div>
+                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
+                            {t("employees")}
+                        </h2>
                     </div>
-                    <h2 className="text-sm font-black uppercase tracking-wider text-black">
-                        {t("employees")}
-                    </h2>
-                </div>
+                </Link>
 
-                <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4">
-                    <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
-                        <span className="text-lg">🎯</span>
+                <Link href={`/${locale}/hr/recruiting`}>
+                    <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4 h-full">
+                        <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">🎯</span>
+                        </div>
+                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
+                            {t("recruiting")}
+                        </h2>
                     </div>
-                    <h2 className="text-sm font-black uppercase tracking-wider text-black">
-                        {t("recruiting")}
-                    </h2>
-                </div>
+                </Link>
 
-                <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4">
-                    <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
-                        <span className="text-lg">🚀</span>
+                <Link href={`/${locale}/hr/onboarding`}>
+                    <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4 h-full">
+                        <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">🚀</span>
+                        </div>
+                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
+                            {t("onboarding")}
+                        </h2>
                     </div>
-                    <h2 className="text-sm font-black uppercase tracking-wider text-black">
-                        {t("onboarding")}
-                    </h2>
-                </div>
+                </Link>
 
-                <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4">
-                    <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
-                        <span className="text-lg">📚</span>
+                <Link href={`/${locale}/hr/regulations`}>
+                    <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4 h-full">
+                        <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">⚖️</span>
+                        </div>
+                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
+                            {t("regulations")}
+                        </h2>
                     </div>
-                    <h2 className="text-sm font-black uppercase tracking-wider text-black">
-                        {t("academy")}
-                    </h2>
-                </div>
+                </Link>
+
+                <Link href={`/${locale}/hr/academy`}>
+                    <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4 h-full">
+                        <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">📚</span>
+                        </div>
+                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
+                            {t("academy")}
+                        </h2>
+                    </div>
+                </Link>
+            </div>
+
+            <div className="mt-12">
+                <h2 className="text-2xl font-bold tracking-tight mb-6 text-black">
+                    {t("assignerTitle")}
+                </h2>
+                <EmployeeAssigner />
             </div>
         </div>
     );

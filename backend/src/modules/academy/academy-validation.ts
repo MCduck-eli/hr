@@ -55,3 +55,9 @@ export const submitQuizSchema = z.object({
         ),
     }),
 });
+
+export const assignAcademySchema = z.object({
+    body: z.object({
+        employeeId: z.string().uuid(),
+    }),
+});

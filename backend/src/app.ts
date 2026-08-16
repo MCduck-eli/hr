@@ -6,10 +6,32 @@ import { errorHandler } from "./middlewares/error-middleware";
 
 const app: Application = express();
 
-app.use(helmet());
+app.use(
+    helmet({
+        crossOriginResourcePolicy: false,
+    }),
+);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(
+    "/uploads",
+    express.static("uploads", {
+        setHeaders: (res) => {
+            res.set("Cross-Origin-Resource-Policy", "cross-origin");
+        },
+    }),
+);
+
+app.use(
+    "/v1/uploads",
+    express.static("uploads", {
+        setHeaders: (res) => {
+            res.set("Cross-Origin-Resource-Policy", "cross-origin");
+        },
+    }),
+);
 
 app.use("/api", mainRouter);
 

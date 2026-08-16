@@ -1,4 +1,5 @@
 import { Role } from "@prisma/client";
+import "multer";
 
 declare global {
     namespace Express {
@@ -8,6 +9,10 @@ declare global {
                 email: string;
                 role: Role;
             };
+            file?: Express.Multer.File;
+            files?:
+                | { [fieldname: string]: Express.Multer.File[] }
+                | Express.Multer.File[];
         }
     }
 }

@@ -22,8 +22,42 @@ export class AcademyController {
 
     async createCourse(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await academyService.createCourse(req.body);
+            const files = req.files as {
+                [fieldname: string]: Express.Multer.File[];
+            };
+            const coverUrl = files?.cover
+                ? `/uploads/${files.cover[0].filename}`
+                : undefined;
+            const videoUrl = files?.video
+                ? `/uploads/${files.video[0].filename}`
+                : undefined;
+
+            const payload = {
+                ...req.body,
+                isRequired:
+                    req.body.isRequired === "true" ||
+                    req.body.isRequired === true,
+                coverUrl,
+                videoUrl,
+            };
+
+            const result = await academyService.createCourse(payload);
             res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteCourse(
+        req: Request<{ courseId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await academyService.deleteCourse(
+                req.params.courseId,
+            );
+            res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
         }
@@ -165,6 +199,47 @@ export class AcademyController {
             const userId = (req as any).user.id;
             const result = await academyService.getMyCertificates(userId);
             res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateCourse(
+        req: Request<{ courseId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const files = req.files as {
+                [fieldname: string]: Express.Multer.File[];
+            };
+            const updateData: any = { ...req.body };
+
+            if (req.body.isRequired !== undefined) {
+                updateData.isRequired =
+                    req.body.isRequired === "true" ||
+                    req.body.isRequired === true;
+            }
+            if (files?.cover) {
+                updateData.coverUrl = `/uploads/${files.cover[0].filename}`;
+            }
+            if (files?.video) {
+                updateData.videoUrl = `/uploads/${files.video[0].filename}`;
+            }
+
+            const result = await academyService.updateCourse(
+                req.params.courseId,
+                updateData,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+    async assignAcademy(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await academyService.assignAcademy(req.body);
+            res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
         }

@@ -16,11 +16,26 @@ export class AcademyService {
         title: string;
         description?: string;
         coverUrl?: string;
+        videoUrl?: string;
         isRequired?: boolean;
         categoryId?: string;
     }) {
         return prisma.academyCourse.create({
             data: payload,
+        });
+    }
+
+    async deleteCourse(courseId: string) {
+        const course = await prisma.academyCourse.findUnique({
+            where: { id: courseId },
+        });
+
+        if (!course) {
+            throw new AppError("Course not found", 404);
+        }
+
+        return prisma.academyCourse.delete({
+            where: { id: courseId },
         });
     }
 
@@ -70,10 +85,6 @@ export class AcademyService {
             where: { userId },
         });
 
-        if (!employee) {
-            throw new AppError("Employee profile not found", 404);
-        }
-
         const where: any = {};
         if (categoryId) {
             where.categoryId = categoryId;
@@ -86,17 +97,19 @@ export class AcademyService {
                 _count: {
                     select: { lessons: true, quizzes: true, resources: true },
                 },
-                progress: {
-                    where: { employeeId: employee.id },
-                },
+                progress: employee
+                    ? {
+                          where: { employeeId: employee.id },
+                      }
+                    : false,
             },
             orderBy: { createdAt: "desc" },
         });
 
-        return courses.map((course) => ({
+        return courses.map((course: any) => ({
             ...course,
-            isCompleted: course.progress[0]?.isCompleted || false,
-            quizScore: course.progress[0]?.quizScore || null,
+            isCompleted: course.progress?.[0]?.isCompleted || false,
+            quizScore: course.progress?.[0]?.quizScore || null,
         }));
     }
 
@@ -281,6 +294,54 @@ export class AcademyService {
             where: { employeeId: employee.id },
             include: { course: true },
         });
+    }
+    async updateCourse(
+        courseId: string,
+        payload: {
+            title?: string;
+            description?: string;
+            coverUrl?: string;
+            videoUrl?: string;
+            isRequired?: boolean;
+            categoryId?: string;
+        },
+    ) {
+        const course = await prisma.academyCourse.findUnique({
+            where: { id: courseId },
+        });
+
+        if (!course) {
+            throw new AppError("Course not found", 404);
+        }
+
+        return prisma.academyCourse.update({
+            where: { id: courseId },
+            data: payload,
+        });
+    }
+    async assignAcademy(payload: { employeeId: string }) {
+        const courses = await prisma.academyCourse.findMany();
+
+        const assignments = await Promise.all(
+            courses.map((course) =>
+                prisma.courseProgress.upsert({
+                    where: {
+                        courseId_employeeId: {
+                            employeeId: payload.employeeId,
+                            courseId: course.id,
+                        },
+                    },
+                    update: {},
+                    create: {
+                        employeeId: payload.employeeId,
+                        courseId: course.id,
+                        isCompleted: false,
+                    },
+                }),
+            ),
+        );
+
+        return assignments;
     }
 }
 

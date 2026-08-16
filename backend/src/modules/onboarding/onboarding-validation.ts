@@ -29,8 +29,6 @@ export const createTemplateSchema = z.object({
 export const assignOnboardingSchema = z.object({
     body: z.object({
         employeeId: z.string().uuid(),
-        templateId: z.string().uuid(),
-        mentorId: z.string().uuid().optional(),
     }),
 });
 

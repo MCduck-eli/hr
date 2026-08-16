@@ -6,6 +6,9 @@ export class OnboardingService {
     async createTemplate(payload: {
         title: string;
         description?: string;
+        coverUrl?: string;
+        videoUrl?: string;
+        isRequired?: boolean;
         departmentId?: string;
         tasks?: { title: string; description?: string; stage: any }[];
         courses?: { title: string; videoUrl: string; description?: string }[];
@@ -14,6 +17,9 @@ export class OnboardingService {
             data: {
                 title: payload.title,
                 description: payload.description,
+                coverUrl: payload.coverUrl,
+                videoUrl: payload.videoUrl,
+                isRequired: payload.isRequired,
                 departmentId: payload.departmentId,
                 tasks: payload.tasks ? { create: payload.tasks } : undefined,
                 courses: payload.courses
@@ -24,19 +30,13 @@ export class OnboardingService {
         });
     }
 
-    async assignOnboarding(payload: {
-        employeeId: string;
-        templateId: string;
-        mentorId?: string;
-    }) {
-        const template = await prisma.onboardingTemplate.findUnique({
-            where: { id: payload.templateId },
+    async assignOnboarding(payload: { employeeId: string; mentorId?: string }) {
+        const allTemplates = await prisma.onboardingTemplate.findMany({
             include: { tasks: true, courses: true },
         });
 
-        if (!template) {
-            throw new AppError("Template not found", 404);
-        }
+        const allTasks = allTemplates.flatMap((t) => t.tasks);
+        const allCourses = allTemplates.flatMap((t) => t.courses);
 
         const onboarding = await prisma.employeeOnboarding.create({
             data: {
@@ -46,18 +46,18 @@ export class OnboardingService {
             },
         });
 
-        if (template.tasks.length > 0) {
+        if (allTasks.length > 0) {
             await prisma.employeeOnboardingTask.createMany({
-                data: template.tasks.map((t) => ({
+                data: allTasks.map((t) => ({
                     onboardingId: onboarding.id,
                     taskId: t.id,
                 })),
             });
         }
 
-        if (template.courses.length > 0) {
+        if (allCourses.length > 0) {
             await prisma.employeeOnboardingCourse.createMany({
-                data: template.courses.map((c) => ({
+                data: allCourses.map((c) => ({
                     onboardingId: onboarding.id,
                     courseId: c.id,
                 })),
@@ -135,6 +135,52 @@ export class OnboardingService {
                 courses: true,
             },
             orderBy: { createdAt: "desc" },
+        });
+    }
+
+    async getAllTemplates() {
+        return prisma.onboardingTemplate.findMany({
+            include: { tasks: true, courses: true },
+            orderBy: { createdAt: "desc" },
+        });
+    }
+
+    async updateTemplate(
+        templateId: string,
+        payload: {
+            title?: string;
+            description?: string;
+            coverUrl?: string;
+            videoUrl?: string;
+            isRequired?: boolean;
+        },
+    ) {
+        const template = await prisma.onboardingTemplate.findUnique({
+            where: { id: templateId },
+        });
+
+        if (!template) {
+            throw new AppError("Template not found", 404);
+        }
+
+        return prisma.onboardingTemplate.update({
+            where: { id: templateId },
+            data: payload,
+            include: { tasks: true, courses: true },
+        });
+    }
+
+    async deleteTemplate(templateId: string) {
+        const template = await prisma.onboardingTemplate.findUnique({
+            where: { id: templateId },
+        });
+
+        if (!template) {
+            throw new AppError("Template not found", 404);
+        }
+
+        return prisma.onboardingTemplate.delete({
+            where: { id: templateId },
         });
     }
 }

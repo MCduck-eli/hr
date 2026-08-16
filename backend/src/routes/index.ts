@@ -19,6 +19,7 @@ import discRouter from "../modules/disc/disc-route";
 import feedback360Router from "../modules/feedback360/feedback360-route";
 import gradingRouter from "../modules/grading/grading-route";
 import notificationRouter from "../modules/notification/notification-route";
+import dashboardRouter from "../modules/dashboard/dashboard-routes";
 
 const mainRouter = Router();
 
@@ -42,5 +43,6 @@ mainRouter.use("/v1/disc", discRouter);
 mainRouter.use("/v1/feedback-360", feedback360Router);
 mainRouter.use("/v1/grading", gradingRouter);
 mainRouter.use("/v1/notifications", notificationRouter);
+mainRouter.use("/v1/employee", dashboardRouter);
 
 export default mainRouter;
