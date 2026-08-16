@@ -1,14 +1,35 @@
 "use client";
 
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import EmployeeAssigner from "../components/employee-assigner";
+import HRMonitoring from "../components/hr-monitoring";
 
 export default function HRAdminDashboard() {
     const t = useTranslations("HRDashboard");
     const params = useParams();
     const locale = params.locale as string;
+
+    const router = useRouter();
+
+    useEffect(() => {
+        const userStr = localStorage.getItem("user");
+        const token = localStorage.getItem("token");
+        if (!userStr || !token) {
+            router.push(`/${locale}/login`);
+            return;
+        }
+        try {
+            const user = JSON.parse(userStr);
+            if (user.role !== "HR_ADMIN" && user.role !== "SUPER_ADMIN") {
+                router.push(`/${locale}/profile`);
+            }
+        } catch (e) {
+            router.push(`/${locale}/login`);
+        }
+    }, [locale, router]);
 
     return (
         <div className="max-w-[1400px] mx-auto p-8">
@@ -81,6 +102,9 @@ export default function HRAdminDashboard() {
                     {t("assignerTitle")}
                 </h2>
                 <EmployeeAssigner />
+            </div>
+            <div className="mt-16 pt-8 border-t border-gray-200">
+                <HRMonitoring />
             </div>
         </div>
     );

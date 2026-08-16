@@ -15,10 +15,19 @@ export default function Navbar() {
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userRole, setUserRole] = useState("");
+    const [hasOriginalAdmin, setHasOriginalAdmin] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
+        const originalAdminUser = localStorage.getItem("originalAdminUser");
+        
+        if (originalAdminUser) {
+            setHasOriginalAdmin(true);
+        } else {
+            setHasOriginalAdmin(false);
+        }
+
         if (token && userStr) {
             setIsLoggedIn(true);
             try {
@@ -28,10 +37,23 @@ export default function Navbar() {
         }
     }, [pathname]);
 
+    const handleReturnToAdmin = () => {
+        const originalAdminUser = localStorage.getItem("originalAdminUser");
+        if (originalAdminUser) {
+            localStorage.setItem("user", originalAdminUser);
+            localStorage.removeItem("originalAdminUser");
+            setHasOriginalAdmin(false);
+            router.push(`/${locale}/dashboard`);
+        }
+    };
+
     const handleLogout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        localStorage.removeItem("originalAdminUser");
+        document.cookie = "token=; path=/; max-age=0";
         setIsLoggedIn(false);
+        setHasOriginalAdmin(false);
         router.push(`/${locale}/login`);
     };
 
@@ -113,6 +135,14 @@ export default function Navbar() {
 
                     {isLoggedIn ? (
                         <div className="flex items-center gap-4">
+                            {hasOriginalAdmin && (
+                                <button
+                                    onClick={handleReturnToAdmin}
+                                    className="text-[12px] font-bold uppercase tracking-wider text-green-600 hover:text-green-800 transition-colors flex items-center gap-1 mr-2"
+                                >
+                                    <span>&larr;</span> {t("returnToAdmin") || "Qaytish"}
+                                </button>
+                            )}
                             <Link
                                 href={getDashboardLink()}
                                 className="text-[12px] font-bold uppercase tracking-wider text-black hover:opacity-70 flex items-center gap-1"

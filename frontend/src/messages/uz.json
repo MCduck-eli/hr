@@ -5,7 +5,8 @@
         "disc": "DISC",
         "feedback": "360 Baholash",
         "login": "KIRISH",
-        "signup": "RO'YHATDAN O'TISH"
+        "signup": "RO'YHATDAN O'TISH",
+        "returnToAdmin": "Adminga Qaytish"
     },
     "Home": {
         "title": "HR Platformasi",
@@ -119,7 +120,16 @@
         "activeCourses": "Faol Kurslar",
         "continueCourse": "Davom etish",
         "courseCorporate": "Korporativ Etika",
-        "courseReact": "Murakkab React naqshlari"
+        "courseReact": "Murakkab React naqshlari",
+        "loading": "Yuklanmoqda...",
+        "roleEmployee": "Xodim",
+        "gradeMiddle": "Middle (2-daraja)",
+        "goToAcademy": "Akademiyaga o'tish",
+        "noPendingCourses": "Kutilayotgan kurslar yo'q",
+        "viewCourses": "Kurslarni ko'rish",
+        "noRecentActivities": "Faolliklar tarixi bo'sh",
+        "onboardingBadge": "Onboarding",
+        "academyBadge": "Academy"
     },
     "AcademyPage": {
         "title": "O'quv Akademiyasi",
@@ -129,7 +139,21 @@
         "certificates": "Mening Sertifikatlarim",
         "trainingCalendar": "Trening Kalendari",
         "register": "Ro'yxatdan o'tish",
-        "downloadCertificate": "Sertifikatni Yuklab Olish"
+        "downloadCertificate": "Sertifikatni Yuklab Olish",
+        "noCoursesAssigned": "Hozircha sizga hech qanday kurs biriktirilmagan",
+        "onboardingProgram": "Onboarding Dasturi",
+        "academyCourses": "Akademiya Kurslari",
+        "completed": "Ko'rildi",
+        "new": "Yangi",
+        "progress": "% bajarildi",
+        "view": "Ko'rish",
+        "academyCourseBadge": "Akademiya Kursi",
+        "onboardingBadge": "Onboarding Dasturi",
+        "finish": "Tugatish",
+        "close": "Yopish",
+        "courseCompleted": "Kurs yakunlangan",
+        "inProgress": "Jarayonda...",
+        "noDescription": "Ushbu dars uchun qo'shimcha ma'lumot kiritilmagan. Yuqoridagi material bilan tanishib chiqing."
     },
     "EmployeeAssigner": {
         "title": "Xodimlarni Biriktirish",
@@ -190,8 +214,21 @@
         "deleteBtn": "O'chirish",
         "deleteConfirm": "Haqiqatan ham bu kursni o'chirmoqchimisiz?",
         "successUpdate": "Kurs muvaffaqiyatli yangilandi!",
+        "successUpdate": "Kurs muvaffaqiyatli yangilandi!",
         "successAdd": "Kurs muvaffaqiyatli qo'shildi!",
         "successDelete": "Kurs muvaffaqiyatli o'chirildi!",
         "errorDefault": "Amaliyot bajarilmadi"
+    },
+    "HRMonitoring": {
+        "loading": "Ma'lumotlar yuklanmoqda...",
+        "title": "Xodimlar Monitoringi",
+        "noCourses": "Hozircha biriktirilgan kurslar yo'q",
+        "noDepartment": "Bo'lim belgilanmagan",
+        "totalProgress": "Jami taraqqiyot",
+        "tasks": "Vazifalar:",
+        "courses": "Kurslar:",
+        "completed": "Yakunlangan",
+        "inProgress": "Jarayonda",
+        "notStarted": "Boshlanmagan"
     }
 }

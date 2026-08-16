@@ -39,6 +39,7 @@ export default function LoginPage() {
 
             localStorage.setItem("token", actualData.token);
             localStorage.setItem("user", JSON.stringify(actualData.user));
+            document.cookie = `token=${actualData.token}; path=/; max-age=86400`;
 
             const role = actualData.user?.role;
 

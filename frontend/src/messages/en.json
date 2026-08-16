@@ -5,7 +5,8 @@
         "disc": "DISC",
         "feedback": "360 Feedback",
         "login": "LOGIN",
-        "signup": "SIGN UP"
+        "signup": "SIGN UP",
+        "returnToAdmin": "Return to Admin"
     },
     "Home": {
         "title": "Meet HR Platform",
@@ -119,7 +120,39 @@
         "activeCourses": "Active Courses",
         "continueCourse": "Continue",
         "courseCorporate": "Corporate Ethics",
-        "courseReact": "Advanced React Patterns"
+        "courseReact": "Advanced React Patterns",
+        "loading": "Loading...",
+        "roleEmployee": "Employee",
+        "gradeMiddle": "Middle (Grade 2)",
+        "goToAcademy": "Go to Academy",
+        "noPendingCourses": "No pending courses",
+        "viewCourses": "View Courses",
+        "noRecentActivities": "Recent activities is empty",
+        "onboardingBadge": "Onboarding",
+        "academyBadge": "Academy"
+    },
+    "AcademyPage": {
+        "title": "Learning Academy",
+        "subtitle": "Training programs assigned to you",
+        "coursesList": "All Courses",
+        "certificates": "My Certificates",
+        "trainingCalendar": "Training Calendar",
+        "register": "Register",
+        "downloadCertificate": "Download Certificate",
+        "noCoursesAssigned": "No courses assigned to you yet",
+        "onboardingProgram": "Onboarding Program",
+        "academyCourses": "Academy Courses",
+        "completed": "Completed",
+        "new": "New",
+        "progress": "% completed",
+        "view": "View",
+        "academyCourseBadge": "Academy Course",
+        "onboardingBadge": "Onboarding Program",
+        "finish": "Finish",
+        "close": "Close",
+        "courseCompleted": "Course completed",
+        "inProgress": "In progress...",
+        "noDescription": "No additional information provided for this lesson. Please review the material above."
     },
     "EmployeeAssigner": {
         "title": "Assign Employees",
@@ -180,8 +213,21 @@
         "deleteBtn": "Delete",
         "deleteConfirm": "Are you sure you want to delete this course?",
         "successUpdate": "Course successfully updated!",
+        "successUpdate": "Course successfully updated!",
         "successAdd": "Course successfully added!",
         "successDelete": "Course successfully deleted!",
         "errorDefault": "Operation failed"
+    },
+    "HRMonitoring": {
+        "loading": "Loading data...",
+        "title": "Employee Monitoring",
+        "noCourses": "No courses assigned yet",
+        "noDepartment": "No department assigned",
+        "totalProgress": "Total Progress",
+        "tasks": "Tasks:",
+        "courses": "Courses:",
+        "completed": "Completed",
+        "inProgress": "In Progress",
+        "notStarted": "Not Started"
     }
 }

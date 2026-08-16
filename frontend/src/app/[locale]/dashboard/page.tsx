@@ -40,8 +40,24 @@ export default function SuperAdminDashboard() {
     };
 
     useEffect(() => {
+        const userStr = localStorage.getItem("user");
+        if (!userStr) {
+            router.push(`/${locale}/login`);
+            return;
+        }
+        try {
+            const user = JSON.parse(userStr);
+            if (user.role !== "SUPER_ADMIN") {
+                router.push(`/${locale}/profile`);
+                return;
+            }
+        } catch (err) {
+            router.push(`/${locale}/login`);
+            return;
+        }
+
         fetchUsers();
-    }, []);
+    }, [locale, router]);
 
     const generateCredentials = () => {
         const generatedEmail =
@@ -153,6 +169,10 @@ export default function SuperAdminDashboard() {
     };
 
     const handleLoginAs = (user: any) => {
+        const currentUser = localStorage.getItem("user");
+        if (currentUser) {
+            localStorage.setItem("originalAdminUser", currentUser);
+        }
         localStorage.setItem("user", JSON.stringify(user));
 
         if (user.role === "SUPER_ADMIN") {

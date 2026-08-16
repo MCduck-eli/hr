@@ -5,7 +5,8 @@
         "disc": "DISC",
         "feedback": "Оценка 360",
         "login": "ВОЙТИ",
-        "signup": "РЕГИСТРАЦИЯ"
+        "signup": "РЕГИСТРАЦИЯ",
+        "returnToAdmin": "Вернуться к админке"
     },
     "Home": {
         "title": "HR Платформа",
@@ -119,7 +120,39 @@
         "activeCourses": "Активные курсы",
         "continueCourse": "Продолжить",
         "courseCorporate": "Корпоративная этика",
-        "courseReact": "Продвинутые паттерны React"
+        "courseReact": "Продвинутые паттерны React",
+        "loading": "Загрузка...",
+        "roleEmployee": "Сотрудник",
+        "gradeMiddle": "Middle (Грейд 2)",
+        "goToAcademy": "Перейти в академию",
+        "noPendingCourses": "Нет ожидающих курсов",
+        "viewCourses": "Посмотреть курсы",
+        "noRecentActivities": "История активности пуста",
+        "onboardingBadge": "Онбординг",
+        "academyBadge": "Академия"
+    },
+    "AcademyPage": {
+        "title": "Учебная Академия",
+        "subtitle": "Учебные программы, назначенные вам",
+        "coursesList": "Все курсы",
+        "certificates": "Мои сертификаты",
+        "trainingCalendar": "Календарь тренингов",
+        "register": "Регистрация",
+        "downloadCertificate": "Скачать сертификат",
+        "noCoursesAssigned": "Вам пока не назначено никаких курсов",
+        "onboardingProgram": "Программа онбординга",
+        "academyCourses": "Курсы академии",
+        "completed": "Пройдено",
+        "new": "Новый",
+        "progress": "% выполнено",
+        "view": "Смотреть",
+        "academyCourseBadge": "Курс Академии",
+        "onboardingBadge": "Программа онбординга",
+        "finish": "Завершить",
+        "close": "Закрыть",
+        "courseCompleted": "Курс завершен",
+        "inProgress": "В процессе...",
+        "noDescription": "Дополнительная информация для этого урока не предоставлена. Ознакомьтесь с материалом выше."
     },
     "EmployeeAssigner": {
         "title": "Назначение сотрудников",
@@ -180,8 +213,21 @@
         "deleteBtn": "Удалить",
         "deleteConfirm": "Вы действительно хотите удалить этот курс?",
         "successUpdate": "Курс успешно обновлен!",
+        "successUpdate": "Курс успешно обновлен!",
         "successAdd": "Курс успешно добавлен!",
         "successDelete": "Курс успешно удален!",
         "errorDefault": "Операция не удалась"
+    },
+    "HRMonitoring": {
+        "loading": "Загрузка данных...",
+        "title": "Мониторинг сотрудников",
+        "noCourses": "Пока нет назначенных курсов",
+        "noDepartment": "Отдел не указан",
+        "totalProgress": "Общий прогресс",
+        "tasks": "Задачи:",
+        "courses": "Курсы:",
+        "completed": "Завершено",
+        "inProgress": "В процессе",
+        "notStarted": "Не начато"
     }
 }

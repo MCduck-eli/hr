@@ -14,14 +14,19 @@ export default function EmployeeProfilePage() {
 
     useEffect(() => {
         const userStr = localStorage.getItem("user");
-        if (userStr) {
-            try {
-                setCurrentUser(JSON.parse(userStr));
-            } catch (e) {
-                console.error(e);
-            }
+        const token = localStorage.getItem("token");
+        if (!userStr || !token) {
+            const locale = window.location.pathname.split("/")[1] || "uz";
+            router.push(`/${locale}/login`);
+            return;
         }
-    }, []);
+        try {
+            setCurrentUser(JSON.parse(userStr));
+        } catch (e) {
+            const locale = window.location.pathname.split("/")[1] || "uz";
+            router.push(`/${locale}/login`);
+        }
+    }, [router]);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -35,18 +40,14 @@ export default function EmployeeProfilePage() {
                     },
                 });
 
-                const textData = await res.text();
-
                 if (!res.ok) {
-                    throw new Error(
-                        `Xato status: ${res.status}. Backend javobi: ${textData}`,
-                    );
+                    setLoading(false);
+                    return;
                 }
 
-                const data = JSON.parse(textData);
-                setDashboardData(data.data);
+                const data = await res.json();
+                setDashboardData(data.data || data);
             } catch (err) {
-                console.error("Dashboard fetch xatosi:", err);
             } finally {
                 setLoading(false);
             }
@@ -55,12 +56,13 @@ export default function EmployeeProfilePage() {
         fetchDashboardData();
     }, []);
 
-    if (!currentUser || loading) return <div className="p-8">Loading...</div>;
+    if (!currentUser || loading)
+        return <div className="p-8">{t("loading")}</div>;
 
     const firstName =
         currentUser.employee?.firstName || currentUser.email.split("@")[0];
     const roleName =
-        currentUser.role === "EMPLOYEE" ? "Employee" : currentUser.role;
+        currentUser.role === "EMPLOYEE" ? t("roleEmployee") : currentUser.role;
 
     const stats = [
         {
@@ -101,7 +103,7 @@ export default function EmployeeProfilePage() {
                     {t("welcomeBack")} <br className="md:hidden" /> {firstName}
                 </h1>
                 <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
-                    {roleName} • Middle (Grade 2)
+                    {roleName} • {t("gradeMiddle")}
                 </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -126,67 +128,64 @@ export default function EmployeeProfilePage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-2 flex flex-col gap-12">
                     <div className="flex flex-col gap-6">
-                        <div className="flex justify-between items-center border-b border-gray-200 pb-4">
-                            <h2 className="text-lg font-bold uppercase tracking-wider">
-                                {t("activeCourses")}
+                        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+                            <h2 className="text-lg font-bold uppercase tracking-wider text-black">
+                                {t("activeCourses") || "FAOL KURSLAR"}
                             </h2>
                             <button
-                                onClick={() => router.push("/academy")}
-                                className="text-xs font-bold uppercase tracking-widest text-black hover:underline"
+                                onClick={() => {
+                                    const locale =
+                                        window.location.pathname.split(
+                                            "/",
+                                        )[1] || "uz";
+                                    router.push(`/${locale}/academy`);
+                                }}
+                                className="text-xs font-bold text-black uppercase tracking-widest hover:underline"
                             >
-                                Akademiyaga o&apos;tish &rarr;
+                                {t("goToAcademy") || "AKADEMIYAGA O'TISH →"}
                             </button>
                         </div>
 
-                        {activeCourses.length === 0 ? (
-                            <div className="p-6 border border-gray-200 bg-white flex flex-col gap-4">
+                        <div className="flex flex-col gap-3">
+                            {activeCourses.length === 0 ? (
                                 <p className="text-sm text-gray-500">
-                                    Kutilyotgan kurslar yo&apos;q
+                                    {t("noActiveCourses") ||
+                                        "Hozircha sizga hech qanday kurs biriktirilmagan"}
                                 </p>
-                                <button
-                                    onClick={() => router.push("/academy")}
-                                    className="w-full py-3 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors"
-                                >
-                                    Kurslarni ko&apos;rish
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {activeCourses.map(
-                                    (course: any, index: number) => (
+                            ) : (
+                                activeCourses.map(
+                                    (course: any, idx: number) => (
                                         <div
-                                            key={index}
-                                            className="p-5 border border-gray-200 bg-white flex flex-col gap-4"
+                                            key={idx}
+                                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 border border-gray-200 gap-4"
                                         >
-                                            <h3 className="text-sm font-bold text-black">
-                                                {course.title}
-                                            </h3>
-                                            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                            <div className="flex items-center gap-4">
                                                 <div
-                                                    className="bg-black h-full"
-                                                    style={{
-                                                        width: `${course.progress}%`,
-                                                    }}
-                                                ></div>
+                                                    className={`w-2 h-2 rounded-full shrink-0 ${course.isCompleted ? "bg-gray-300" : "bg-black"}`}
+                                                />
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-black line-clamp-1">
+                                                        {course.title}
+                                                    </span>
+                                                    <span className={`mt-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full w-fit ${course.type === 'ONBOARDING' || course.type === 'ONBOARDING_TASK' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                        {course.type === 'ONBOARDING' || course.type === 'ONBOARDING_TASK' ? t("onboardingBadge") : t("academyBadge")}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-between items-center mt-2">
-                                                <span className="text-xs font-bold text-gray-500">
-                                                    {course.progress}%
-                                                </span>
-                                                <button
-                                                    onClick={() =>
-                                                        router.push("/academy")
-                                                    }
-                                                    className="text-[10px] font-bold uppercase tracking-widest text-black hover:underline"
+                                            <div className="flex items-center gap-3 shrink-0">
+                                                <span
+                                                    className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${course.isCompleted ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}
                                                 >
-                                                    {t("continueCourse")}
-                                                </button>
+                                                    {course.isCompleted
+                                                        ? "O'qilgan"
+                                                        : "Yangi"}
+                                                </span>
                                             </div>
                                         </div>
                                     ),
-                                )}
-                            </div>
-                        )}
+                                )
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-6">
@@ -196,7 +195,7 @@ export default function EmployeeProfilePage() {
                         <div className="flex flex-col gap-4">
                             {recentActivities.length === 0 ? (
                                 <p className="text-sm text-gray-500">
-                                    Faolliklar tarixi bo&apos;sh
+                                    {t("noRecentActivities")}
                                 </p>
                             ) : (
                                 recentActivities.map(

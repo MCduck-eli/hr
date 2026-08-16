@@ -13,6 +13,16 @@ export class OnboardingService {
         tasks?: { title: string; description?: string; stage: any }[];
         courses?: { title: string; videoUrl: string; description?: string }[];
     }) {
+        const coursesToCreate = payload.courses ? [...payload.courses] : [];
+
+        if (payload.videoUrl && coursesToCreate.length === 0) {
+            coursesToCreate.push({
+                title: payload.title,
+                description: payload.description,
+                videoUrl: payload.videoUrl,
+            });
+        }
+
         return prisma.onboardingTemplate.create({
             data: {
                 title: payload.title,
@@ -21,10 +31,14 @@ export class OnboardingService {
                 videoUrl: payload.videoUrl,
                 isRequired: payload.isRequired,
                 departmentId: payload.departmentId,
-                tasks: payload.tasks ? { create: payload.tasks } : undefined,
-                courses: payload.courses
-                    ? { create: payload.courses }
-                    : undefined,
+                tasks:
+                    payload.tasks && payload.tasks.length > 0
+                        ? { create: payload.tasks }
+                        : undefined,
+                courses:
+                    coursesToCreate.length > 0
+                        ? { create: coursesToCreate }
+                        : undefined,
             },
             include: { tasks: true, courses: true },
         });
@@ -37,9 +51,12 @@ export class OnboardingService {
 
         const allTasks = allTemplates.flatMap((t) => t.tasks);
         const allCourses = allTemplates.flatMap((t) => t.courses);
-
-        const onboarding = await prisma.employeeOnboarding.create({
-            data: {
+        const onboarding = await prisma.employeeOnboarding.upsert({
+            where: { employeeId: payload.employeeId },
+            update: {
+                mentorId: payload.mentorId,
+            },
+            create: {
                 employeeId: payload.employeeId,
                 mentorId: payload.mentorId,
                 status: TaskStatus.IN_PROGRESS,
@@ -52,6 +69,7 @@ export class OnboardingService {
                     onboardingId: onboarding.id,
                     taskId: t.id,
                 })),
+                skipDuplicates: true,
             });
         }
 
@@ -61,6 +79,7 @@ export class OnboardingService {
                     onboardingId: onboarding.id,
                     courseId: c.id,
                 })),
+                skipDuplicates: true,
             });
         }
 
@@ -116,25 +135,60 @@ export class OnboardingService {
             },
         });
     }
-
     async getHRDashboardMonitoring() {
-        return prisma.employeeOnboarding.findMany({
+        const employees = await prisma.employee.findMany({
             include: {
-                employee: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        department: true,
+                department: true,
+                courseProgresses: {
+                    include: { course: true },
+                },
+                onboarding: {
+                    include: {
+                        mentor: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                            },
+                        },
+                        tasks: { include: { task: true } },
+                        courses: { include: { course: true } },
                     },
                 },
-                mentor: {
-                    select: { id: true, firstName: true, lastName: true },
-                },
-                tasks: true,
-                courses: true,
             },
             orderBy: { createdAt: "desc" },
+        });
+
+        const filteredEmployees = employees.filter((emp) => {
+            const hasAcademyCourses =
+                emp.courseProgresses && emp.courseProgresses.length > 0;
+            const hasOnboardingTasks =
+                emp.onboarding?.tasks && emp.onboarding.tasks.length > 0;
+            const hasOnboardingCourses =
+                emp.onboarding?.courses && emp.onboarding.courses.length > 0;
+
+            return (
+                hasAcademyCourses || hasOnboardingTasks || hasOnboardingCourses
+            );
+        });
+
+        return filteredEmployees.map((emp) => {
+            const onboarding = emp.onboarding;
+            return {
+                id: onboarding?.id || emp.id,
+                employeeId: emp.id,
+                status: onboarding?.status || "IN_PROGRESS",
+                employee: {
+                    id: emp.id,
+                    firstName: emp.firstName,
+                    lastName: emp.lastName,
+                    department: emp.department,
+                    courseProgresses: emp.courseProgresses,
+                },
+                mentor: onboarding?.mentor || null,
+                tasks: onboarding?.tasks || [],
+                courses: onboarding?.courses || [],
+            };
         });
     }
 

@@ -7,8 +7,8 @@ import { AppError } from "../../utils/appError";
 export class OnboardingController {
     async createTemplate(req: Request, res: Response, next: NextFunction) {
         try {
-            const files = req.files as {
-                [fieldname: string]: Express.Multer.File[];
+            const files = (req as any).files as {
+                [fieldname: string]: any[];
             };
             const coverUrl = files?.cover
                 ? `/uploads/${files.cover[0].filename}`
@@ -67,6 +67,7 @@ export class OnboardingController {
             next(error);
         }
     }
+
     async updateTaskStatus(
         req: Request<{ taskId: string }>,
         res: Response,
@@ -122,8 +123,8 @@ export class OnboardingController {
         next: NextFunction,
     ) {
         try {
-            const files = req.files as {
-                [fieldname: string]: Express.Multer.File[];
+            const files = (req as any).files as {
+                [fieldname: string]: any[];
             };
             const updateData: any = { ...req.body };
 

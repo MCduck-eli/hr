@@ -55,30 +55,19 @@ export default function EmployeeAssigner() {
                     setSelectedEmployees(assignedIds);
                 }
             } else {
-                const assignedIds: string[] = [];
-                for (const emp of filteredUsers) {
-                    const empId = emp.employee.id;
-                    const courseRes = await fetch(
-                        `${API_URL}/academy/courses?employeeId=${empId}`,
-                        { headers },
-                    );
-                    if (courseRes.ok) {
-                        const courseData = await courseRes.json();
-                        const courses = courseData.data || courseData || [];
-                        if (
-                            courses.length > 0 &&
-                            courses.some(
-                                (c: any) =>
-                                    c.isCompleted !== undefined ||
-                                    c.progress !== false,
-                            )
-                        ) {
-                            assignedIds.push(empId);
-                        }
-                    }
+                const academyRes = await fetch(
+                    `${API_URL}/academy/assigned-employees`,
+                    { headers },
+                );
+                if (academyRes.ok) {
+                    const academyData = await academyRes.json();
+                    const assignedIds = academyData.data || academyData || [];
+                    setAssignedEmployees(assignedIds);
+                    setSelectedEmployees(assignedIds);
+                } else {
+                    setAssignedEmployees([]);
+                    setSelectedEmployees([]);
                 }
-                setAssignedEmployees(assignedIds);
-                setSelectedEmployees(assignedIds);
             }
         } catch (error) {
             console.error(error);

@@ -370,15 +370,16 @@ model OnboardingCourse {
 }
 
 model EmployeeOnboardingCourse {
-  id           String             @id @default(uuid())
-  onboardingId String
-  onboarding   EmployeeOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
-  courseId     String
-  course       OnboardingCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  isCompleted  Boolean            @default(false)
-  completedAt  DateTime?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id              String             @id @default(uuid())
+  onboardingId    String
+  onboarding      EmployeeOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          OnboardingCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  isCompleted     Boolean            @default(false)
+  progressPercent Int                @default(0) 
+  completedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   @@unique([onboardingId, courseId])
 }
@@ -472,16 +473,17 @@ model AcademyQuiz {
 }
 
 model CourseProgress {
-  id          String        @id @default(uuid())
-  courseId    String
-  course      AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  employeeId  String
-  employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  isCompleted Boolean       @default(false)
-  quizScore   Float?
-  completedAt DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id              String        @id @default(uuid())
+  courseId        String
+  course          AcademyCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  isCompleted     Boolean       @default(false)
+  progressPercent Int           @default(0) 
+  quizScore       Float?
+  completedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@unique([courseId, employeeId])
 }

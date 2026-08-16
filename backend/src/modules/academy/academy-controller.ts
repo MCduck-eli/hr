@@ -22,8 +22,8 @@ export class AcademyController {
 
     async createCourse(req: Request, res: Response, next: NextFunction) {
         try {
-            const files = req.files as {
-                [fieldname: string]: Express.Multer.File[];
+            const files = (req as any).files as {
+                [fieldname: string]: any[];
             };
             const coverUrl = files?.cover
                 ? `/uploads/${files.cover[0].filename}`
@@ -210,8 +210,8 @@ export class AcademyController {
         next: NextFunction,
     ) {
         try {
-            const files = req.files as {
-                [fieldname: string]: Express.Multer.File[];
+            const files = (req as any).files as {
+                [fieldname: string]: any[];
             };
             const updateData: any = { ...req.body };
 
@@ -236,10 +236,24 @@ export class AcademyController {
             next(error);
         }
     }
+
     async assignAcademy(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await academyService.assignAcademy(req.body);
             res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getAssignedEmployees(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await academyService.getAssignedEmployees();
+            res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
         }

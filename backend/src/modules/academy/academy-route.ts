@@ -49,6 +49,12 @@ academyRouter.post(
 );
 academyRouter.get("/certificates/my", academyController.getMyCertificates);
 
+academyRouter.get(
+    "/assigned-employees",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    academyController.getAssignedEmployees,
+);
+
 academyRouter.post(
     "/categories",
     authorize("SUPER_ADMIN", "HR_ADMIN"),

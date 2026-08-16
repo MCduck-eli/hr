@@ -295,6 +295,7 @@ export class AcademyService {
             include: { course: true },
         });
     }
+
     async updateCourse(
         courseId: string,
         payload: {
@@ -319,29 +320,33 @@ export class AcademyService {
             data: payload,
         });
     }
+
     async assignAcademy(payload: { employeeId: string }) {
         const courses = await prisma.academyCourse.findMany();
 
-        const assignments = await Promise.all(
-            courses.map((course) =>
-                prisma.courseProgress.upsert({
-                    where: {
-                        courseId_employeeId: {
-                            employeeId: payload.employeeId,
-                            courseId: course.id,
-                        },
-                    },
-                    update: {},
-                    create: {
-                        employeeId: payload.employeeId,
-                        courseId: course.id,
-                        isCompleted: false,
-                    },
-                }),
-            ),
-        );
+        if (courses.length > 0) {
+            await prisma.courseProgress.createMany({
+                data: courses.map((course) => ({
+                    employeeId: payload.employeeId,
+                    courseId: course.id,
+                    isCompleted: false,
+                })),
+                skipDuplicates: true,
+            });
+        }
 
-        return assignments;
+        return prisma.courseProgress.findMany({
+            where: { employeeId: payload.employeeId },
+            include: { course: true },
+        });
+    }
+
+    async getAssignedEmployees() {
+        const progresses = await prisma.courseProgress.findMany({
+            select: { employeeId: true },
+            distinct: ["employeeId"],
+        });
+        return progresses.map((p) => p.employeeId);
     }
 }
 

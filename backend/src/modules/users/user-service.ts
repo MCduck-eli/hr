@@ -53,6 +53,8 @@ export class UserService {
             lastName,
             departmentId,
             positionId,
+            leaveBalance,
+            assignedCourseIds,
         } = payload;
 
         const existingUser = await prisma.user.findUnique({
@@ -76,6 +78,14 @@ export class UserService {
                         lastName: lastName || "",
                         ...(departmentId && { departmentId }),
                         ...(positionId && { positionId }),
+                        ...(leaveBalance !== undefined && { leaveBalance }),
+                        ...(assignedCourseIds && assignedCourseIds.length > 0 && {
+                            courseProgresses: {
+                                create: assignedCourseIds.map((id: string) => ({
+                                    courseId: id,
+                                })),
+                            },
+                        }),
                     },
                 },
             },
@@ -92,6 +102,7 @@ export class UserService {
     async updateUser(id: string, payload: any) {
         const userExists = await prisma.user.findUnique({
             where: { id },
+            include: { employee: true },
         });
 
         if (!userExists) {
@@ -105,11 +116,25 @@ export class UserService {
             departmentId,
             positionId,
             password,
+            leaveBalance,
+            assignedCourseIds,
         } = payload;
 
         let hashedPassword;
         if (password) {
             hashedPassword = await hashPassword(password);
+        }
+
+        if (assignedCourseIds && userExists.employee) {
+            await prisma.courseProgress.deleteMany({
+                where: { employeeId: userExists.employee.id },
+            });
+            await prisma.courseProgress.createMany({
+                data: assignedCourseIds.map((cId: string) => ({
+                    employeeId: userExists.employee!.id,
+                    courseId: cId,
+                })),
+            });
         }
 
         return prisma.user.update({
@@ -123,6 +148,7 @@ export class UserService {
                         ...(lastName && { lastName }),
                         ...(departmentId && { departmentId }),
                         ...(positionId && { positionId }),
+                        ...(leaveBalance !== undefined && { leaveBalance }),
                     },
                 },
             },

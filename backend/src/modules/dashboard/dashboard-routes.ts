@@ -14,4 +14,6 @@ dashboardRouter.get(
     dashboardController.getEmployeeDashboard,
 );
 
+dashboardRouter.patch("/progress", dashboardController.updateProgress);
+
 export default dashboardRouter;
