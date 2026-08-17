@@ -8,16 +8,23 @@ export class DashboardController {
         next: NextFunction,
     ) {
         try {
-            const userId = (req as any).user?.id;
+            const loggedInUserId = (req as any).user?.id;
+            const role = (req as any).user?.role;
 
-            if (!userId) {
+            if (!loggedInUserId) {
                 return res
                     .status(401)
                     .json({ message: "Avtorizatsiyadan o'tilmagan" });
             }
 
+            const targetUserId =
+                req.query.userId &&
+                (role === "SUPER_ADMIN" || role === "HR_ADMIN")
+                    ? String(req.query.userId)
+                    : loggedInUserId;
+
             const data =
-                await dashboardService.getEmployeeDashboardData(userId);
+                await dashboardService.getEmployeeDashboardData(targetUserId);
 
             res.status(200).json({
                 status: "success",

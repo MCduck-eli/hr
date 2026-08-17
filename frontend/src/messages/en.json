@@ -96,10 +96,16 @@
         "userList": "Employees List",
         "name": "Full Name",
         "actions": "Actions",
+        "grade": "Grade",
+        "leaveBalance": "Leave Balance",
+        "okrProgress": "OKR Progress",
+        "attendance": "Attendance",
+        "feedbacks": "Pending 360",
         "edit": "Edit",
         "delete": "Delete",
         "noUsers": "No employees found",
-        "confirmDelete": "Are you sure you want to delete this employee?"
+        "confirmDelete": "Are you sure you want to delete this employee?",
+        "goBack": "Go back"
     },
     "DashboardProfile": {
         "welcomeBack": "Welcome back,",
@@ -129,7 +135,9 @@
         "viewCourses": "View Courses",
         "noRecentActivities": "Recent activities is empty",
         "onboardingBadge": "Onboarding",
-        "academyBadge": "Academy"
+        "academyBadge": "Academy",
+        "noActiveCourses": "No courses have been assigned to you yet",
+        "goBack": "Go back"
     },
     "AcademyPage": {
         "title": "Learning Academy",
@@ -152,7 +160,8 @@
         "close": "Close",
         "courseCompleted": "Course completed",
         "inProgress": "In progress...",
-        "noDescription": "No additional information provided for this lesson. Please review the material above."
+        "noDescription": "No additional information provided for this lesson. Please review the material above.",
+        "goBack": "Go back"
     },
     "EmployeeAssigner": {
         "title": "Assign Employees",
@@ -191,7 +200,8 @@
         "successUpdate": "Onboarding template successfully updated!",
         "successAdd": "Onboarding template successfully added!",
         "successDelete": "Template successfully deleted!",
-        "errorDefault": "Operation failed"
+        "errorDefault": "Operation failed",
+        "goBack": "Go back"
     },
     "HRAcademyManagement": {
         "editCourse": "Edit Course",
@@ -213,10 +223,10 @@
         "deleteBtn": "Delete",
         "deleteConfirm": "Are you sure you want to delete this course?",
         "successUpdate": "Course successfully updated!",
-        "successUpdate": "Course successfully updated!",
         "successAdd": "Course successfully added!",
         "successDelete": "Course successfully deleted!",
-        "errorDefault": "Operation failed"
+        "errorDefault": "Operation failed",
+        "goBack": "Go back"
     },
     "HRMonitoring": {
         "loading": "Loading data...",

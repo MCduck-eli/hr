@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 
 export default function HROnboardingPage() {
     const t = useTranslations("HROnboardingPage");
+    const router = useRouter();
 
     const [templates, setTemplates] = useState<any[]>([]);
     const [title, setTitle] = useState("");
@@ -66,9 +68,7 @@ export default function HROnboardingPage() {
 
             const res = await fetch(url, {
                 method,
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
                 body: formData,
             });
 
@@ -78,9 +78,14 @@ export default function HROnboardingPage() {
                 throw new Error(result.message || t("errorDefault"));
             }
 
-            resetForm();
             fetchTemplates();
-            alert(editingId ? t("successUpdate") : t("successAdd"));
+            setTitle("");
+            setDescription("");
+            setCoverFile(null);
+            setVideoFile(null);
+            setIsRequired(false);
+            setEditingId(null);
+            alert(t("successSave"));
         } catch (err: any) {
             console.error(err);
             alert(err.message || t("errorDefault"));
@@ -89,26 +94,23 @@ export default function HROnboardingPage() {
         }
     };
 
-    const handleEdit = (template: any) => {
-        setEditingId(template.id);
-        setTitle(template.title);
-        setDescription(template.description || "");
-        setIsRequired(template.isRequired || false);
-        setCoverFile(null);
-        setVideoFile(null);
+    const handleEdit = (tmpl: any) => {
+        setEditingId(tmpl.id);
+        setTitle(tmpl.title);
+        setDescription(tmpl.description || "");
+        setIsRequired(tmpl.isRequired || false);
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const resetForm = () => {
+    const handleCancelEdit = () => {
         setEditingId(null);
         setTitle("");
         setDescription("");
-        setCoverFile(null);
-        setVideoFile(null);
         setIsRequired(false);
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm(t("deleteConfirm"))) return;
+        if (!confirm(t("confirmDelete"))) return;
 
         try {
             const token = localStorage.getItem("token");
@@ -134,6 +136,12 @@ export default function HROnboardingPage() {
 
     return (
         <div className="flex flex-col gap-8 max-w-4xl mx-auto p-8">
+            <button 
+                onClick={() => router.back()} 
+                className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit"
+            >
+                &larr; {t("goBack") || "Orqaga"}
+            </button>
             <div className="p-8 bg-white border border-gray-200">
                 <h2 className="text-xl font-bold uppercase mb-4">
                     {editingId ? t("editTemplate") : t("addTemplate")}

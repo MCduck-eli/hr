@@ -11,7 +11,6 @@ export class AcademyService {
             include: { _count: { select: { courses: true } } },
         });
     }
-
     async createCourse(payload: {
         title: string;
         description?: string;
@@ -20,11 +19,29 @@ export class AcademyService {
         isRequired?: boolean;
         categoryId?: string;
     }) {
-        return prisma.academyCourse.create({
+        const course = await prisma.academyCourse.create({
             data: payload,
         });
-    }
 
+        const allEmployees = await prisma.employee.findMany({
+            select: { id: true },
+        });
+
+        if (allEmployees.length > 0) {
+            const progressData = allEmployees.map((emp) => ({
+                employeeId: emp.id,
+                courseId: course.id,
+                isCompleted: false,
+            }));
+
+            await prisma.courseProgress.createMany({
+                data: progressData,
+                skipDuplicates: true,
+            });
+        }
+
+        return course;
+    }
     async deleteCourse(courseId: string) {
         const course = await prisma.academyCourse.findUnique({
             where: { id: courseId },

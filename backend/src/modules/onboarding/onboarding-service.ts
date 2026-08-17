@@ -22,8 +22,7 @@ export class OnboardingService {
                 videoUrl: payload.videoUrl,
             });
         }
-
-        return prisma.onboardingTemplate.create({
+        const template = await prisma.onboardingTemplate.create({
             data: {
                 title: payload.title,
                 description: payload.description,
@@ -42,9 +41,44 @@ export class OnboardingService {
             },
             include: { tasks: true, courses: true },
         });
+
+        const existingOnboardings = await prisma.employeeOnboarding.findMany({
+            select: { id: true },
+        });
+        if (existingOnboardings.length > 0) {
+            if (template.tasks && template.tasks.length > 0) {
+                const tasksData = existingOnboardings.flatMap((onb) =>
+                    template.tasks.map((t) => ({
+                        onboardingId: onb.id,
+                        taskId: t.id,
+                    })),
+                );
+                await prisma.employeeOnboardingTask.createMany({
+                    data: tasksData,
+                    skipDuplicates: true,
+                });
+            }
+            if (template.courses && template.courses.length > 0) {
+                const coursesData = existingOnboardings.flatMap((onb) =>
+                    template.courses.map((c) => ({
+                        onboardingId: onb.id,
+                        courseId: c.id,
+                    })),
+                );
+                await prisma.employeeOnboardingCourse.createMany({
+                    data: coursesData,
+                    skipDuplicates: true,
+                });
+            }
+        }
+
+        return template;
     }
 
-    async assignOnboarding(payload: { employeeId: string; mentorId?: string }) {
+    async assignOnboarding(payload: {
+        employeeId: string;
+        mentorId?: string;
+    }): Promise<any> {
         const allTemplates = await prisma.onboardingTemplate.findMany({
             include: { tasks: true, courses: true },
         });
@@ -85,8 +119,7 @@ export class OnboardingService {
 
         return this.getEmployeeOnboarding(payload.employeeId);
     }
-
-    async getEmployeeOnboarding(employeeId: string) {
+    async getEmployeeOnboarding(employeeId: string): Promise<any> {
         const onboarding = await prisma.employeeOnboarding.findUnique({
             where: { employeeId },
             include: {
@@ -109,12 +142,19 @@ export class OnboardingService {
         });
 
         if (!onboarding) {
-            throw new AppError("Onboarding record not found", 404);
+            const employee = await prisma.employee.findUnique({
+                where: { id: employeeId },
+            });
+
+            if (!employee) {
+                throw new AppError("Onboarding record not found", 404);
+            }
+
+            return this.assignOnboarding({ employeeId });
         }
 
         return onboarding;
     }
-
     async updateTaskStatus(employeeTaskId: string, status: TaskStatus) {
         return prisma.employeeOnboardingTask.update({
             where: { id: employeeTaskId },

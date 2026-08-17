@@ -12,6 +12,15 @@ export default function HRMonitoring() {
             try {
                 const token = localStorage.getItem("token");
                 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+                const userStr = localStorage.getItem("user");
+
+                let currentUserEmpId = null;
+                if (userStr) {
+                    try {
+                        const user = JSON.parse(userStr);
+                        currentUserEmpId = user.employee?.id || user.employeeId;
+                    } catch (e) {}
+                }
 
                 const res = await fetch(`${API_URL}/onboarding/monitoring`, {
                     headers: {
@@ -21,7 +30,16 @@ export default function HRMonitoring() {
                 const data = await res.json();
 
                 if (res.ok) {
-                    setMonitoringData(data.data || []);
+                    let list = data.data || [];
+
+                    if (currentUserEmpId) {
+                        list = list.filter(
+                            (record: any) =>
+                                record.employeeId !== currentUserEmpId,
+                        );
+                    }
+
+                    setMonitoringData(list);
                 }
             } catch (err) {
             } finally {
@@ -109,7 +127,8 @@ export default function HRMonitoring() {
                                         {employee?.lastName}
                                     </span>
                                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                                        {employee?.department?.name || t("noDepartment")}
+                                        {employee?.department?.name ||
+                                            t("noDepartment")}
                                     </span>
                                 </div>
 
@@ -136,7 +155,8 @@ export default function HRMonitoring() {
                                         </span>
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
                                             <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                                            {t("courses")} {completedCoursesCount}/
+                                            {t("courses")}{" "}
+                                            {completedCoursesCount}/
                                             {totalCourses}
                                         </span>
                                     </div>

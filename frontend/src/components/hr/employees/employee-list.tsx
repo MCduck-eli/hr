@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 
 interface EmployeeListProps {
     users: any[];
@@ -12,11 +13,17 @@ export default function EmployeeList({
     onDelete,
 }: EmployeeListProps) {
     const t = useTranslations("HREmployees");
+    const router = useRouter();
 
     const handleDelete = (id: string) => {
         if (window.confirm(t("confirmDelete"))) {
             onDelete(id);
         }
+    };
+
+    const handleViewProfile = (userId: string) => {
+        const locale = window.location.pathname.split("/")[1] || "uz";
+        window.location.href = `/${locale}/profile?userId=${u.id}`;
     };
 
     return (
@@ -66,16 +73,18 @@ export default function EmployeeList({
                                     </td>
                                     <td className="p-3 text-right flex items-center justify-end gap-3">
                                         <button
-                                            onClick={() => onEdit(u)}
-                                            className="text-[10px] font-bold uppercase tracking-widest text-green-600 hover:text-green-800 transition-colors"
+                                            onClick={() =>
+                                                (window.location.href = `/uz/profile?userId=${u.id}`)
+                                            }
+                                            className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:underline"
                                         >
-                                            {t("edit")}
+                                            Profil
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(u.id)}
-                                            className="text-[10px] font-bold uppercase tracking-widest text-red-600 hover:text-red-800 transition-colors"
+                                            onClick={() => onEdit(u)}
+                                            className="text-[10px] font-bold uppercase tracking-widest text-green-600 hover:underline"
                                         >
-                                            {t("delete")}
+                                            {t("edit")}
                                         </button>
                                     </td>
                                 </tr>

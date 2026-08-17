@@ -4,9 +4,9 @@ import { AppError } from "../../utils/appError";
 const prisma = new PrismaClient();
 
 export class DashboardService {
-    async getEmployeeDashboardData(userId: string) {
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
+    async getEmployeeDashboardData(id: string) {
+        let user = await prisma.user.findUnique({
+            where: { id },
             include: {
                 employee: {
                     include: {
@@ -31,6 +31,41 @@ export class DashboardService {
                 },
             },
         });
+
+        if (!user) {
+            const employeeRecord = await prisma.employee.findUnique({
+                where: { id },
+                select: { userId: true },
+            });
+            if (employeeRecord?.userId) {
+                user = await prisma.user.findUnique({
+                    where: { id: employeeRecord.userId },
+                    include: {
+                        employee: {
+                            include: {
+                                courseProgresses: {
+                                    include: { course: true },
+                                },
+                                onboarding: {
+                                    include: {
+                                        courses: {
+                                            include: { course: true },
+                                        },
+                                        tasks: {
+                                            include: { task: true },
+                                        },
+                                    },
+                                },
+                                lifecycleEvents: {
+                                    orderBy: { createdAt: "desc" },
+                                    take: 3,
+                                },
+                            },
+                        },
+                    },
+                });
+            }
+        }
 
         if (!user) {
             throw new AppError("Foydalanuvchi topilmadi", 404);
@@ -104,6 +139,12 @@ export class DashboardService {
         ];
 
         return {
+            user: {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                role: user.role,
+                email: user.email,
+            },
             okrProgress: 75,
             attendanceHours: 38,
             pendingFeedbacks,

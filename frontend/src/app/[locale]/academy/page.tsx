@@ -29,7 +29,28 @@ export default function EmployeeAcademyPage() {
                 const token = localStorage.getItem("token");
                 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-                const res = await fetch(`${API_URL}/employee/dashboard`, {
+                let targetUserId: string | null = null;
+                if (typeof window !== "undefined") {
+                    const searchParams = new URLSearchParams(window.location.search);
+                    targetUserId = searchParams.get("userId") || searchParams.get("id");
+                }
+
+                if (!targetUserId) {
+                    const userStr = localStorage.getItem("user");
+                    if (userStr) {
+                        try {
+                            const u = JSON.parse(userStr);
+                            targetUserId = u.id;
+                        } catch (e) {}
+                    }
+                }
+
+                let fetchUrl = `${API_URL}/employee/dashboard`;
+                if (targetUserId) {
+                    fetchUrl += `?userId=${targetUserId}`;
+                }
+
+                const res = await fetch(fetchUrl, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
@@ -165,6 +186,12 @@ export default function EmployeeAcademyPage() {
     return (
         <div className="max-w-[1400px] mx-auto p-8 flex flex-col gap-12 relative min-h-[80vh]">
             <div className="flex flex-col gap-2">
+                <button 
+                    onClick={() => router.back()} 
+                    className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-4"
+                >
+                    &larr; {t("goBack") || "Orqaga"}
+                </button>
                 <h1 className="text-4xl font-black uppercase tracking-tight text-black">
                     {t("title")}
                 </h1>

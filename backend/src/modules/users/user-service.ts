@@ -14,6 +14,11 @@ export class UserService {
                     include: {
                         department: true,
                         position: true,
+                        grade: true,
+                        feedbackReviewers: {
+                            where: { isCompleted: false },
+                            select: { id: true }
+                        }
                     },
                 },
             },
@@ -79,13 +84,16 @@ export class UserService {
                         ...(departmentId && { departmentId }),
                         ...(positionId && { positionId }),
                         ...(leaveBalance !== undefined && { leaveBalance }),
-                        ...(assignedCourseIds && assignedCourseIds.length > 0 && {
-                            courseProgresses: {
-                                create: assignedCourseIds.map((id: string) => ({
-                                    courseId: id,
-                                })),
-                            },
-                        }),
+                        ...(assignedCourseIds &&
+                            assignedCourseIds.length > 0 && {
+                                courseProgresses: {
+                                    create: assignedCourseIds.map(
+                                        (id: string) => ({
+                                            courseId: id,
+                                        }),
+                                    ),
+                                },
+                            }),
                     },
                 },
             },
@@ -98,7 +106,6 @@ export class UserService {
             },
         });
     }
-
     async updateUser(id: string, payload: any) {
         const userExists = await prisma.user.findUnique({
             where: { id },
@@ -110,6 +117,7 @@ export class UserService {
         }
 
         const {
+            email,
             role,
             firstName,
             lastName,
@@ -140,14 +148,20 @@ export class UserService {
         return prisma.user.update({
             where: { id },
             data: {
+                ...(email && { email }),
                 ...(role && { role }),
                 ...(hashedPassword && { password: hashedPassword }),
                 employee: {
                     update: {
-                        ...(firstName && { firstName }),
-                        ...(lastName && { lastName }),
-                        ...(departmentId && { departmentId }),
-                        ...(positionId && { positionId }),
+                        ...(firstName !== undefined && { firstName }),
+                        ...(lastName !== undefined && { lastName }),
+                        ...(departmentId !== undefined && {
+                            departmentId:
+                                departmentId === "" ? null : departmentId,
+                        }),
+                        ...(positionId !== undefined && {
+                            positionId: positionId === "" ? null : positionId,
+                        }),
                         ...(leaveBalance !== undefined && { leaveBalance }),
                     },
                 },

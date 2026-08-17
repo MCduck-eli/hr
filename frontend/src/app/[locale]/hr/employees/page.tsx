@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import EmployeeForm from "@/src/components/hr/employees/employee-form";
-import EmployeeList from "@/src/components/hr/employees/employee-list";
+import EmployeeDetailsTable from "@/src/components/hr/employees/employee-details-table";
 import {
     createUser,
     deleteUser,
@@ -13,6 +14,7 @@ import {
 
 export default function HREmployeesPage() {
     const t = useTranslations("HREmployees");
+    const router = useRouter();
 
     const [users, setUsers] = useState<any[]>([]);
     const [editingUser, setEditingUser] = useState<any>(null);
@@ -62,7 +64,19 @@ export default function HREmployeesPage() {
 
     const handleDelete = async (id: string) => {
         try {
-            await deleteUser(id);
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || "Error");
+            }
+
             loadUsers();
         } catch (err: any) {
             alert(err.message);
@@ -80,8 +94,14 @@ export default function HREmployeesPage() {
 
     return (
         <div className="max-w-[1400px] mx-auto p-8 flex flex-col gap-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight mb-2 text-black">
+            <div className="flex flex-col gap-2">
+                <button 
+                    onClick={() => router.back()} 
+                    className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-4"
+                >
+                    &larr; {t("goBack") || "Orqaga"}
+                </button>
+                <h1 className="text-3xl font-bold tracking-tight text-black">
                     {t("title")}
                 </h1>
             </div>
@@ -99,9 +119,12 @@ export default function HREmployeesPage() {
                     onCancel={handleCancel}
                     loading={loading}
                 />
-                <EmployeeList
+                <EmployeeDetailsTable
                     users={users}
-                    onEdit={handleEdit}
+                    onEdit={(user) => {
+                        setEditingUser(user);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
                     onDelete={handleDelete}
                 />
             </div>

@@ -16,7 +16,7 @@ export default function EmployeeForm({
 }: EmployeeFormProps) {
     const t = useTranslations("HREmployees");
 
-    const [form, setForm] = useState({
+    const [form, setForm] = useState<any>({
         email: "",
         password: "",
         firstName: "",
@@ -24,6 +24,7 @@ export default function EmployeeForm({
         role: "EMPLOYEE",
         departmentId: "",
         positionId: "",
+        leaveBalance: "",
     });
 
     useEffect(() => {
@@ -31,11 +32,35 @@ export default function EmployeeForm({
             setForm({
                 email: initialData.email || "",
                 password: "",
-                firstName: initialData.employee?.firstName || "",
-                lastName: initialData.employee?.lastName || "",
+                firstName:
+                    initialData.firstName ||
+                    initialData.employee?.firstName ||
+                    "",
+                lastName:
+                    initialData.lastName ||
+                    initialData.employee?.lastName ||
+                    "",
                 role: initialData.role || "EMPLOYEE",
-                departmentId: initialData.employee?.departmentId || "",
-                positionId: initialData.employee?.positionId || "",
+                departmentId:
+                    initialData.departmentId ||
+                    initialData.employee?.departmentId ||
+                    "",
+                positionId:
+                    initialData.positionId ||
+                    initialData.employee?.positionId ||
+                    "",
+                leaveBalance: initialData.employee?.leaveBalance ?? "",
+            });
+        } else {
+            setForm({
+                email: "",
+                password: "",
+                firstName: "",
+                lastName: "",
+                role: "EMPLOYEE",
+                departmentId: "",
+                positionId: "",
+                leaveBalance: "",
             });
         }
     }, [initialData]);
@@ -64,7 +89,14 @@ export default function EmployeeForm({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(form);
+
+        const payload = {
+            ...form,
+            leaveBalance:
+                form.leaveBalance === "" ? 0 : Number(form.leaveBalance),
+        };
+
+        onSubmit(payload);
     };
 
     return (
@@ -147,7 +179,7 @@ export default function EmployeeForm({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
                             {t("role")}
@@ -164,6 +196,28 @@ export default function EmployeeForm({
                             <option value="RECRUITER">{t("recruiter")}</option>
                         </select>
                     </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                            {t("leaveBalance")}
+                        </label>
+                        <input
+                            type="number"
+                            value={form.leaveBalance}
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    leaveBalance:
+                                        e.target.value === ""
+                                            ? ""
+                                            : Number(e.target.value),
+                                })
+                            }
+                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
                             {t("department")}

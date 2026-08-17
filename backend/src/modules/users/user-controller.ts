@@ -41,17 +41,17 @@ export class UserController {
             next(error);
         }
     }
-
     async update(
         req: Request<{ id: string }>,
         res: Response,
         next: NextFunction,
     ) {
         try {
-            const result = await userService.updateUser(
-                req.params.id,
-                req.body,
-            );
+            const body = { ...req.body };
+            if (body.departmentId === "") body.departmentId = null;
+            if (body.positionId === "") body.positionId = null;
+
+            const result = await userService.updateUser(req.params.id, body);
             res.status(200).json({
                 status: "success",
                 data: result,

@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 
 export default function HRAcademyManagementPage() {
     const t = useTranslations("HRAcademyManagement");
+    const router = useRouter();
 
     const [courses, setCourses] = useState<any[]>([]);
     const [title, setTitle] = useState("");
@@ -66,24 +68,25 @@ export default function HRAcademyManagementPage() {
 
             const res = await fetch(url, {
                 method,
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
                 body: formData,
             });
 
-            const result = await res.json();
-
             if (!res.ok) {
-                throw new Error(result.message || t("errorDefault"));
+                throw new Error(t("errorDefault"));
             }
 
-            resetForm();
             fetchCourses();
-            alert(editingId ? t("successUpdate") : t("successAdd"));
-        } catch (err: any) {
+            setTitle("");
+            setDescription("");
+            setCoverFile(null);
+            setVideoFile(null);
+            setIsRequired(false);
+            setEditingId(null);
+            alert(t("successSave"));
+        } catch (err) {
             console.error(err);
-            alert(err.message || t("errorDefault"));
+            alert(t("errorDefault"));
         } finally {
             setLoading(false);
         }
@@ -94,21 +97,18 @@ export default function HRAcademyManagementPage() {
         setTitle(course.title);
         setDescription(course.description || "");
         setIsRequired(course.isRequired || false);
-        setCoverFile(null);
-        setVideoFile(null);
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const resetForm = () => {
+    const handleCancelEdit = () => {
         setEditingId(null);
         setTitle("");
         setDescription("");
-        setCoverFile(null);
-        setVideoFile(null);
         setIsRequired(false);
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm(t("deleteConfirm"))) return;
+        if (!confirm(t("confirmDelete"))) return;
 
         try {
             const token = localStorage.getItem("token");
@@ -132,6 +132,12 @@ export default function HRAcademyManagementPage() {
 
     return (
         <div className="flex flex-col gap-8 max-w-4xl mx-auto p-8">
+            <button 
+                onClick={() => router.back()} 
+                className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit"
+            >
+                &larr; {t("goBack") || "Orqaga"}
+            </button>
             <div className="p-8 bg-white border border-gray-200">
                 <h2 className="text-xl font-bold uppercase mb-4">
                     {editingId ? t("editCourse") : t("addCourse")}

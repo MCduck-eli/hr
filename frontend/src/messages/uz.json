@@ -96,10 +96,16 @@
         "userList": "Xodimlar Ro'yxati",
         "name": "To'liq Ism",
         "actions": "Amallar",
+        "grade": "Greyd",
+        "leaveBalance": "Ta'til kunlari",
+        "okrProgress": "OKR Progress",
+        "attendance": "Davomat",
+        "feedbacks": "Kutilayotgan 360",
         "edit": "Tahrirlash",
         "delete": "O'chirish",
         "noUsers": "Xodimlar topilmadi",
-        "confirmDelete": "Bu xodimni o'chirishga ishonchingiz komilmi?"
+        "confirmDelete": "Bu xodimni o'chirishga ishonchingiz komilmi?",
+        "goBack": "Orqaga"
     },
     "DashboardProfile": {
         "welcomeBack": "Xush kelibsiz,",
@@ -129,7 +135,9 @@
         "viewCourses": "Kurslarni ko'rish",
         "noRecentActivities": "Faolliklar tarixi bo'sh",
         "onboardingBadge": "Onboarding",
-        "academyBadge": "Academy"
+        "academyBadge": "Academy",
+        "noActiveCourses": "Hozircha sizga hech qanday kurs biriktirilmagan",
+        "goBack": "Orqaga"
     },
     "AcademyPage": {
         "title": "O'quv Akademiyasi",
@@ -153,7 +161,8 @@
         "close": "Yopish",
         "courseCompleted": "Kurs yakunlangan",
         "inProgress": "Jarayonda...",
-        "noDescription": "Ushbu dars uchun qo'shimcha ma'lumot kiritilmagan. Yuqoridagi material bilan tanishib chiqing."
+        "noDescription": "Ushbu dars uchun qo'shimcha ma'lumot kiritilmagan. Yuqoridagi material bilan tanishib chiqing.",
+        "goBack": "Orqaga"
     },
     "EmployeeAssigner": {
         "title": "Xodimlarni Biriktirish",
@@ -192,7 +201,8 @@
         "successUpdate": "Onbording shabloni muvaffaqiyatli yangilandi!",
         "successAdd": "Onbording shabloni muvaffaqiyatli qo'shildi!",
         "successDelete": "Shablon muvaffaqiyatli o'chirildi!",
-        "errorDefault": "Amaliyot bajarilmadi"
+        "errorDefault": "Amaliyot bajarilmadi",
+        "goBack": "Orqaga"
     },
     "HRAcademyManagement": {
         "editCourse": "Kursni Tahrirlash",
@@ -214,10 +224,10 @@
         "deleteBtn": "O'chirish",
         "deleteConfirm": "Haqiqatan ham bu kursni o'chirmoqchimisiz?",
         "successUpdate": "Kurs muvaffaqiyatli yangilandi!",
-        "successUpdate": "Kurs muvaffaqiyatli yangilandi!",
         "successAdd": "Kurs muvaffaqiyatli qo'shildi!",
         "successDelete": "Kurs muvaffaqiyatli o'chirildi!",
-        "errorDefault": "Amaliyot bajarilmadi"
+        "errorDefault": "Amaliyot bajarilmadi",
+        "goBack": "Orqaga"
     },
     "HRMonitoring": {
         "loading": "Ma'lumotlar yuklanmoqda...",
