@@ -95,6 +95,17 @@ export default function HRAdminDashboard() {
                         </h2>
                     </div>
                 </Link>
+
+                <Link href={`/${locale}/hr/feedback360`}>
+                    <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4 h-full">
+                        <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">🔄</span>
+                        </div>
+                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
+                            {t("feedback360")}
+                        </h2>
+                    </div>
+                </Link>
             </div>
 
             <div className="mt-12">

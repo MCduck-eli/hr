@@ -144,6 +144,9 @@ export class DashboardService {
                 lastName: employee.lastName,
                 role: user.role,
                 email: user.email,
+                employee: {
+                    id: employee.id,
+                },
             },
             okrProgress: 75,
             attendanceHours: 38,

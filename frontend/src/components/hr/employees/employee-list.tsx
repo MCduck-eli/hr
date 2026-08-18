@@ -23,7 +23,7 @@ export default function EmployeeList({
 
     const handleViewProfile = (userId: string) => {
         const locale = window.location.pathname.split("/")[1] || "uz";
-        window.location.href = `/${locale}/profile?userId=${u.id}`;
+        window.location.href = `/${locale}/profile?userId=${userId}`;
     };
 
     return (

@@ -11,7 +11,7 @@
         "zod": "^4.4.3"
     },
     "scripts": {
-        "dev": "tsx watch src/server.ts"
+        "dev": "node --watch --import tsx src/server.ts"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",

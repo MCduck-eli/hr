@@ -7,6 +7,7 @@ import {
     assignReviewersSchema,
     createCycleSchema,
     submitFeedbackSchema,
+    getAssignmentsSchema,
 } from "./feedback360-validation";
 
 const feedback360Router = Router();
@@ -15,8 +16,21 @@ feedback360Router.use(authenticate);
 
 feedback360Router.get(
     "/cycles",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "EMPLOYEE", "CEO"),
     feedback360Controller.getCycles,
+);
+
+feedback360Router.put(
+    "/cycles/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    validate(createCycleSchema),
+    feedback360Controller.updateCycle,
+);
+
+feedback360Router.delete(
+    "/cycles/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    feedback360Controller.deleteCycle,
 );
 
 feedback360Router.post(
@@ -24,6 +38,13 @@ feedback360Router.post(
     authorize("SUPER_ADMIN", "HR_ADMIN"),
     validate(createCycleSchema),
     feedback360Controller.createCycle,
+);
+
+feedback360Router.get(
+    "/assignments",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    validate(getAssignmentsSchema),
+    feedback360Controller.getAssignments,
 );
 
 feedback360Router.post(
@@ -38,6 +59,17 @@ feedback360Router.get(
     feedback360Controller.getMyPendingTasks,
 );
 
+feedback360Router.get(
+    "/assignments/:assignmentId",
+    feedback360Controller.getAssignmentById,
+);
+
+feedback360Router.delete(
+    "/assignments/:assignmentId",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    feedback360Controller.deleteAssignment,
+);
+
 feedback360Router.post(
     "/assignments/:assignmentId/submit",
     validate(submitFeedbackSchema),
@@ -46,7 +78,7 @@ feedback360Router.post(
 
 feedback360Router.get(
     "/report/:employeeId",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE"),
     feedback360Controller.getTargetReport,
 );
 

@@ -18,6 +18,13 @@ export const createCycleSchema = z.object({
     }),
 });
 
+export const getAssignmentsSchema = z.object({
+    query: z.object({
+        cycleId: z.string().uuid(),
+        targetId: z.string().uuid().optional(),
+    }),
+});
+
 export const assignReviewersSchema = z.object({
     body: z.object({
         cycleId: z.string().uuid(),
@@ -29,7 +36,6 @@ export const assignReviewersSchema = z.object({
                     type: z.enum(["SELF", "MANAGER", "PEER", "SUBORDINATE"]),
                 }),
             )
-            .min(1),
     }),
 });
 

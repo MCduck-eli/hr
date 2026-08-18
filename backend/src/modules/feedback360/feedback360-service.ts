@@ -26,10 +26,74 @@ export class Feedback360Service {
 
     async getCycles() {
         return prisma.feedbackCycle.findMany({
-            include: {
-                _count: { select: { assignments: true, questions: true } },
-            },
             orderBy: { createdAt: "desc" },
+            include: { 
+                questions: true,
+                _count: { select: { assignments: true, questions: true } }
+            },
+        });
+    }
+
+    async updateCycle(cycleId: string, data: any) {
+        const cycle = await prisma.feedbackCycle.findUnique({ where: { id: cycleId } });
+        if (!cycle) throw new AppError("Cycle not found", 404);
+
+        const { questions, ...cycleData } = data;
+
+        // Delete old questions and insert new ones
+        await prisma.feedbackQuestion.deleteMany({
+            where: { cycleId },
+        });
+
+        const updatedCycle = await prisma.feedbackCycle.update({
+            where: { id: cycleId },
+            data: {
+                ...cycleData,
+                questions: {
+                    create: questions,
+                },
+            },
+            include: { questions: true },
+        });
+        return updatedCycle;
+    }
+
+    async deleteCycle(cycleId: string) {
+        const cycle = await prisma.feedbackCycle.findUnique({ where: { id: cycleId } });
+        if (!cycle) throw new AppError("Cycle not found", 404);
+
+        await prisma.feedbackCycle.delete({
+            where: { id: cycleId },
+        });
+        return { message: "Cycle deleted successfully" };
+    }
+
+    async getAssignments(cycleId: string, targetId?: string) {
+        return prisma.feedbackAssignment.findMany({
+            where: {
+                cycleId,
+                ...(targetId ? { targetId } : {}),
+            },
+            include: {
+                reviewer: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        department: { select: { name: true } },
+                        position: { select: { title: true } },
+                    },
+                },
+                target: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        department: { select: { name: true } },
+                        position: { select: { title: true } },
+                    },
+                },
+            },
         });
     }
 
@@ -41,6 +105,16 @@ export class Feedback360Service {
             type: "SELF" | "MANAGER" | "PEER" | "SUBORDINATE";
         }[],
     ) {
+        const reviewerIds = reviewers.map((r) => r.reviewerId);
+
+        await prisma.feedbackAssignment.deleteMany({
+            where: {
+                cycleId,
+                targetId,
+                ...(reviewerIds.length > 0 ? { reviewerId: { notIn: reviewerIds } } : {}),
+            },
+        });
+
         const assignments = reviewers.map((r) =>
             prisma.feedbackAssignment.upsert({
                 where: {
@@ -67,7 +141,8 @@ export class Feedback360Service {
         const employee = await prisma.employee.findUnique({
             where: { userId },
         });
-        if (!employee) throw new AppError("Employee profile not found", 404);
+        console.log("getMyPendingTasks - userId:", userId, "employee:", employee);
+        if (!employee) return [];
 
         return prisma.feedbackAssignment.findMany({
             where: {
@@ -84,6 +159,7 @@ export class Feedback360Service {
                         id: true,
                         firstName: true,
                         lastName: true,
+                        department: { select: { name: true } },
                         position: { select: { title: true } },
                     },
                 },
@@ -91,9 +167,46 @@ export class Feedback360Service {
         });
     }
 
+    async getAssignmentById(assignmentId: string, userId: string, role: string) {
+        const assignment = await prisma.feedbackAssignment.findUnique({
+            where: { id: assignmentId },
+            include: {
+                cycle: {
+                    include: { questions: { orderBy: { order: "asc" } } },
+                },
+                target: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        department: { select: { name: true } },
+                        position: { select: { title: true } },
+                    },
+                },
+            },
+        });
+        
+        if (!assignment) throw new AppError("Assignment not found", 404);
+        
+        return assignment;
+    }
+
+    async deleteAssignment(assignmentId: string) {
+        const assignment = await prisma.feedbackAssignment.findUnique({
+            where: { id: assignmentId },
+        });
+        if (!assignment) throw new AppError("Assignment not found", 404);
+
+        await prisma.feedbackAssignment.delete({
+            where: { id: assignmentId },
+        });
+        return { message: "Assignment deleted successfully" };
+    }
+
     async submitFeedback(
         assignmentId: string,
         reviewerUserId: string,
+        userRole: string,
         answers: { questionId: string; score: number; comment?: string }[],
     ) {
         const reviewer = await prisma.employee.findUnique({
@@ -106,7 +219,8 @@ export class Feedback360Service {
         });
 
         if (!assignment) throw new AppError("Assignment not found", 404);
-        if (assignment.reviewerId !== reviewer.id) {
+        
+        if (userRole !== "SUPER_ADMIN" && assignment.reviewerId !== reviewer.id) {
             throw new AppError("Unauthorized to complete this feedback", 403);
         }
 
@@ -139,13 +253,22 @@ export class Feedback360Service {
         });
     }
 
-    async getTargetReport(targetEmployeeId: string, cycleId: string) {
+    async getTargetReport(
+        targetEmployeeId: string, 
+        cycleId: string,
+        requestUserId: string,
+        role: string
+    ) {
         const target = await prisma.employee.findUnique({
             where: { id: targetEmployeeId },
             include: { department: true, position: true },
         });
 
         if (!target) throw new AppError("Target employee not found", 404);
+
+        if (role === "EMPLOYEE" && target.userId !== requestUserId) {
+            throw new AppError("Unauthorized to view other employee's report", 403);
+        }
 
         const assignments = await prisma.feedbackAssignment.findMany({
             where: {
@@ -222,15 +345,22 @@ export class Feedback360Service {
             });
         });
 
+        const allAnswers = assignments.flatMap(a => a.answers);
+        const lastEvaluatedAt = allAnswers.length > 0
+            ? new Date(Math.max(...allAnswers.map(ans => ans.createdAt.getTime()))).toISOString()
+            : null;
+
         return {
             employee: {
                 id: target.id,
-                fullName: `${target.firstName} ${target.lastName}`,
+                firstName: target.firstName,
+                lastName: target.lastName,
                 department: target.department?.name,
                 position: target.position?.title,
             },
-            totalRespondents: assignments.length,
             competencies: reportData,
+            totalRespondents: assignments.length,
+            lastEvaluatedAt,
             anonymousComments: comments,
         };
     }
