@@ -177,6 +177,13 @@ export class OnboardingService {
     }
     async getHRDashboardMonitoring() {
         const employees = await prisma.employee.findMany({
+            where: {
+                user: {
+                    role: {
+                        not: "SUPER_ADMIN",
+                    },
+                },
+            },
             include: {
                 department: true,
                 courseProgresses: {

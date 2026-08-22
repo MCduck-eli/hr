@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
@@ -11,10 +11,13 @@ export default function EmployeeAcademyPage() {
     const [loading, setLoading] = useState(true);
     const [selectedCourse, setSelectedCourse] = useState<any>(null);
     const [videoProgress, setVideoProgress] = useState(0);
+    const lastSavedProgressRef = useRef(0);
 
     useEffect(() => {
         if (selectedCourse) {
             document.body.style.overflow = "hidden";
+            lastSavedProgressRef.current = selectedCourse.progress || 0;
+            setVideoProgress(selectedCourse.progress || 0);
         } else {
             document.body.style.overflow = "unset";
         }
@@ -82,6 +85,54 @@ export default function EmployeeAcademyPage() {
                     c.id === selectedCourse.id ? { ...c, progress } : c,
                 ),
             );
+
+            if (progress - lastSavedProgressRef.current >= 1) {
+                lastSavedProgressRef.current = progress;
+                saveProgressToBackend(progress);
+            }
+        }
+    };
+
+    const saveProgressToBackend = (progress: number) => {
+        if (!selectedCourse || selectedCourse.isCompleted) return;
+        const token = localStorage.getItem("token");
+        const API_URL = process.env.NEXT_PUBLIC_API_URL;
+        
+        let targetUserId: string | null = null;
+        if (typeof window !== "undefined") {
+            const searchParams = new URLSearchParams(window.location.search);
+            targetUserId = searchParams.get("userId") || searchParams.get("id");
+        }
+
+        if (!targetUserId) {
+            const userStr = localStorage.getItem("user");
+            if (userStr) {
+                try {
+                    const u = JSON.parse(userStr);
+                    targetUserId = u.id;
+                } catch (e) {}
+            }
+        }
+
+        fetch(`${API_URL}/employee/progress`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                courseId: selectedCourse.id,
+                type: selectedCourse.type,
+                progress: progress,
+                targetUserId: targetUserId || undefined,
+            }),
+        }).catch(() => {});
+    };
+
+    const handleVideoPause = () => {
+        if (videoProgress > lastSavedProgressRef.current) {
+            lastSavedProgressRef.current = videoProgress;
+            saveProgressToBackend(videoProgress);
         }
     };
 
@@ -93,6 +144,12 @@ export default function EmployeeAcademyPage() {
         try {
             const token = localStorage.getItem("token");
             const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            
+            let targetUserId: string | null = null;
+            if (typeof window !== "undefined") {
+                const searchParams = new URLSearchParams(window.location.search);
+                targetUserId = searchParams.get("userId") || searchParams.get("id");
+            }
 
             await fetch(`${API_URL}/employee/progress`, {
                 method: "PATCH",
@@ -104,6 +161,7 @@ export default function EmployeeAcademyPage() {
                     courseId: selectedCourse.id,
                     type: selectedCourse.type,
                     progress: 100,
+                    targetUserId: targetUserId || undefined,
                 }),
             });
 
@@ -149,27 +207,25 @@ export default function EmployeeAcademyPage() {
         if (
             selectedCourse &&
             !selectedCourse.isCompleted &&
-            videoProgress > 0
+            videoProgress > 0 && 
+            videoProgress > lastSavedProgressRef.current
         ) {
-            try {
-                const token = localStorage.getItem("token");
-                const API_URL = process.env.NEXT_PUBLIC_API_URL;
-                await fetch(`${API_URL}/employee/progress`, {
-                    method: "PATCH",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        courseId: selectedCourse.id,
-                        type: selectedCourse.type,
-                        progress: videoProgress,
-                    }),
-                });
-            } catch (error) {}
+            lastSavedProgressRef.current = videoProgress;
+            saveProgressToBackend(videoProgress);
         }
         setSelectedCourse(null);
     };
+
+    // Save before unload (refresh)
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (selectedCourse && !selectedCourse.isCompleted && videoProgress > lastSavedProgressRef.current) {
+                saveProgressToBackend(videoProgress);
+            }
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, [selectedCourse, videoProgress]);
 
     const openCourseModal = (course: any) => {
         setSelectedCourse(course);
@@ -358,6 +414,7 @@ export default function EmployeeAcademyPage() {
                                         onTimeUpdate={handleTimeUpdate}
                                         onLoadedMetadata={handleVideoLoaded}
                                         onEnded={handleVideoEnded}
+                                        onPause={handleVideoPause}
                                         className="w-full bg-black max-h-[260px] object-contain mx-auto"
                                         src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}${selectedCourse.videoUrl}`}
                                     />

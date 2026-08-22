@@ -212,7 +212,7 @@ export default function HROnboardingPage() {
                         </button>
                         {editingId && (
                             <button
-                                onClick={resetForm}
+                                onClick={handleCancelEdit}
                                 className="border border-gray-300 p-2 font-bold uppercase"
                             >
                                 {t("cancelBtn")}

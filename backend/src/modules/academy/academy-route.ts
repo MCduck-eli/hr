@@ -49,11 +49,7 @@ academyRouter.post(
 );
 academyRouter.get("/certificates/my", academyController.getMyCertificates);
 
-academyRouter.get(
-    "/assigned-employees",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
-    academyController.getAssignedEmployees,
-);
+
 
 academyRouter.post(
     "/categories",
@@ -114,11 +110,6 @@ academyRouter.patch(
     ]),
     academyController.updateCourse,
 );
-academyRouter.post(
-    "/assign",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
-    validate(assignAcademySchema),
-    academyController.assignAcademy,
-);
+
 
 export default academyRouter;

@@ -112,6 +112,7 @@ model Department {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   objectives Objective[]
+  targetedCourses     AcademyCourse[]      @relation("CourseTargetDepartment")
 }
 
 model Position {
@@ -161,6 +162,7 @@ gradeId           String?
 grade             JobGrade?          @relation(fields: [gradeId], references: [id])
 promotions        PromotionRequest[] @relation("EmployeePromotion")
 careerHistories   CareerHistory[]
+targetedCourses   AcademyCourse[]      @relation("CourseTargetEmployee")
 }
 
 model Attendance {
@@ -252,6 +254,7 @@ model DeviceLog {
 model JobVacancy {
   id             String           @id @default(uuid())
   title          String
+  companyName    String?
   description    String
   requirements   String
   status         VacancyStatus    @default(OPEN)
@@ -270,6 +273,8 @@ model Candidate {
   phone            String
   resumeUrl        String
   parsedSkills     String[]
+  location         String?
+  coverLetter      String?
   source           String                 @default("DIRECT")
   stage            CandidatePipelineStage @default(APPLIED)
   primaryVacancyId String?
@@ -435,6 +440,10 @@ model AcademyCourse {
   resources    AcademyResource[]
   progress     CourseProgress[]
   certificates CourseCertificate[]
+  targetDepartmentId String?
+  targetDepartment   Department?       @relation("CourseTargetDepartment", fields: [targetDepartmentId], references: [id])
+  targetEmployeeId   String?
+  targetEmployee     Employee?         @relation("CourseTargetEmployee", fields: [targetEmployeeId], references: [id])
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 }
@@ -658,15 +667,22 @@ enum OkrStatus {
   CANCELLED
 }
 
+enum CheckInStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model OkrCycle {
-  id         String      @id @default(uuid())
-  title      String
-  startDate  DateTime    @db.Date
-  endDate    DateTime    @db.Date
-  isCurrent  Boolean     @default(false)
-  objectives Objective[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id                    String      @id @default(uuid())
+  title                 String
+  startDate             DateTime    @db.Date
+  endDate               DateTime    @db.Date
+  isCurrent             Boolean     @default(false)
+  minExpectedProgress   Float       @default(0.0)
+  objectives            Objective[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 }
 
 model Objective {
@@ -685,6 +701,7 @@ model Objective {
   children     Objective[] @relation("CascadingObjectives")
   status       OkrStatus   @default(DRAFT)
   progress     Float       @default(0.0)
+  minExpectedProgress Float?
   keyResults   KeyResult[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -711,6 +728,8 @@ model OkrCheckIn {
   keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
   value       Float
   comment     String?
+  imageUrl    String?
+  status      CheckInStatus @default(PENDING)
   createdById String
   createdAt   DateTime  @default(now())
 }

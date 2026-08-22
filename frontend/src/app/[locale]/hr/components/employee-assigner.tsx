@@ -6,10 +6,6 @@ import { useTranslations } from "next-intl";
 export default function EmployeeAssigner() {
     const t = useTranslations("EmployeeAssigner");
 
-    const [activeTab, setActiveTab] = useState<"onboarding" | "academy">(
-        "onboarding",
-    );
-
     const [employees, setEmployees] = useState<any[]>([]);
     const [assignedEmployees, setAssignedEmployees] = useState<string[]>([]);
     const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
@@ -17,7 +13,7 @@ export default function EmployeeAssigner() {
 
     useEffect(() => {
         fetchInitialData();
-    }, [activeTab]);
+    }, []);
 
     const fetchInitialData = async () => {
         try {
@@ -40,34 +36,18 @@ export default function EmployeeAssigner() {
             );
             setEmployees(filteredUsers);
 
-            if (activeTab === "onboarding") {
-                const monitoringRes = await fetch(
-                    `${API_URL}/onboarding/monitoring`,
-                    { headers },
+            const monitoringRes = await fetch(
+                `${API_URL}/onboarding/monitoring`,
+                { headers },
+            );
+            if (monitoringRes.ok) {
+                const monitoringData = await monitoringRes.json();
+                const list = monitoringData.data || monitoringData || [];
+                const assignedIds = list.map(
+                    (item: any) => item.employeeId,
                 );
-                if (monitoringRes.ok) {
-                    const monitoringData = await monitoringRes.json();
-                    const list = monitoringData.data || monitoringData || [];
-                    const assignedIds = list.map(
-                        (item: any) => item.employeeId,
-                    );
-                    setAssignedEmployees(assignedIds);
-                    setSelectedEmployees(assignedIds);
-                }
-            } else {
-                const academyRes = await fetch(
-                    `${API_URL}/academy/assigned-employees`,
-                    { headers },
-                );
-                if (academyRes.ok) {
-                    const academyData = await academyRes.json();
-                    const assignedIds = academyData.data || academyData || [];
-                    setAssignedEmployees(assignedIds);
-                    setSelectedEmployees(assignedIds);
-                } else {
-                    setAssignedEmployees([]);
-                    setSelectedEmployees([]);
-                }
+                setAssignedEmployees(assignedIds);
+                setSelectedEmployees(assignedIds);
             }
         } catch (error) {
             console.error(error);
@@ -116,10 +96,7 @@ export default function EmployeeAssigner() {
             const token = localStorage.getItem("token");
             const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-            const endpoint =
-                activeTab === "onboarding"
-                    ? `${API_URL}/onboarding/assign`
-                    : `${API_URL}/academy/assign`;
+            const endpoint = `${API_URL}/onboarding/assign`;
 
             await Promise.all(
                 newSelected.map((empId) =>
@@ -139,11 +116,7 @@ export default function EmployeeAssigner() {
                 ),
             );
 
-            alert(
-                activeTab === "onboarding"
-                    ? t("successOnboarding")
-                    : t("successAcademy"),
-            );
+            alert(t("successOnboarding"));
             fetchInitialData();
         } catch (error: any) {
             alert(error.message);
@@ -158,22 +131,9 @@ export default function EmployeeAssigner() {
 
             <div className="flex gap-4 border-b">
                 <button
-                    className={`pb-2 font-bold uppercase text-sm ${activeTab === "onboarding" ? "border-b-2 border-black" : "text-gray-400"}`}
-                    onClick={() => {
-                        setActiveTab("onboarding");
-                        setSelectedEmployees([]);
-                    }}
+                    className="pb-2 font-bold uppercase text-sm border-b-2 border-black"
                 >
                     {t("onboardingTab")}
-                </button>
-                <button
-                    className={`pb-2 font-bold uppercase text-sm ${activeTab === "academy" ? "border-b-2 border-black" : "text-gray-400"}`}
-                    onClick={() => {
-                        setActiveTab("academy");
-                        setSelectedEmployees([]);
-                    }}
-                >
-                    {t("academyTab")}
                 </button>
             </div>
 

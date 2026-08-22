@@ -73,7 +73,7 @@ export default function EmployeeDetailsTable({
                                         38h
                                     </td>
                                     <td className="p-3 text-xs font-bold text-green-600">
-                                        75%
+                                        {u.employee?.okrProgress !== undefined ? `${u.employee.okrProgress}%` : "0%"}
                                     </td>
                                     <td className="p-3 text-xs font-bold text-orange-500">
                                         {u.employee?.feedbackReviewers?.length || 0}

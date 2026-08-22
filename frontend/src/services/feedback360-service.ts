@@ -83,8 +83,12 @@ export const assignReviewers = async (
     return res.json().then((data) => data.data);
 };
 
-export const fetchMyPendingTasks = async () => {
-    const res = await fetch(`${API_URL}/feedback-360/my-pending-tasks`, {
+export const fetchMyPendingTasks = async (targetUserId?: string) => {
+    let url = `${API_URL}/feedback-360/my-pending-tasks`;
+    if (targetUserId) {
+        url += `?userId=${targetUserId}`;
+    }
+    const res = await fetch(url, {
         headers: getHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch pending tasks");

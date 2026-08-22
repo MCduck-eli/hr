@@ -44,7 +44,11 @@ export class AIScreeningService {
             });
         }
 
-        if (matches.length > 0) {
+        const candidate = await prisma.candidate.findUnique({
+            where: { id: candidateId },
+        });
+
+        if (candidate && !candidate.primaryVacancyId && matches.length > 0) {
             await prisma.candidate.update({
                 where: { id: candidateId },
                 data: { primaryVacancyId: matches[0].vacancyId },

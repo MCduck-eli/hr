@@ -37,6 +37,8 @@ export class AcademyController {
                 isRequired:
                     req.body.isRequired === "true" ||
                     req.body.isRequired === true,
+                targetDepartmentId: req.body.targetDepartmentId || null,
+                targetEmployeeId: req.body.targetEmployeeId || null,
                 coverUrl,
                 videoUrl,
             };
@@ -113,10 +115,11 @@ export class AcademyController {
 
     async getAllCourses(req: Request, res: Response, next: NextFunction) {
         try {
-            const userId = (req as any).user.id;
+            const user = (req as any).user;
             const categoryId = req.query.categoryId as string | undefined;
             const result = await academyService.getAllCourses(
-                userId,
+                user.id,
+                user.role,
                 categoryId,
             );
             res.status(200).json({ status: "success", data: result });
@@ -226,6 +229,12 @@ export class AcademyController {
             if (files?.video) {
                 updateData.videoUrl = `/uploads/${files.video[0].filename}`;
             }
+            if (updateData.targetDepartmentId === "") {
+                updateData.targetDepartmentId = null;
+            }
+            if (updateData.targetEmployeeId === "") {
+                updateData.targetEmployeeId = null;
+            }
 
             const result = await academyService.updateCourse(
                 req.params.courseId,
@@ -237,27 +246,7 @@ export class AcademyController {
         }
     }
 
-    async assignAcademy(req: Request, res: Response, next: NextFunction) {
-        try {
-            const result = await academyService.assignAcademy(req.body);
-            res.status(201).json({ status: "success", data: result });
-        } catch (error) {
-            next(error);
-        }
-    }
 
-    async getAssignedEmployees(
-        req: Request,
-        res: Response,
-        next: NextFunction,
-    ) {
-        try {
-            const result = await academyService.getAssignedEmployees();
-            res.status(200).json({ status: "success", data: result });
-        } catch (error) {
-            next(error);
-        }
-    }
 }
 
 export const academyController = new AcademyController();

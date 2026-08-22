@@ -64,7 +64,13 @@ export class Feedback360Controller {
 
     async getMyPendingTasks(req: Request, res: Response, next: NextFunction) {
         try {
-            const userId = (req as any).user.id;
+            const user = (req as any).user;
+            let userId = user.id;
+
+            if (req.query.userId && (user.role === "SUPER_ADMIN" || user.role === "HR_ADMIN")) {
+                userId = req.query.userId as string;
+            }
+
             const result = await feedback360Service.getMyPendingTasks(userId);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {

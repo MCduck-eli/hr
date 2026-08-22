@@ -59,7 +59,7 @@ export default function Navbar() {
 
     const getDashboardLink = () => {
         if (userRole === "SUPER_ADMIN" || userRole === "HR_ADMIN") {
-            return `/${locale}/dashboard`;
+            return `/${locale}/hr/dashboard`;
         } else if (userRole === "MANAGER") {
             return `/${locale}/manager/okr`;
         } else if (userRole === "RECRUITER") {
@@ -103,32 +103,34 @@ export default function Navbar() {
                     </Link>
                 </div>
 
-                <div className="hidden md:flex items-center gap-8 text-[11px] font-bold text-gray-500 uppercase tracking-widest bg-gray-200/50 px-6 py-2 rounded-sm">
-                    <Link
-                        href={`/${locale}/okr`}
-                        className="hover:text-black transition-colors"
-                    >
-                        {t("okr")}
-                    </Link>
-                    <Link
-                        href={`/${locale}/grading`}
-                        className="hover:text-black transition-colors"
-                    >
-                        {t("grading")}
-                    </Link>
-                    <Link
-                        href={`/${locale}/disc`}
-                        className="hover:text-black transition-colors"
-                    >
-                        {t("disc")}
-                    </Link>
-                    <Link
-                        href={`/${locale}/feedback`}
-                        className="hover:text-black transition-colors"
-                    >
-                        {t("feedback")}
-                    </Link>
-                </div>
+                {(userRole === "SUPER_ADMIN" || userRole === "HR_ADMIN") && (
+                    <div className="hidden md:flex items-center gap-8 text-[11px] font-bold text-gray-500 uppercase tracking-widest bg-gray-200/50 px-6 py-2 rounded-sm">
+                        <Link
+                            href={`/${locale}/hr/okr`}
+                            className="hover:text-black transition-colors"
+                        >
+                            {t("okr")}
+                        </Link>
+                        <Link
+                            href={`/${locale}/grading`}
+                            className="hover:text-black transition-colors"
+                        >
+                            {t("grading")}
+                        </Link>
+                        <Link
+                            href={`/${locale}/disc`}
+                            className="hover:text-black transition-colors"
+                        >
+                            {t("disc")}
+                        </Link>
+                        <Link
+                            href={`/${locale}/feedback`}
+                            className="hover:text-black transition-colors"
+                        >
+                            {t("feedback")}
+                        </Link>
+                    </div>
+                )}
 
                 <div className="hidden md:flex items-center gap-6">
                     <LanguageSwitcher />
@@ -166,7 +168,7 @@ export default function Navbar() {
                     )}
                 </div>
 
-                <MobileMenu />
+                <MobileMenu userRole={userRole} isLoggedIn={isLoggedIn} locale={locale} />
             </div>
         </nav>
     );

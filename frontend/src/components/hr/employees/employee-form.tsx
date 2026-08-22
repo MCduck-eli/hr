@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { fetchDepartments, createDepartment } from "@/src/services/department-service";
+import DepartmentModal from "./department-modal";
 
 interface EmployeeFormProps {
     initialData: any;
@@ -15,6 +17,23 @@ export default function EmployeeForm({
     loading,
 }: EmployeeFormProps) {
     const t = useTranslations("HREmployees");
+
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [isCreatingDept, setIsCreatingDept] = useState(false);
+    const [isDeptLoading, setIsDeptLoading] = useState(false);
+
+    const loadDepartments = async () => {
+        try {
+            const data = await fetchDepartments();
+            setDepartments(data || []);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    useEffect(() => {
+        loadDepartments();
+    }, []);
 
     const [form, setForm] = useState<any>({
         email: "",
@@ -85,6 +104,21 @@ export default function EmployeeForm({
             email: generatedEmail,
             password: generatedPassword,
         });
+    };
+
+    const handleCreateDept = async (name: string, parentId?: string) => {
+        setIsDeptLoading(true);
+        try {
+            const dept = await createDepartment({ name, parentId });
+            setDepartments([...departments, dept]);
+            setForm({ ...form, departmentId: dept.id });
+            setIsCreatingDept(false);
+        } catch (e: any) {
+            console.error(e);
+            throw e;
+        } finally {
+            setIsDeptLoading(false);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -219,11 +253,19 @@ export default function EmployeeForm({
 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                            {t("department")}
-                        </label>
-                        <input
-                            type="text"
+                        <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                                {t("department")}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setIsCreatingDept(true)}
+                                className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                                {t("createDeptBtn")}
+                            </button>
+                        </div>
+                        <select
                             value={form.departmentId}
                             onChange={(e) =>
                                 setForm({
@@ -231,8 +273,13 @@ export default function EmployeeForm({
                                     departmentId: e.target.value,
                                 })
                             }
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
-                        />
+                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black w-full"
+                        >
+                            <option value="">-- Tanlang --</option>
+                            {departments.map((d: any) => (
+                                <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
@@ -268,6 +315,12 @@ export default function EmployeeForm({
                     )}
                 </div>
             </form>
+            <DepartmentModal
+                isOpen={isCreatingDept}
+                onClose={() => setIsCreatingDept(false)}
+                onSave={handleCreateDept}
+                departments={departments}
+            />
         </div>
     );
 }

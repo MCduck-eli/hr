@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import QuickActions from "@/src/components/dashboard/quick-actions";
 import { fetchMyPendingTasks, fetchTargetReport, fetchCycles } from "@/src/services/feedback360-service";
+import { checkInKeyResult } from "@/src/services/okr-service";
 
 export default function EmployeeProfilePage() {
     const t = useTranslations("DashboardProfile");
@@ -14,6 +15,12 @@ export default function EmployeeProfilePage() {
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+
+    const [checkInKr, setCheckInKr] = useState<any>(null);
+    const [checkInValue, setCheckInValue] = useState<number>(0);
+    const [checkInComment, setCheckInComment] = useState("");
+    const [isCheckingIn, setIsCheckingIn] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const [pendingTasks, setPendingTasks] = useState<any[]>([]);
     const [feedbackReport, setFeedbackReport] = useState<any>(null);
@@ -119,17 +126,17 @@ export default function EmployeeProfilePage() {
         };
 
         fetchDashboardData();
-    }, [params]);
+    }, [params, refreshKey]);
 
     useEffect(() => {
         const loadFeedbackData = async () => {
             try {
                 if (!currentUser?.employee?.id) return;
                 const targetUserId = dashboardData?.user?.id || currentUser.id;
-                if (targetUserId === currentUser.id) {
-                    const tasks = await fetchMyPendingTasks();
+                try {
+                    const tasks = await fetchMyPendingTasks(targetUserId || undefined);
                     setPendingTasks(tasks || []);
-                }
+                } catch (e) {}
 
                 const cyclesData = await fetchCycles();
                 setCycles(cyclesData || []);
@@ -177,7 +184,9 @@ export default function EmployeeProfilePage() {
             value: dashboardData?.okrProgress
                 ? `${dashboardData.okrProgress}%`
                 : "0%",
-            trend: t("thisMonth"),
+            trend: dashboardData?.minExpectedProgress !== undefined 
+                ? `Kamida ${dashboardData.minExpectedProgress}% kutilmoqda` 
+                : "Belgilanmagan",
         },
         {
             label: t("attendance"),
@@ -204,6 +213,31 @@ export default function EmployeeProfilePage() {
 
     const activeCourses = dashboardData?.activeCourses || [];
     const recentActivities = dashboardData?.recentActivities || [];
+    const okrs = dashboardData?.okrs || [];
+
+    const handleCheckIn = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!checkInKr) return;
+        setIsCheckingIn(true);
+        try {
+            const formData = new FormData();
+            if (checkInComment) formData.append("comment", checkInComment);
+            // checkInValue is used to store the File object here
+            if (checkInValue && typeof checkInValue !== "number") {
+                formData.append("proofImage", checkInValue as any);
+            }
+
+            await checkInKeyResult(checkInKr.id, formData);
+            setCheckInKr(null);
+            setCheckInValue(0);
+            setCheckInComment("");
+            setRefreshKey(prev => prev + 1);
+        } catch (err: any) {
+            alert(err.message || "Failed to check in");
+        } finally {
+            setIsCheckingIn(false);
+        }
+    };
 
     return (
         <div className="flex flex-col gap-12 py-12 px-4 md:px-8 max-w-[1400px] mx-auto">
@@ -313,6 +347,113 @@ export default function EmployeeProfilePage() {
                                         </div>
                                     ),
                                 )
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
+                            Mening maqsadlarim (OKR)
+                        </h2>
+                        <div className="flex flex-col gap-4">
+                            {okrs.length === 0 ? (
+                                <p className="text-sm text-gray-500">Joriy tsiklda OKR lar mavjud emas.</p>
+                            ) : (
+                                okrs.map((okr: any) => (
+                                    <div key={okr.id} className="border border-gray-200 bg-white p-6 flex flex-col gap-4">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex flex-col gap-1">
+                                                <h3 className="text-lg font-bold">{okr.title}</h3>
+                                                {okr.description && <p className="text-sm text-gray-500">{okr.description}</p>}
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span className="text-2xl font-bold tracking-tighter">{Math.round(okr.progress)}%</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Umumiy</span>
+                                            </div>
+                                        </div>
+                                        {okr.keyResults?.length > 0 && (
+                                            <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-gray-100">
+                                                {okr.keyResults.map((kr: any) => (
+                                                    <div key={kr.id} className="flex flex-col gap-2 text-sm relative group">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="font-medium text-gray-700">{kr.title}</span>
+                                                            <div className="flex items-center gap-4 w-1/3">
+                                                                <div className="flex-1 h-1.5 bg-gray-200 overflow-hidden">
+                                                                    <div className="h-full bg-black transition-all" style={{ width: `${kr.progress}%` }} />
+                                                                </div>
+                                                                <span className="text-[10px] font-bold uppercase tracking-widest w-20 text-right">{kr.currentValue} / {kr.targetValue} {kr.unit}</span>
+                                                                {kr.checkIns?.some((ci: any) => ci.status === 'PENDING') ? (
+                                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500 shrink-0">
+                                                                        Kutilmoqda
+                                                                    </span>
+                                                                ) : kr.progress < 100 ? (
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            setCheckInKr(kr);
+                                                                            setCheckInValue(kr.currentValue);
+                                                                            setCheckInComment("");
+                                                                        }}
+                                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 shrink-0"
+                                                                    >
+                                                                        YANGILASH
+                                                                    </button>
+                                                                ) : (
+                                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-green-600 shrink-0">
+                                                                        Tasdiqlangan
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {checkInKr?.id === kr.id && (
+                                                            <form onSubmit={handleCheckIn} className="mt-2 p-4 bg-gray-50 border border-gray-200 flex flex-col gap-3 relative animate-in fade-in slide-in-from-top-2 duration-200">
+                                                                <div className="flex justify-between items-center mb-1">
+                                                                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Progressni yangilash</span>
+                                                                    <button type="button" onClick={() => setCheckInKr(null)} className="text-gray-400 hover:text-black">
+                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                                    </button>
+                                                                </div>
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="flex-[2] flex flex-col gap-1">
+                                                                        <label className="text-[10px] font-bold uppercase text-gray-400">Natija rasmi (Ixtiyoriy)</label>
+                                                                        <input 
+                                                                            type="file"
+                                                                            accept="image/*"
+                                                                            onChange={(e) => {
+                                                                                if (e.target.files && e.target.files[0]) {
+                                                                                    setCheckInValue(e.target.files[0] as any);
+                                                                                }
+                                                                            }}
+                                                                            className="border border-gray-200 p-1.5 text-sm focus:border-black outline-none w-full bg-white file:mr-4 file:py-1 file:px-3 file:border-0 file:text-xs file:font-bold file:uppercase file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex-[3] flex flex-col gap-1">
+                                                                        <label className="text-[10px] font-bold uppercase text-gray-400">Izoh (ixtiyoriy)</label>
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={checkInComment}
+                                                                            onChange={(e) => setCheckInComment(e.target.value)}
+                                                                            className="border border-gray-200 p-2 text-sm focus:border-black outline-none w-full"
+                                                                            placeholder="Nima ish qilindi?"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex items-end pb-1">
+                                                                        <button 
+                                                                            type="submit" 
+                                                                            disabled={isCheckingIn}
+                                                                            className="bg-black text-white px-4 py-2 h-[38px] text-xs font-bold uppercase tracking-widest hover:bg-gray-800 disabled:opacity-50"
+                                                                        >
+                                                                            {isCheckingIn ? "..." : "Bajarildi"}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </form>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
                             )}
                         </div>
                     </div>

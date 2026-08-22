@@ -1,0 +1,143 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+
+const getHeaders = () => {
+    const token = localStorage.getItem("token");
+    return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+    };
+};
+
+export const getVacancies = async () => {
+    const res = await fetch(`${API_URL}/recruitment/vacancies`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch vacancies");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const getCandidateDetails = async (candidateId: string) => {
+    const res = await fetch(`${API_URL}/recruitment/candidates/${candidateId}`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch candidate details");
+    }
+
+    const json = await res.json();
+    return json.data;
+};
+
+export const updateVacancy = async (id: string, data: any) => {
+    const res = await fetch(`${API_URL}/recruitment/vacancies/${id}`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to update vacancy");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const deleteVacancy = async (id: string) => {
+    const res = await fetch(`${API_URL}/recruitment/vacancies/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to delete vacancy");
+    }
+    const json = await res.json();
+    return json;
+};
+
+export const updateCandidateStage = async (candidateId: string, stage: string) => {
+    const res = await fetch(`${API_URL}/recruitment/candidates/${candidateId}/stage`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({ stage }),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to update stage");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const hireCandidate = async (candidateId: string, departmentId?: string, managerId?: string) => {
+    const res = await fetch(`${API_URL}/recruitment/candidates/${candidateId}/hire`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ departmentId, managerId }),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to hire candidate");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const createVacancy = async (payload: { title: string; description: string; requirements: string; departmentId?: string }) => {
+    const res = await fetch(`${API_URL}/recruitment/vacancies`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to create vacancy");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const getPublicVacancy = async (id: string) => {
+    const res = await fetch(`${API_URL}/recruitment/public/vacancies/${id}`, {
+        headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch vacancy");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const applyForJob = async (formData: FormData) => {
+    const res = await fetch(`${API_URL}/recruitment/apply`, {
+        method: "POST",
+        body: formData,
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to apply");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const sendCandidateEmail = async (candidateId: string, payload: { subject: string, text: string, type: string }) => {
+    const res = await fetch(`${API_URL}/recruitment/candidates/${candidateId}/email`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to send email");
+    }
+    const json = await res.json();
+    return json.data;
+};

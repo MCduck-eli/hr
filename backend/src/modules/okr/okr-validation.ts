@@ -6,6 +6,7 @@ export const createCycleSchema = z.object({
         startDate: z.string().datetime(),
         endDate: z.string().datetime(),
         isCurrent: z.boolean().optional(),
+        minExpectedProgress: z.number().optional(),
     }),
 });
 
@@ -18,6 +19,7 @@ export const createObjectiveSchema = z.object({
         departmentId: z.string().uuid().optional(),
         employeeId: z.string().uuid().optional(),
         parentId: z.string().uuid().optional(),
+        minExpectedProgress: z.number().optional(),
         keyResults: z
             .array(
                 z.object({
@@ -33,7 +35,6 @@ export const createObjectiveSchema = z.object({
 
 export const checkInKeyResultSchema = z.object({
     body: z.object({
-        value: z.number(),
         comment: z.string().optional(),
     }),
 });
@@ -41,5 +42,28 @@ export const checkInKeyResultSchema = z.object({
 export const updateOkrStatusSchema = z.object({
     body: z.object({
         status: z.enum(["SUBMITTED", "APPROVED", "REJECTED", "CANCELLED"]),
+    }),
+});
+
+export const updateObjectiveSchema = z.object({
+    body: z.object({
+        level: z.enum(["COMPANY", "DEPARTMENT", "INDIVIDUAL"]).optional(),
+        title: z.string().min(3).optional(),
+        description: z.string().optional(),
+        departmentId: z.string().uuid().optional().nullable(),
+        employeeId: z.string().uuid().optional().nullable(),
+        parentId: z.string().uuid().optional().nullable(),
+        minExpectedProgress: z.number().optional().nullable(),
+        keyResults: z
+            .array(
+                z.object({
+                    id: z.string().uuid().optional(),
+                    title: z.string().min(2),
+                    initialValue: z.number().default(0),
+                    targetValue: z.number(),
+                    unit: z.string().default("%"),
+                })
+            )
+            .optional(),
     }),
 });

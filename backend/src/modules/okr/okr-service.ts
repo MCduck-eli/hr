@@ -7,6 +7,7 @@ export class OkrService {
         startDate: string;
         endDate: string;
         isCurrent?: boolean;
+        minExpectedProgress?: number;
     }) {
         if (payload.isCurrent) {
             await prisma.okrCycle.updateMany({
@@ -21,6 +22,7 @@ export class OkrService {
                 startDate: new Date(payload.startDate),
                 endDate: new Date(payload.endDate),
                 isCurrent: payload.isCurrent ?? false,
+                minExpectedProgress: payload.minExpectedProgress ?? 0.0,
             },
         });
     }
@@ -39,6 +41,7 @@ export class OkrService {
         departmentId?: string;
         employeeId?: string;
         parentId?: string;
+        minExpectedProgress?: number;
         keyResults: {
             title: string;
             initialValue?: number;
@@ -55,6 +58,7 @@ export class OkrService {
                 departmentId: payload.departmentId,
                 employeeId: payload.employeeId,
                 parentId: payload.parentId,
+                minExpectedProgress: payload.minExpectedProgress,
                 keyResults: {
                     create: payload.keyResults.map((kr) => ({
                         title: kr.title,
@@ -72,10 +76,89 @@ export class OkrService {
         });
     }
 
+    async updateObjective(
+        objectiveId: string,
+        payload: {
+            level?: "COMPANY" | "DEPARTMENT" | "INDIVIDUAL";
+            title?: string;
+            description?: string;
+            departmentId?: string | null;
+            employeeId?: string | null;
+            parentId?: string | null;
+            minExpectedProgress?: number | null;
+            keyResults?: {
+                id?: string;
+                title: string;
+                initialValue?: number;
+                targetValue: number;
+                unit?: string;
+            }[];
+        }
+    ) {
+        const objective = await prisma.objective.findUnique({
+            where: { id: objectiveId },
+            include: { keyResults: true },
+        });
+
+        if (!objective) throw new AppError("Objective not found", 404);
+
+        const updateData: any = {};
+        if (payload.level !== undefined) updateData.level = payload.level;
+        if (payload.title !== undefined) updateData.title = payload.title;
+        if (payload.description !== undefined) updateData.description = payload.description;
+        if (payload.departmentId !== undefined) updateData.departmentId = payload.departmentId;
+        if (payload.employeeId !== undefined) updateData.employeeId = payload.employeeId;
+        if (payload.parentId !== undefined) updateData.parentId = payload.parentId;
+        if (payload.minExpectedProgress !== undefined) updateData.minExpectedProgress = payload.minExpectedProgress;
+
+        if (payload.keyResults) {
+            const existingKrIds = objective.keyResults.map(kr => kr.id);
+            const payloadKrIds = payload.keyResults.map(kr => kr.id).filter(id => id);
+            
+            const krsToDelete = existingKrIds.filter(id => !payloadKrIds.includes(id));
+            
+            updateData.keyResults = {
+                deleteMany: krsToDelete.length > 0 ? { id: { in: krsToDelete } } : undefined,
+                upsert: payload.keyResults.map(kr => ({
+                    where: { id: kr.id || "new-kr" },
+                    create: {
+                        title: kr.title,
+                        initialValue: kr.initialValue ?? 0,
+                        currentValue: kr.initialValue ?? 0,
+                        targetValue: kr.targetValue,
+                        unit: kr.unit ?? "%",
+                        progress: 0,
+                    },
+                    update: {
+                        title: kr.title,
+                        targetValue: kr.targetValue,
+                        unit: kr.unit,
+                        // Not updating initialValue or currentValue to prevent messing up progress during normal edit
+                    }
+                }))
+            };
+        }
+
+        const updated = await prisma.objective.update({
+            where: { id: objectiveId },
+            data: updateData,
+            include: { keyResults: true }
+        });
+        
+        await this.recalculateObjectiveProgress(objectiveId);
+        return updated;
+    }
+
+    async deleteObjective(objectiveId: string) {
+        return prisma.objective.delete({
+            where: { id: objectiveId },
+        });
+    }
+
     async checkInKeyResult(
         keyResultId: string,
-        value: number,
         comment?: string,
+        imageUrl?: string,
         userId?: string,
     ) {
         const kr = await prisma.keyResult.findUnique({
@@ -85,37 +168,77 @@ export class OkrService {
 
         if (!kr) throw new AppError("Key Result not found", 404);
 
-        const range = kr.targetValue - kr.initialValue;
-        let krProgress = 0;
-        if (range !== 0) {
-            krProgress = Math.min(
-                100,
-                Math.max(0, ((value - kr.initialValue) / range) * 100),
-            );
-        }
-
-        await prisma.keyResult.update({
-            where: { id: keyResultId },
-            data: {
-                currentValue: value,
-                progress: krProgress,
-            },
-        });
+        const value = kr.targetValue; // Storing target value in the check-in record for reference
 
         await prisma.okrCheckIn.create({
             data: {
                 keyResultId,
                 value,
                 comment,
+                imageUrl,
+                status: "PENDING",
                 createdById: userId || "SYSTEM",
             },
         });
 
-        await this.recalculateObjectiveProgress(kr.objectiveId);
+        // We don't update KeyResult or Objective yet. 
+        // Wait for HR Admin to review it.
 
         return prisma.keyResult.findUnique({
             where: { id: keyResultId },
             include: { checkIns: { orderBy: { createdAt: "desc" } } },
+        });
+    }
+
+    async getPendingCheckIns() {
+        return prisma.okrCheckIn.findMany({
+            where: { status: "PENDING" },
+            include: {
+                keyResult: {
+                    include: {
+                        objective: {
+                            include: {
+                                employee: true
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: { createdAt: "desc" }
+        });
+    }
+
+    async reviewCheckIn(checkInId: string, status: "APPROVED" | "REJECTED") {
+        const checkIn = await prisma.okrCheckIn.findUnique({
+            where: { id: checkInId },
+            include: { keyResult: true }
+        });
+
+        if (!checkIn) throw new AppError("Check-in not found", 404);
+        if (checkIn.status !== "PENDING") throw new AppError("Check-in is already reviewed", 400);
+
+        await prisma.okrCheckIn.update({
+            where: { id: checkInId },
+            data: { status }
+        });
+
+        if (status === "APPROVED") {
+            const kr = checkIn.keyResult;
+            
+            await prisma.keyResult.update({
+                where: { id: kr.id },
+                data: {
+                    currentValue: kr.targetValue,
+                    progress: 100,
+                },
+            });
+
+            await this.recalculateObjectiveProgress(kr.objectiveId);
+        }
+
+        return prisma.okrCheckIn.findUnique({
+            where: { id: checkInId },
+            include: { keyResult: true }
         });
     }
 

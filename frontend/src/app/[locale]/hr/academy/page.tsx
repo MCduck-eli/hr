@@ -16,7 +16,37 @@ export default function HRAcademyManagementPage() {
     const [isRequired, setIsRequired] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [targetDepartmentId, setTargetDepartmentId] = useState<string>("");
+    const [targetEmployeeId, setTargetEmployeeId] = useState<string>("");
 
+    
+    const fetchDropdownData = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const API_URL = process.env.NEXT_PUBLIC_API_URL;
+            const headers = { Authorization: `Bearer ${token}` };
+            
+            const [deptRes, empRes] = await Promise.all([
+                fetch(`${API_URL}/departments`, { headers }),
+                fetch(`${API_URL}/users`, { headers })
+            ]);
+            
+            if (deptRes.ok) {
+                const data = await deptRes.json();
+                setDepartments(data.data || data || []);
+            }
+            if (empRes.ok) {
+                const data = await empRes.json();
+                const allUsers = data.data || data || [];
+                setEmployees(allUsers.filter((u: any) => u.employee?.id));
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+    
     const fetchCourses = async () => {
         try {
             const token = localStorage.getItem("token");
@@ -38,6 +68,7 @@ export default function HRAcademyManagementPage() {
 
     useEffect(() => {
         fetchCourses();
+        fetchDropdownData();
     }, []);
 
     const handleSubmit = async () => {
@@ -58,6 +89,8 @@ export default function HRAcademyManagementPage() {
             formData.append("title", title);
             formData.append("description", description);
             formData.append("isRequired", String(isRequired));
+            formData.append("targetDepartmentId", targetDepartmentId || "");
+            formData.append("targetEmployeeId", targetEmployeeId || "");
 
             if (coverFile) {
                 formData.append("cover", coverFile);
@@ -83,7 +116,9 @@ export default function HRAcademyManagementPage() {
             setVideoFile(null);
             setIsRequired(false);
             setEditingId(null);
-            alert(t("successSave"));
+            setTargetDepartmentId("");
+            setTargetEmployeeId("");
+            alert(editingId ? t("successUpdate") : t("successAdd"));
         } catch (err) {
             console.error(err);
             alert(t("errorDefault"));
@@ -97,6 +132,8 @@ export default function HRAcademyManagementPage() {
         setTitle(course.title);
         setDescription(course.description || "");
         setIsRequired(course.isRequired || false);
+        setTargetDepartmentId(course.targetDepartmentId || "");
+        setTargetEmployeeId(course.targetEmployeeId || "");
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
@@ -105,6 +142,8 @@ export default function HRAcademyManagementPage() {
         setTitle("");
         setDescription("");
         setIsRequired(false);
+        setTargetDepartmentId("");
+        setTargetEmployeeId("");
     };
 
     const handleDelete = async (id: string) => {
@@ -184,6 +223,41 @@ export default function HRAcademyManagementPage() {
                         />
                     </div>
 
+                    
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold uppercase text-gray-600">Bo'lim (Department)</label>
+                        <select 
+                            className="p-2 border text-sm bg-white" 
+                            value={targetDepartmentId} 
+                            onChange={e => {
+                                setTargetDepartmentId(e.target.value);
+                                if (e.target.value) setTargetEmployeeId(""); // Mutual exclusion
+                            }}
+                        >
+                            <option value="">-- Barcha bo'limlar --</option>
+                            {departments.map(d => (
+                                <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold uppercase text-gray-600">Xodim (Employee)</label>
+                        <select 
+                            className="p-2 border text-sm bg-white" 
+                            value={targetEmployeeId} 
+                            onChange={e => {
+                                setTargetEmployeeId(e.target.value);
+                                if (e.target.value) setTargetDepartmentId(""); // Mutual exclusion
+                            }}
+                        >
+                            <option value="">-- Barcha xodimlar --</option>
+                            {employees.map(u => (
+                                <option key={u.employee.id} value={u.employee.id}>{u.employee.firstName} {u.employee.lastName} ({u.email})</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
                         <input
                             type="checkbox"
@@ -208,7 +282,7 @@ export default function HRAcademyManagementPage() {
                         </button>
                         {editingId && (
                             <button
-                                onClick={resetForm}
+                                onClick={handleCancelEdit}
                                 className="border border-gray-300 p-2 font-bold uppercase"
                             >
                                 {t("cancelBtn")}

@@ -98,16 +98,29 @@ export class DashboardService {
             },
         });
 
-        const academyCourses = (employee.courseProgresses || []).map((cp) => ({
-            id: cp.courseId,
-            title: cp.course?.title || "Academy Kursi",
-            description: cp.course?.description,
-            coverUrl: cp.course?.coverUrl,
-            videoUrl: cp.course?.videoUrl,
-            progress: cp.progressPercent || 0,
-            type: "ACADEMY",
-            isCompleted: cp.isCompleted,
-        }));
+        const targetedCourses = await prisma.academyCourse.findMany({
+            where: {
+                OR: [
+                    { targetEmployeeId: employee.id },
+                    { AND: [{ targetEmployeeId: null }, { targetDepartmentId: null }] },
+                    ...(employee.departmentId ? [{ targetDepartmentId: employee.departmentId }] : [])
+                ]
+            }
+        });
+
+        const academyCourses = targetedCourses.map((course) => {
+            const cp = (employee.courseProgresses || []).find((p: any) => p.courseId === course.id);
+            return {
+                id: course.id,
+                title: course.title || "Academy Kursi",
+                description: course.description,
+                coverUrl: course.coverUrl,
+                videoUrl: course.videoUrl,
+                progress: cp?.progressPercent || 0,
+                type: "ACADEMY",
+                isCompleted: cp?.isCompleted || false,
+            };
+        });
 
         const onboardingCourses = (employee.onboarding?.courses || []).map(
             (oc) => ({
@@ -138,6 +151,42 @@ export class DashboardService {
             ...onboardingTasks,
         ];
 
+        let okrProgress = 0;
+        let okrs: any[] = [];
+        let minExpectedProgress = 0;
+        const currentCycle = await prisma.okrCycle.findFirst({
+            where: { isCurrent: true },
+        });
+
+        if (currentCycle) {
+            minExpectedProgress = currentCycle.minExpectedProgress || 0;
+            const employeeOkrs = await prisma.objective.findMany({
+                where: {
+                    cycleId: currentCycle.id,
+                    employeeId: employee.id,
+                    level: "INDIVIDUAL"
+                },
+                include: { 
+                    keyResults: {
+                        include: { checkIns: true }
+                    } 
+                }
+            });
+            if (employeeOkrs.length > 0) {
+                const total = employeeOkrs.reduce((acc, okr) => acc + okr.progress, 0);
+                okrProgress = Math.round(total / employeeOkrs.length);
+                
+                // Average of minExpectedProgress from individual OKRs if set
+                const okrsWithMinProgress = employeeOkrs.filter(o => o.minExpectedProgress !== null && o.minExpectedProgress !== undefined);
+                if (okrsWithMinProgress.length > 0) {
+                    const totalMin = okrsWithMinProgress.reduce((acc, okr) => acc + (okr.minExpectedProgress as number), 0);
+                    minExpectedProgress = Math.round(totalMin / okrsWithMinProgress.length);
+                }
+
+                okrs = employeeOkrs;
+            }
+        }
+
         return {
             user: {
                 firstName: employee.firstName,
@@ -148,7 +197,9 @@ export class DashboardService {
                     id: employee.id,
                 },
             },
-            okrProgress: 75,
+            okrProgress,
+            minExpectedProgress,
+            okrs,
             attendanceHours: 38,
             pendingFeedbacks,
             leaveBalance: employee.leaveBalance,
@@ -163,10 +214,19 @@ export class DashboardService {
 
     async updateVideoProgress(
         userId: string,
-        payload: { courseId: string; type: string; progress: number },
+        payload: { courseId: string; type: string; progress: number; targetUserId?: string },
     ) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+        });
+        
+        let targetId = userId;
+        if (payload.targetUserId && (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN")) {
+            targetId = payload.targetUserId;
+        }
+
         const employee = await prisma.employee.findUnique({
-            where: { userId },
+            where: { userId: targetId },
         });
 
         if (!employee) {

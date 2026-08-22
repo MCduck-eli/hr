@@ -18,27 +18,12 @@ export class AcademyService {
         videoUrl?: string;
         isRequired?: boolean;
         categoryId?: string;
+        targetDepartmentId?: string;
+        targetEmployeeId?: string;
     }) {
         const course = await prisma.academyCourse.create({
             data: payload,
         });
-
-        const allEmployees = await prisma.employee.findMany({
-            select: { id: true },
-        });
-
-        if (allEmployees.length > 0) {
-            const progressData = allEmployees.map((emp) => ({
-                employeeId: emp.id,
-                courseId: course.id,
-                isCompleted: false,
-            }));
-
-            await prisma.courseProgress.createMany({
-                data: progressData,
-                skipDuplicates: true,
-            });
-        }
 
         return course;
     }
@@ -97,7 +82,7 @@ export class AcademyService {
         });
     }
 
-    async getAllCourses(userId: string, categoryId?: string) {
+    async getAllCourses(userId: string, role: string, categoryId?: string) {
         const employee = await prisma.employee.findUnique({
             where: { userId },
         });
@@ -105,6 +90,19 @@ export class AcademyService {
         const where: any = {};
         if (categoryId) {
             where.categoryId = categoryId;
+        }
+
+        if (employee && role !== "HR_ADMIN" && role !== "SUPER_ADMIN") {
+            const orConditions: any[] = [
+                { targetEmployeeId: employee.id },
+                { AND: [{ targetEmployeeId: null }, { targetDepartmentId: null }] }
+            ];
+
+            if (employee.departmentId) {
+                orConditions.push({ targetDepartmentId: employee.departmentId });
+            }
+
+            where.OR = orConditions;
         }
 
         const courses = await prisma.academyCourse.findMany({
@@ -322,6 +320,8 @@ export class AcademyService {
             videoUrl?: string;
             isRequired?: boolean;
             categoryId?: string;
+            targetDepartmentId?: string;
+            targetEmployeeId?: string;
         },
     ) {
         const course = await prisma.academyCourse.findUnique({
@@ -338,33 +338,7 @@ export class AcademyService {
         });
     }
 
-    async assignAcademy(payload: { employeeId: string }) {
-        const courses = await prisma.academyCourse.findMany();
 
-        if (courses.length > 0) {
-            await prisma.courseProgress.createMany({
-                data: courses.map((course) => ({
-                    employeeId: payload.employeeId,
-                    courseId: course.id,
-                    isCompleted: false,
-                })),
-                skipDuplicates: true,
-            });
-        }
-
-        return prisma.courseProgress.findMany({
-            where: { employeeId: payload.employeeId },
-            include: { course: true },
-        });
-    }
-
-    async getAssignedEmployees() {
-        const progresses = await prisma.courseProgress.findMany({
-            select: { employeeId: true },
-            distinct: ["employeeId"],
-        });
-        return progresses.map((p) => p.employeeId);
-    }
 }
 
 export const academyService = new AcademyService();

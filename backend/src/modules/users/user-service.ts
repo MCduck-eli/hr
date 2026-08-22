@@ -4,7 +4,7 @@ import { hashPassword } from "../../utils/password";
 
 export class UserService {
     async getAllUsers() {
-        return prisma.user.findMany({
+        const users = await prisma.user.findMany({
             select: {
                 id: true,
                 email: true,
@@ -22,6 +22,51 @@ export class UserService {
                     },
                 },
             },
+        });
+
+        const currentCycle = await prisma.okrCycle.findFirst({
+            where: { isCurrent: true },
+        });
+
+        if (!currentCycle) {
+            return users;
+        }
+
+        const employeeIds = users.map(u => u.employee?.id).filter(Boolean) as string[];
+        const objectives = await prisma.objective.findMany({
+            where: {
+                cycleId: currentCycle.id,
+                level: "INDIVIDUAL",
+                employeeId: { in: employeeIds }
+            },
+            select: {
+                employeeId: true,
+                progress: true
+            }
+        });
+
+        const okrProgressByEmployee = employeeIds.reduce((acc, id) => {
+            const employeeOkrs = objectives.filter(o => o.employeeId === id);
+            if (employeeOkrs.length > 0) {
+                const total = employeeOkrs.reduce((sum, okr) => sum + okr.progress, 0);
+                acc[id] = Math.round(total / employeeOkrs.length);
+            } else {
+                acc[id] = 0;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+        return users.map(user => {
+            if (user.employee) {
+                return {
+                    ...user,
+                    employee: {
+                        ...user.employee,
+                        okrProgress: okrProgressByEmployee[user.employee.id] || 0
+                    }
+                };
+            }
+            return user;
         });
     }
 
