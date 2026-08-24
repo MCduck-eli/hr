@@ -85,9 +85,55 @@ export class RecruitmentController {
         next: NextFunction,
     ) {
         try {
+            const deadline = req.body.testTaskDeadline
+                ? new Date(req.body.testTaskDeadline)
+                : req.body.testTaskDeadline === null
+                ? null
+                : undefined;
+
             const result = await recruitmentService.updateStage(
                 req.params.candidateId,
                 req.body.stage as CandidatePipelineStage,
+                deadline,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getPublicCandidateTask(
+        req: Request<{ candidateId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await recruitmentService.getPublicCandidateTask(
+                req.params.candidateId,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async submitPublicCandidateTask(
+        req: Request<{ candidateId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const submissionFile = req.file
+                ? `/uploads/tasks/${req.file.filename}`
+                : req.body.submissionFile;
+
+            const result = await recruitmentService.submitPublicCandidateTask(
+                req.params.candidateId,
+                {
+                    submissionUrl: req.body.submissionUrl,
+                    submissionFile,
+                    submissionNote: req.body.submissionNote,
+                },
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -139,6 +185,74 @@ export class RecruitmentController {
                 req.body,
             );
             res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async uploadTaskFile(req: Request, res: Response, next: NextFunction) {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ status: "fail", message: "Fayl tanlanmadi" });
+            }
+            const fileUrl = `/uploads/tasks/${req.file.filename}`;
+            res.status(200).json({
+                status: "success",
+                data: {
+                    fileUrl,
+                    fileName: req.file.originalname,
+                },
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async reverseGeocode(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { lat, lon } = req.query;
+            if (!lat || !lon) {
+                return res.status(400).json({ status: "fail", message: "lat and lon are required" });
+            }
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&addressdetails=1`,
+                {
+                    headers: {
+                        "User-Agent": "HRPlatform-Recruiting/1.0 (contact@hrplatform.com)",
+                        "Accept-Language": "uz,ru,en;q=0.9",
+                    },
+                }
+            );
+            const data: any = await response.json();
+            const address = data.display_name || "";
+            res.status(200).json({ status: "success", data: { address, raw: data } });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async searchLocation(req: Request, res: Response, next: NextFunction) {
+        try {
+            const query = req.query.q as string;
+            if (!query || query.length < 2) {
+                return res.status(200).json({ status: "success", data: [] });
+            }
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&countrycodes=uz&limit=5&addressdetails=1`,
+                {
+                    headers: {
+                        "User-Agent": "HRPlatform-Recruiting/1.0 (contact@hrplatform.com)",
+                        "Accept-Language": "uz,ru,en;q=0.9",
+                    },
+                }
+            );
+            const data: any = await response.json();
+            const results = (Array.isArray(data) ? data : []).map((item: any) => ({
+                displayName: item.display_name,
+                lat: item.lat,
+                lon: item.lon,
+            }));
+            res.status(200).json({ status: "success", data: results });
         } catch (error) {
             next(error);
         }

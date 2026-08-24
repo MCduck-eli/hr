@@ -40,8 +40,12 @@ export const updateVacancy = async (id: string, data: any) => {
         body: JSON.stringify(data),
     });
     if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to update vacancy");
+        const err = await res.json();
+        let errMsg = err.message;
+        if (err.error && err.error.issues && err.error.issues.length > 0) {
+            errMsg = err.error.issues.map((i: any) => `${i.path.join(".")}: ${i.message}`).join(", ");
+        }
+        throw new Error(errMsg || "Failed to update vacancy");
     }
     const json = await res.json();
     return json.data;
@@ -60,15 +64,47 @@ export const deleteVacancy = async (id: string) => {
     return json;
 };
 
-export const updateCandidateStage = async (candidateId: string, stage: string) => {
+export const updateCandidateStage = async (
+    candidateId: string,
+    stage: string,
+    testTaskDeadline?: string | null,
+) => {
     const res = await fetch(`${API_URL}/recruitment/candidates/${candidateId}/stage`, {
         method: "PATCH",
         headers: getHeaders(),
-        body: JSON.stringify({ stage }),
+        body: JSON.stringify({
+            stage,
+            ...(testTaskDeadline !== undefined ? { testTaskDeadline } : {}),
+        }),
     });
     if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to update stage");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const getPublicCandidateTask = async (candidateId: string) => {
+    const res = await fetch(`${API_URL}/recruitment/public/candidates/${candidateId}/task`, {
+        headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to load candidate task");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const submitCandidateTask = async (candidateId: string, formData: FormData) => {
+    const res = await fetch(`${API_URL}/recruitment/public/candidates/${candidateId}/submit-task`, {
+        method: "POST",
+        body: formData,
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to submit test task");
     }
     const json = await res.json();
     return json.data;
@@ -95,8 +131,12 @@ export const createVacancy = async (payload: { title: string; description: strin
         body: JSON.stringify(payload),
     });
     if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to create vacancy");
+        const err = await res.json();
+        let errMsg = err.message;
+        if (err.error && err.error.issues && err.error.issues.length > 0) {
+            errMsg = err.error.issues.map((i: any) => `${i.path.join(".")}: ${i.message}`).join(", ");
+        }
+        throw new Error(errMsg || "Failed to create vacancy");
     }
     const json = await res.json();
     return json.data;
@@ -140,4 +180,25 @@ export const sendCandidateEmail = async (candidateId: string, payload: { subject
     }
     const json = await res.json();
     return json.data;
+};
+
+export const uploadTaskFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_URL}/recruitment/upload-task`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Faylni yuklashda xatolik yuz berdi");
+    }
+    const json = await res.json();
+    return json.data as { fileUrl: string; fileName: string };
 };

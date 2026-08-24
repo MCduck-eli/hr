@@ -276,13 +276,18 @@ model Candidate {
   location         String?
   coverLetter      String?
   source           String                 @default("DIRECT")
-  stage            CandidatePipelineStage @default(APPLIED)
-  primaryVacancyId String?
-  primaryVacancy   JobVacancy?            @relation(fields: [primaryVacancyId], references: [id])
-  vacancyMatches   CandidateMatch[]
-  feedbacks        CandidateFeedback[]
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  stage                  CandidatePipelineStage @default(APPLIED)
+  primaryVacancyId       String?
+  primaryVacancy         JobVacancy?            @relation(fields: [primaryVacancyId], references: [id])
+  testTaskDeadline       DateTime?
+  testTaskSubmissionUrl  String?
+  testTaskSubmissionFile String?
+  testTaskSubmissionNote String?
+  testTaskSubmittedAt    DateTime?
+  vacancyMatches         CandidateMatch[]
+  feedbacks              CandidateFeedback[]
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
 }
 
 model CandidateMatch {

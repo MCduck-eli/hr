@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import EmployeeForm from "@/src/components/hr/employees/employee-form";
 import EmployeeDetailsTable from "@/src/components/hr/employees/employee-details-table";
 import {
@@ -15,6 +15,28 @@ import {
 export default function HREmployeesPage() {
     const t = useTranslations("HREmployees");
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const candidateId = searchParams.get("candidateId");
+    const emailParam = searchParams.get("email");
+    const firstNameParam = searchParams.get("firstName");
+    const lastNameParam = searchParams.get("lastName");
+    const phoneParam = searchParams.get("phone");
+    const departmentIdParam = searchParams.get("departmentId");
+
+    const [candidateData, setCandidateData] = useState<any>(() => {
+        if (emailParam || candidateId) {
+            return {
+                candidateId: candidateId || undefined,
+                email: emailParam || "",
+                firstName: firstNameParam || "",
+                lastName: lastNameParam || "",
+                phone: phoneParam || "",
+                departmentId: departmentIdParam || "",
+            };
+        }
+        return null;
+    });
 
     const [users, setUsers] = useState<any[]>([]);
     const [editingUser, setEditingUser] = useState<any>(null);
@@ -51,6 +73,10 @@ export default function HREmployeesPage() {
                 await updateUser(editingUser.id, payload);
             } else {
                 await createUser(payload);
+                if (candidateData) {
+                    setCandidateData(null);
+                    router.replace(window.location.pathname);
+                }
             }
 
             setEditingUser(null);
@@ -90,6 +116,7 @@ export default function HREmployeesPage() {
 
     const handleCancel = () => {
         setEditingUser(null);
+        setCandidateData(null);
     };
 
     return (
@@ -114,7 +141,7 @@ export default function HREmployeesPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <EmployeeForm
-                    initialData={editingUser}
+                    initialData={editingUser || candidateData}
                     onSubmit={handleSubmit}
                     onCancel={handleCancel}
                     loading={loading}

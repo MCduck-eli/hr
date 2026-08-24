@@ -48,9 +48,18 @@ export default function EmployeeForm({
 
     useEffect(() => {
         if (initialData) {
+            let defaultPass = "";
+            if (initialData.candidateId && !initialData.password) {
+                const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+                for (let i = 0; i < 10; i++) {
+                    defaultPass += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+            }
+
             setForm({
+                candidateId: initialData.candidateId || undefined,
                 email: initialData.email || "",
-                password: "",
+                password: defaultPass,
                 firstName:
                     initialData.firstName ||
                     initialData.employee?.firstName ||
@@ -86,9 +95,10 @@ export default function EmployeeForm({
 
     const generateCredentials = () => {
         const generatedEmail =
-            form.firstName && form.lastName
+            form.email ||
+            (form.firstName && form.lastName
                 ? `${form.firstName.toLowerCase()}.${form.lastName.toLowerCase()}@hrplatform.com`
-                : `user${Math.floor(Math.random() * 10000)}@hrplatform.com`;
+                : `user${Math.floor(Math.random() * 10000)}@hrplatform.com`);
 
         const chars =
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -99,11 +109,11 @@ export default function EmployeeForm({
             );
         }
 
-        setForm({
-            ...form,
+        setForm((prev: any) => ({
+            ...prev,
             email: generatedEmail,
             password: generatedPassword,
-        });
+        }));
     };
 
     const handleCreateDept = async (name: string, parentId?: string) => {
@@ -133,13 +143,21 @@ export default function EmployeeForm({
         onSubmit(payload);
     };
 
+    const isEditMode = Boolean(initialData && !initialData.candidateId && initialData.id);
+
     return (
         <div className="bg-white p-6 border border-gray-200 h-fit">
+            {initialData?.candidateId && (
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-wider rounded flex items-center gap-2">
+                    <span>🎉</span>
+                    <span>Nomzod: {form.firstName} {form.lastName} ({form.email}) ishga qabul qilinmoqda</span>
+                </div>
+            )}
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold uppercase tracking-wider text-black">
-                    {initialData ? t("editEmployee") : t("addEmployee")}
+                    {isEditMode ? t("editEmployee") : t("addEmployee")}
                 </h2>
-                {!initialData && (
+                {!isEditMode && (
                     <button
                         type="button"
                         onClick={generateCredentials}

@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import RecruitingBoard from "@/src/components/hr/recruiting/recruiting-board";
 import { getVacancies, updateCandidateStage, hireCandidate, createVacancy, updateVacancy, deleteVacancy } from "@/src/services/recruiting-service";
 import { fetchDepartments } from "@/src/services/department-service";
 import { fetchAllUsers } from "@/src/services/user-service";
 
 export default function HRRecruitingPage() {
+    const t = useTranslations("Recruiting");
     const router = useRouter();
     const [vacancies, setVacancies] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
@@ -53,9 +55,9 @@ export default function HRRecruitingPage() {
         loadData();
     }, []);
 
-    const handleStageChange = async (candidateId: string, stage: string) => {
+    const handleStageChange = async (candidateId: string, stage: string, testTaskDeadline?: string | null) => {
         try {
-            await updateCandidateStage(candidateId, stage);
+            await updateCandidateStage(candidateId, stage, testTaskDeadline);
             await loadData();
         } catch (error) {
             console.error("Failed to update stage", error);
@@ -74,8 +76,16 @@ export default function HRRecruitingPage() {
     };
 
     const handleCreateVacancy = async () => {
-        if (!vacancyForm.title || !vacancyForm.description || vacancyForm.requirements.some(r => !r.trim())) {
-            alert("Iltimos, barcha majburiy maydonlarni to'ldiring.");
+        if (!vacancyForm.title || vacancyForm.title.length < 3) {
+            alert(t("vacancyTitle") + " min 3 chars");
+            return;
+        }
+        if (!vacancyForm.description || vacancyForm.description.length < 10) {
+            alert(t("description") + " min 10 chars");
+            return;
+        }
+        if (vacancyForm.requirements.some(r => !r.trim())) {
+            alert(t("requirements"));
             return;
         }
         try {
@@ -96,7 +106,7 @@ export default function HRRecruitingPage() {
             await loadData();
         } catch (error: any) {
             console.error("Failed to save vacancy", error);
-            alert(error.message || "Xatolik yuz berdi.");
+            alert(error.message || "Error");
         }
     };
 
@@ -126,7 +136,7 @@ export default function HRRecruitingPage() {
             await loadData();
         } catch (error: any) {
             console.error("Failed to delete vacancy", error);
-            alert(error.message || "Xatolik yuz berdi.");
+            alert(error.message || "Error");
         }
     };
 
@@ -138,13 +148,13 @@ export default function HRRecruitingPage() {
                         onClick={() => router.back()}
                         className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-4"
                     >
-                        &larr; Orqaga
+                        &larr; {t("goBack")}
                     </button>
                     <h1 className="text-3xl font-bold tracking-tight text-black uppercase">
-                        Rekruting Boshqaruvi
+                        {t("title")}
                     </h1>
                     <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                        Vakansiyalar va nomzodlarni boshqarish paneli
+                        {t("subtitle")}
                     </p>
                 </div>
                 <button
@@ -155,12 +165,12 @@ export default function HRRecruitingPage() {
                     }}
                     className="px-6 py-3 bg-black text-white text-[12px] font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors"
                 >
-                    + Yangi Vakansiya
+                    {t("newVacancy")}
                 </button>
             </div>
 
             {loading ? (
-                <div className="text-center p-8 font-bold text-gray-500">YUKLANMOQDA...</div>
+                <div className="text-center p-8 font-bold text-gray-500">{t("loading")}</div>
             ) : (
                 <RecruitingBoard 
                     vacancies={vacancies} 
@@ -177,52 +187,52 @@ export default function HRRecruitingPage() {
                 <div className="bg-white border border-gray-200 p-8 flex flex-col gap-6 mt-8">
                     <div>
                         <h2 className="text-xl font-bold uppercase tracking-tight text-black mb-2">
-                            {editingVacancyId ? "Vakansiyani Tahrirlash" : "Yangi Vakansiya Yaratish"}
+                            {editingVacancyId ? t("editVacancyTitle") : t("createVacancyTitle")}
                         </h2>
                     </div>
 
                     <div className="flex flex-col gap-4">
                         <div>
                             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                                Nomi *
+                                {t("vacancyTitle")} *
                             </label>
                             <input
                                 type="text"
                                 value={vacancyForm.title}
                                 onChange={(e) => setVacancyForm({ ...vacancyForm, title: e.target.value })}
                                 className="w-full p-3 border border-gray-200 text-xs focus:outline-none focus:border-black"
-                                placeholder="Masalan: Frontend Dasturchi"
+                                placeholder={t("vacancyTitle")}
                             />
                         </div>
 
                         <div>
                             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                                Kompaniya Nomi
+                                {t("companyName")}
                             </label>
                             <input
                                 type="text"
                                 value={vacancyForm.companyName}
                                 onChange={(e) => setVacancyForm({ ...vacancyForm, companyName: e.target.value })}
                                 className="w-full p-3 border border-gray-200 text-xs focus:outline-none focus:border-black"
-                                placeholder="Masalan: MCHJ Google"
+                                placeholder={t("companyName")}
                             />
                         </div>
 
                         <div>
                             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                                Tavsif *
+                                {t("description")} *
                             </label>
                             <textarea
                                 value={vacancyForm.description}
                                 onChange={(e) => setVacancyForm({ ...vacancyForm, description: e.target.value })}
                                 className="w-full p-3 border border-gray-200 text-xs focus:outline-none focus:border-black h-24 resize-none"
-                                placeholder="Vakansiya haqida umumiy ma'lumot..."
+                                placeholder={t("description")}
                             />
                         </div>
 
                         <div>
                             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1">
-                                Talablar *
+                                {t("requirements")} *
                             </label>
                             {vacancyForm.requirements.map((req, index) => (
                                 <div key={index} className="flex items-center gap-2 mb-2">
@@ -235,7 +245,7 @@ export default function HRRecruitingPage() {
                                             setVacancyForm({ ...vacancyForm, requirements: newReqs });
                                         }}
                                         className="w-full p-3 border border-gray-200 text-xs focus:outline-none focus:border-black"
-                                        placeholder={`Talab ${index + 1}`}
+                                        placeholder={`${t("requirements")} ${index + 1}`}
                                     />
                                     {vacancyForm.requirements.length > 1 && (
                                         <button
@@ -258,7 +268,7 @@ export default function HRRecruitingPage() {
                                 }}
                                 className="mt-2 text-[10px] font-bold uppercase tracking-widest text-black border border-black px-4 py-2 hover:bg-black hover:text-white transition-colors"
                             >
-                                + Talab qo'shish
+                                {t("addRequirement")}
                             </button>
                         </div>
                     </div>
@@ -268,7 +278,7 @@ export default function HRRecruitingPage() {
                             onClick={handleCreateVacancy}
                             className="px-8 bg-black text-white text-[12px] font-bold uppercase tracking-wider py-3 hover:bg-gray-800 transition-colors"
                         >
-                            {editingVacancyId ? "Saqlash" : "Yaratish"}
+                            {editingVacancyId ? t("save") : t("create")}
                         </button>
                         <button
                             onClick={() => {
@@ -277,7 +287,7 @@ export default function HRRecruitingPage() {
                             }}
                             className="px-8 bg-gray-100 text-black text-[12px] font-bold uppercase tracking-wider py-3 hover:bg-gray-200 transition-colors"
                         >
-                            Bekor qilish
+                            {t("cancel")}
                         </button>
                     </div>
                 </div>
@@ -285,3 +295,4 @@ export default function HRRecruitingPage() {
         </div>
     );
 }
+

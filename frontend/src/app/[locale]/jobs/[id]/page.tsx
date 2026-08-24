@@ -22,6 +22,29 @@ export default function JobApplyPage() {
     const [answers, setAnswers] = useState<boolean[]>([]);
     const [reqsList, setReqsList] = useState<string[]>([]);
     const [resumeFile, setResumeFile] = useState<File | null>(null);
+    const [suggestions, setSuggestions] = useState<Array<{ displayName: string }>>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [searchingLocation, setSearchingLocation] = useState(false);
+
+    const handleLocationInputChange = async (value: string) => {
+        setForm((prev) => ({ ...prev, location: value }));
+        if (value.trim().length >= 2) {
+            setSearchingLocation(true);
+            try {
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+                const res = await fetch(`${API_URL}/recruitment/search-location?q=${encodeURIComponent(value.trim())}`);
+                const data = await res.json();
+                if (data?.data && Array.isArray(data.data)) {
+                    setSuggestions(data.data);
+                    setShowSuggestions(data.data.length > 0);
+                }
+            } catch (_) {}
+            setSearchingLocation(false);
+        } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+    };
 
     useEffect(() => {
         const loadVacancy = async () => {
@@ -191,43 +214,45 @@ export default function JobApplyPage() {
                         </div>
                     </div>
 
-                    <div>
+                    <div className="relative">
                         <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">
                             Yashash joyi (Lokatsiya) *
                         </label>
-                        <div className="flex gap-4">
+                        <div className="relative">
                             <input
                                 type="text"
                                 required
                                 value={form.location}
-                                onChange={(e) => setForm({ ...form, location: e.target.value })}
-                                className="w-full p-4 border border-gray-200 text-sm focus:outline-none focus:border-black transition-colors"
-                                placeholder="Shahar, Tuman yoki Manzil"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (navigator.geolocation) {
-                                        navigator.geolocation.getCurrentPosition(
-                                            async (position) => {
-                                                try {
-                                                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`);
-                                                    const data = await res.json();
-                                                    setForm({ ...form, location: data.display_name || "Joylashuv aniqlandi" });
-                                                } catch (e) {
-                                                    setForm({ ...form, location: `${position.coords.latitude}, ${position.coords.longitude}` });
-                                                }
-                                            },
-                                            (error) => alert("Joylashuvni aniqlashda xatolik!")
-                                        );
-                                    } else {
-                                        alert("Brauzeringiz joylashuvni qollab quvvatlamaydi!");
-                                    }
+                                onChange={(e) => handleLocationInputChange(e.target.value)}
+                                onFocus={() => {
+                                    if (suggestions.length > 0) setShowSuggestions(true);
                                 }}
-                                className="whitespace-nowrap px-6 border border-gray-200 text-[11px] font-bold text-black uppercase tracking-widest hover:bg-gray-50 transition-colors"
-                            >
-                                Avtomatik joylashuv
-                            </button>
+                                className="w-full p-4 border border-gray-200 text-sm focus:outline-none focus:border-black transition-colors"
+                                placeholder="Shahar, tuman, ko'cha nomi yoki bino..."
+                            />
+                            {searchingLocation && (
+                                <div className="absolute right-4 top-4 text-xs text-gray-400 font-bold uppercase animate-pulse">
+                                    Qidirilmoqda...
+                                </div>
+                            )}
+                            {showSuggestions && suggestions.length > 0 && (
+                                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 shadow-xl z-50 max-h-60 overflow-y-auto">
+                                    {suggestions.map((s, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => {
+                                                setForm((prev) => ({ ...prev, location: s.displayName }));
+                                                setShowSuggestions(false);
+                                            }}
+                                            className="w-full text-left p-3 text-xs font-semibold text-gray-800 hover:bg-gray-50 border-b border-gray-100 flex items-start gap-2 transition-colors"
+                                        >
+                                            <span className="text-gray-400">📍</span>
+                                            <span className="line-clamp-2">{s.displayName}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 

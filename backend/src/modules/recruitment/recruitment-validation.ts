@@ -43,6 +43,15 @@ export const updateStageSchema = z.object({
             "HIRED",
             "REJECTED",
         ]),
+        testTaskDeadline: z.string().optional().nullable(),
+    }),
+});
+
+export const submitTaskSchema = z.object({
+    body: z.object({
+        submissionUrl: z.string().optional(),
+        submissionFile: z.string().optional(),
+        submissionNote: z.string().optional(),
     }),
 });
 
@@ -57,6 +66,6 @@ export const sendCandidateEmailSchema = z.object({
     body: z.object({
         subject: z.string().min(2),
         text: z.string().min(2),
-        type: z.enum(["HIRE", "REJECT", "INTERVIEW", "CUSTOM"]),
+        type: z.string().min(1),
     }),
 });

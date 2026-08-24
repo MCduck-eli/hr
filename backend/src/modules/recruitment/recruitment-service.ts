@@ -20,7 +20,7 @@ export class RecruitmentService {
                 companyName: payload.companyName,
                 description: payload.description,
                 requirements: payload.requirements,
-                departmentId: payload.departmentId,
+                departmentId: payload.departmentId || null,
                 status: VacancyStatus.OPEN,
             },
         });
@@ -31,10 +31,14 @@ export class RecruitmentService {
         companyName?: string;
         description?: string;
         requirements?: string;
+        departmentId?: string;
     }) {
         return prisma.jobVacancy.update({
             where: { id },
-            data: payload,
+            data: {
+                ...payload,
+                departmentId: payload.departmentId || null,
+            },
         });
     }
 
@@ -124,7 +128,11 @@ export class RecruitmentService {
         return candidate;
     }
 
-    async updateStage(candidateId: string, stage: CandidatePipelineStage) {
+    async updateStage(
+        candidateId: string,
+        stage: CandidatePipelineStage,
+        testTaskDeadline?: Date | null,
+    ) {
         const candidate = await prisma.candidate.findUnique({
             where: { id: candidateId },
         });
@@ -133,9 +141,74 @@ export class RecruitmentService {
             throw new AppError("Candidate not found", 404);
         }
 
+        const data: any = { stage };
+        if (testTaskDeadline !== undefined) {
+            data.testTaskDeadline = testTaskDeadline;
+        }
+
         const updated = await prisma.candidate.update({
             where: { id: candidateId },
-            data: { stage },
+            data,
+        });
+
+        return updated;
+    }
+
+    async getPublicCandidateTask(candidateId: string) {
+        const candidate = await prisma.candidate.findUnique({
+            where: { id: candidateId },
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                stage: true,
+                testTaskDeadline: true,
+                testTaskSubmissionUrl: true,
+                testTaskSubmissionFile: true,
+                testTaskSubmissionNote: true,
+                testTaskSubmittedAt: true,
+                primaryVacancy: {
+                    select: {
+                        id: true,
+                        title: true,
+                        companyName: true,
+                        description: true,
+                    },
+                },
+            },
+        });
+
+        if (!candidate) {
+            throw new AppError("Nomzod ma'lumotlari topilmadi", 404);
+        }
+
+        return candidate;
+    }
+
+    async submitPublicCandidateTask(
+        candidateId: string,
+        payload: {
+            submissionUrl?: string;
+            submissionFile?: string;
+            submissionNote?: string;
+        },
+    ) {
+        const candidate = await prisma.candidate.findUnique({
+            where: { id: candidateId },
+        });
+
+        if (!candidate) {
+            throw new AppError("Nomzod topilmadi", 404);
+        }
+
+        const updated = await prisma.candidate.update({
+            where: { id: candidateId },
+            data: {
+                testTaskSubmissionUrl: payload.submissionUrl || candidate.testTaskSubmissionUrl,
+                testTaskSubmissionFile: payload.submissionFile || candidate.testTaskSubmissionFile,
+                testTaskSubmissionNote: payload.submissionNote || candidate.testTaskSubmissionNote,
+                testTaskSubmittedAt: new Date(),
+            },
         });
 
         return updated;
@@ -250,28 +323,99 @@ export class RecruitmentService {
             });
         }
 
+        const getBadgeInfo = (type: string) => {
+            switch (type) {
+                case 'HIRED':
+                case 'HIRE':
+                    return { text: 'QABUL QILINDI', color: '#10B981', bg: '#ECFDF5' };
+                case 'INTERVIEW':
+                    return { text: 'SUHBATGA TAKLIFNOMA', color: '#2563EB', bg: '#EFF6FF' };
+                case 'TEST_TASK':
+                    return { text: 'TEST TOPSHIRIG‘I', color: '#D97706', bg: '#FFFBEB' };
+                case 'TASK_REMINDER':
+                    return { text: 'ESLATMA — TEST TOPSHIRIG‘I', color: '#EA580C', bg: '#FFF7ED' };
+                case 'OFFER':
+                    return { text: 'ISH TAKLIFI (OFFER)', color: '#0D9488', bg: '#F0FDFA' };
+                case 'REJECTED':
+                case 'REJECT':
+                    return { text: 'RAD ETILDI', color: '#DC2626', bg: '#FEF2F2' };
+                case 'SCREENING':
+                    return { text: 'SKRINING BOSQICHI', color: '#7C3AED', bg: '#F5F3FF' };
+                default:
+                    return { text: 'XABARNOMA', color: '#475569', bg: '#F8FAFC' };
+            }
+        };
+
+        const { text: badgeText, color: badgeColor, bg: badgeBg } = getBadgeInfo(payload.type);
+
         const htmlContent = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0; color: #111;">HR Platform</h2>
-                </div>
-                <div style="padding: 20px; background-color: #f9f9f9; border-radius: 6px;">
-                    <p style="font-size: 16px; color: #333; white-space: pre-wrap; line-height: 1.6;">${payload.text}</p>
-                </div>
-                <div style="margin-top: 30px; text-align: center; color: #888; font-size: 12px;">
-                    <p>Ushbu xat avtomatik tarzda yaratilgan. Iltimos, javob qaytarmang.</p>
-                </div>
-            </div>
+            <!DOCTYPE html>
+            <html lang="uz">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${payload.subject}</title>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 30px 15px;">
+                    <tr>
+                        <td align="center">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+                                <!-- Header -->
+                                <tr>
+                                    <td style="background-color: #0f172a; padding: 28px 32px; border-bottom: 4px solid ${badgeColor};">
+                                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                            <tr>
+                                                <td>
+                                                    <span style="display: inline-block; padding: 4px 12px; background-color: ${badgeBg}; color: ${badgeColor}; font-size: 11px; font-weight: 700; border-radius: 9999px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
+                                                        ${badgeText}
+                                                    </span>
+                                                    <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">HR PLATFORM</h1>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <!-- Main Content -->
+                                <tr>
+                                    <td style="padding: 36px 32px 28px 32px;">
+                                        <h2 style="margin-top: 0; margin-bottom: 24px; color: #0f172a; font-size: 18px; font-weight: 700; line-height: 1.4;">
+                                            ${payload.subject}
+                                        </h2>
+                                        <div style="font-size: 15px; color: #334155; line-height: 1.75; white-space: pre-wrap;">${payload.text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline; font-weight: bold; word-break: break-all;">$1</a>')}</div>
+                                    </td>
+                                </tr>
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+                                        <p style="margin: 0 0 6px 0; color: #64748b; font-size: 12px; font-weight: 500;">
+                                            Ushbu xat platforma tomonidan avtomatik tarzda yuborildi.
+                                        </p>
+                                        <p style="margin: 0; color: #94a3b8; font-size: 11px;">
+                                            &copy; ${new Date().getFullYear()} Kompaniya HR Bo'limi. Barcha huquqlar himoyalangan.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
         `;
 
+        const fromAddress = process.env.SMTP_FROM
+            ? process.env.SMTP_FROM.replace(/^["']|["']$/g, '')
+            : `"HR Platform" <${process.env.SMTP_USER || 'hr@company.com'}>`;
+
         const info = await transporter.sendMail({
-            from: process.env.SMTP_FROM || '"HR Platform" <hr@yourcompany.com>',
+            from: fromAddress,
             to: candidate.email,
             subject: payload.subject,
             html: htmlContent
         });
 
-        console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+        console.log("Candidate email sent to %s, messageId: %s", candidate.email, info.messageId);
         return { success: true, previewUrl: nodemailer.getTestMessageUrl(info) };
     }
 }

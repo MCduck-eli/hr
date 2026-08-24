@@ -45,11 +45,11 @@ export default async function RootLayout({
 
                         <Navbar />
 
-                        <main className="relative z-10 w-full max-w-[1400px] mx-auto flex-1 min-h-[calc(100vh-300px)]">
+                        <main className="w-full max-w-[1400px] mx-auto flex-1 min-h-[calc(100vh-300px)]">
                             {children}
                         </main>
 
-                        <Footer />
+                        {/* <Footer /> */}
                     </AppProvider>
                 </NextIntlClientProvider>
             </body>

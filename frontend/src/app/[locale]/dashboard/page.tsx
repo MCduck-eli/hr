@@ -32,7 +32,8 @@ export default function SuperAdminDashboard() {
             });
             const data = await res.json();
             if (res.ok) {
-                setUsers(data.data || data.users || []);
+                const list = data.data || data.users || [];
+                setUsers(list.filter((u: any) => u.role !== "SUPER_ADMIN"));
             }
         } catch (err) {
             console.error(err);

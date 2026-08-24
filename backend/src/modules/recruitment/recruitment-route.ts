@@ -31,6 +31,23 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+const taskUploadDir = "uploads/tasks/";
+if (!fs.existsSync(taskUploadDir)) {
+    fs.mkdirSync(taskUploadDir, { recursive: true });
+}
+
+const taskStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, taskUploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, "task-" + uniqueSuffix + path.extname(file.originalname));
+    },
+});
+
+const uploadTask = multer({ storage: taskStorage });
+
 const recruitmentRouter = Router();
 
 recruitmentRouter.post(
@@ -43,6 +60,27 @@ recruitmentRouter.post(
 recruitmentRouter.get(
     "/public/vacancies/:id",
     recruitmentController.getPublicVacancy,
+);
+
+recruitmentRouter.get(
+    "/public/candidates/:candidateId/task",
+    recruitmentController.getPublicCandidateTask,
+);
+
+recruitmentRouter.post(
+    "/public/candidates/:candidateId/submit-task",
+    uploadTask.single("file"),
+    recruitmentController.submitPublicCandidateTask,
+);
+
+recruitmentRouter.get(
+    "/geocode",
+    recruitmentController.reverseGeocode,
+);
+
+recruitmentRouter.get(
+    "/search-location",
+    recruitmentController.searchLocation,
 );
 
 recruitmentRouter.use(authenticate);
@@ -104,6 +142,13 @@ recruitmentRouter.post(
     authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
     validate(sendCandidateEmailSchema),
     recruitmentController.sendEmail,
+);
+
+recruitmentRouter.post(
+    "/upload-task",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    uploadTask.single("file"),
+    recruitmentController.uploadTaskFile,
 );
 
 export default recruitmentRouter;
