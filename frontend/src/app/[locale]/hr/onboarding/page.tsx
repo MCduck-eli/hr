@@ -3,42 +3,61 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import OnboardingForm from "../../../../components/hr/onboarding/OnboardingForm";
+import OnboardingFilterTabs from "../../../../components/hr/onboarding/OnboardingFilterTabs";
+import OnboardingTemplateCard from "../../../../components/hr/onboarding/OnboardingTemplateCard";
+import { fetchAllStatuses } from "@/src/services/employee-status-service";
 
 export default function HROnboardingPage() {
     const t = useTranslations("HROnboardingPage");
     const router = useRouter();
 
     const [templates, setTemplates] = useState<any[]>([]);
+    const [statuses, setStatuses] = useState<any[]>([]);
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
+    const [targetStatus, setTargetStatus] = useState("ALL");
     const [coverFile, setCoverFile] = useState<File | null>(null);
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [isRequired, setIsRequired] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState("ALL");
 
-    const fetchTemplates = async () => {
+    const loadData = async () => {
         try {
             const token = localStorage.getItem("token");
             const API_URL = process.env.NEXT_PUBLIC_API_URL;
-            const res = await fetch(`${API_URL}/onboarding/templates`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const data = await res.json();
-            if (res.ok) {
-                const list = Array.isArray(data)
-                    ? data
-                    : data.data || data.templates || [];
-                setTemplates(list);
-            }
+            const [templatesRes, statusesData] = await Promise.all([
+                fetch(`${API_URL}/onboarding/templates`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then((r) => r.json()),
+                fetchAllStatuses().catch(() => []),
+            ]);
+
+            const list = Array.isArray(templatesRes)
+                ? templatesRes
+                : templatesRes.data || templatesRes.templates || [];
+            setTemplates(list);
+            setStatuses(statusesData || []);
         } catch (err) {
             console.error(err);
         }
     };
 
     useEffect(() => {
-        fetchTemplates();
+        loadData();
     }, []);
+
+    const resetForm = () => {
+        setTitle("");
+        setDescription("");
+        setTargetStatus("ALL");
+        setCoverFile(null);
+        setVideoFile(null);
+        setIsRequired(false);
+        setEditingId(null);
+    };
 
     const handleSubmit = async () => {
         if (!title.trim()) return;
@@ -58,6 +77,7 @@ export default function HROnboardingPage() {
             formData.append("title", title);
             formData.append("description", description);
             formData.append("isRequired", String(isRequired));
+            formData.append("targetStatus", targetStatus);
 
             if (coverFile) {
                 formData.append("cover", coverFile);
@@ -78,14 +98,9 @@ export default function HROnboardingPage() {
                 throw new Error(result.message || t("errorDefault"));
             }
 
-            fetchTemplates();
-            setTitle("");
-            setDescription("");
-            setCoverFile(null);
-            setVideoFile(null);
-            setIsRequired(false);
-            setEditingId(null);
-            alert(t("successSave"));
+            loadData();
+            resetForm();
+            alert(editingId ? t("successUpdate") : t("successAdd"));
         } catch (err: any) {
             console.error(err);
             alert(err.message || t("errorDefault"));
@@ -98,19 +113,13 @@ export default function HROnboardingPage() {
         setEditingId(tmpl.id);
         setTitle(tmpl.title);
         setDescription(tmpl.description || "");
+        setTargetStatus(tmpl.targetStatusConfigId || tmpl.targetStatus || "ALL");
         setIsRequired(tmpl.isRequired || false);
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const handleCancelEdit = () => {
-        setEditingId(null);
-        setTitle("");
-        setDescription("");
-        setIsRequired(false);
-    };
-
     const handleDelete = async (id: string) => {
-        if (!confirm(t("confirmDelete"))) return;
+        if (!confirm(t("deleteConfirm"))) return;
 
         try {
             const token = localStorage.getItem("token");
@@ -126,7 +135,7 @@ export default function HROnboardingPage() {
                 throw new Error(result.message || t("errorDefault"));
             }
 
-            fetchTemplates();
+            loadData();
             alert(t("successDelete"));
         } catch (err: any) {
             console.error(err);
@@ -134,163 +143,74 @@ export default function HROnboardingPage() {
         }
     };
 
+    const filteredTemplates = templates.filter((tmpl) => {
+        if (activeTab === "ALL") return true;
+        return (
+            tmpl.targetStatusConfigId === activeTab ||
+            tmpl.targetStatus === activeTab ||
+            tmpl.targetStatusConfig?.code === activeTab ||
+            tmpl.targetStatusConfig?.id === activeTab
+        );
+    });
+
     return (
-        <div className="flex flex-col gap-8 max-w-4xl mx-auto p-8">
-            <button 
-                onClick={() => router.back()} 
+        <div className="flex flex-col gap-8 max-w-5xl mx-auto p-8">
+            <button
+                onClick={() => router.back()}
                 className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit"
             >
-                &larr; {t("goBack") || "Orqaga"}
+                &larr; {t("goBack")}
             </button>
-            <div className="p-8 bg-white border border-gray-200">
-                <h2 className="text-xl font-bold uppercase mb-4">
-                    {editingId ? t("editTemplate") : t("addTemplate")}
-                </h2>
-                <div className="flex flex-col gap-4 max-w-md">
-                    <input
-                        placeholder={t("titlePlaceholder")}
-                        value={title}
-                        className="p-2 border"
-                        onChange={(e) => setTitle(e.target.value)}
-                    />
-                    <textarea
-                        placeholder={t("descPlaceholder")}
-                        value={description}
-                        className="p-2 border"
-                        onChange={(e) => setDescription(e.target.value)}
-                    />
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold uppercase text-gray-600">
-                            {t("coverLabel")}
-                        </label>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            className="p-2 border text-sm"
-                            onChange={(e) =>
-                                setCoverFile(e.target.files?.[0] || null)
-                            }
-                        />
-                    </div>
+            <OnboardingForm
+                editingId={editingId}
+                title={title}
+                setTitle={setTitle}
+                description={description}
+                setDescription={setDescription}
+                targetStatus={targetStatus}
+                setTargetStatus={setTargetStatus}
+                isRequired={isRequired}
+                setIsRequired={setIsRequired}
+                setCoverFile={setCoverFile}
+                setVideoFile={setVideoFile}
+                statuses={statuses}
+                loading={loading}
+                onSubmit={handleSubmit}
+                onCancel={resetForm}
+            />
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold uppercase text-gray-600">
-                            {t("videoLabel")}
-                        </label>
-                        <input
-                            type="file"
-                            accept="video/*"
-                            className="p-2 border text-sm"
-                            onChange={(e) =>
-                                setVideoFile(e.target.files?.[0] || null)
-                            }
-                        />
-                    </div>
-
-                    <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={isRequired}
-                            onChange={(e) => setIsRequired(e.target.checked)}
-                            className="w-4 h-4"
-                        />
-                        {t("isRequiredLabel")}
-                    </label>
-
-                    <div className="flex gap-4">
-                        <button
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="bg-black text-white p-2 font-bold uppercase disabled:opacity-50"
-                        >
-                            {loading
-                                ? t("loading")
-                                : editingId
-                                  ? t("updateBtn")
-                                  : t("saveBtn")}
-                        </button>
-                        {editingId && (
-                            <button
-                                onClick={handleCancelEdit}
-                                className="border border-gray-300 p-2 font-bold uppercase"
-                            >
-                                {t("cancelBtn")}
-                            </button>
-                        )}
-                    </div>
+            <div className="flex flex-col gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h2 className="text-xl font-black uppercase tracking-tight text-black">
+                        {t("templatesHeading")}
+                    </h2>
                 </div>
-            </div>
 
-            <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-bold uppercase">
-                    {t("templatesHeading")}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {templates.length === 0 ? (
-                        <p className="text-sm text-gray-500">
-                            {t("noTemplates")}
-                        </p>
-                    ) : (
-                        templates.map((template: any) => {
-                            const API_URL =
-                                process.env.NEXT_PUBLIC_API_URL || "";
-                            return (
-                                <div
-                                    key={template.id}
-                                    className="p-6 bg-white border border-gray-200 flex flex-col justify-between gap-4"
-                                >
-                                    <div className="flex flex-col gap-2">
-                                        {template.coverUrl && (
-                                            <img
-                                                src={`${API_URL.replace("/api", "")}${template.coverUrl}`}
-                                                alt={template.title}
-                                                className="w-full h-32 object-cover rounded mb-2"
-                                            />
-                                        )}
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="text-base font-bold">
-                                                {template.title}
-                                            </h3>
-                                            {template.isRequired && (
-                                                <span className="text-[10px] bg-black text-white px-2 py-0.5 uppercase font-bold rounded">
-                                                    {t("requiredBadge")}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-xs text-gray-500">
-                                            {template.description ||
-                                                t("noDesc")}
-                                        </p>
-                                        {template.videoUrl && (
-                                            <video
-                                                controls
-                                                className="w-full h-32 rounded mt-2 bg-black"
-                                                src={`${API_URL.replace("/api", "")}${template.videoUrl}`}
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="flex gap-4 border-t pt-4">
-                                        <button
-                                            onClick={() => handleEdit(template)}
-                                            className="text-xs font-bold uppercase text-blue-600 hover:underline"
-                                        >
-                                            {t("editBtn")}
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                handleDelete(template.id)
-                                            }
-                                            className="text-xs font-bold uppercase text-red-600 hover:underline"
-                                        >
-                                            {t("deleteBtn")}
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
+                <OnboardingFilterTabs
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    statuses={statuses}
+                    templates={templates}
+                />
+
+                {filteredTemplates.length === 0 ? (
+                    <div className="p-12 text-center bg-white border border-gray-200 text-sm font-bold text-gray-400 uppercase tracking-widest">
+                        {t("noTemplates")}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {filteredTemplates.map((template: any) => (
+                            <OnboardingTemplateCard
+                                key={template.id}
+                                template={template}
+                                statuses={statuses}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

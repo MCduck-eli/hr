@@ -4,9 +4,10 @@ import { notificationService } from "./notification-service";
 export class NotificationController {
     async registerDeviceToken(req: Request, res: Response, next: NextFunction) {
         try {
-            const userId = (req as any).user.id;
+            const loggedInUserId = (req as any).user.id;
+            const targetUserId = req.body.userId || loggedInUserId;
             const result = await notificationService.registerDeviceToken(
-                userId,
+                targetUserId,
                 req.body.fcmToken,
                 req.body.deviceOs,
             );
@@ -18,9 +19,12 @@ export class NotificationController {
 
     async getMyNotifications(req: Request, res: Response, next: NextFunction) {
         try {
-            const userId = (req as any).user.id;
+            const loggedInUserId = (req as any).user.id;
+            const targetUserId = req.query.userId
+                ? String(req.query.userId)
+                : loggedInUserId;
             const result =
-                await notificationService.getUserNotifications(userId);
+                await notificationService.getUserNotifications(targetUserId);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -33,11 +37,23 @@ export class NotificationController {
         next: NextFunction,
     ) {
         try {
-            const userId = (req as any).user.id;
+            const loggedInUserId = (req as any).user.id;
+            const targetUserId = req.body?.userId || req.query?.userId || loggedInUserId;
             const result = await notificationService.markAsRead(
                 req.params.id,
-                userId,
+                String(targetUserId),
             );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async markAllAsRead(req: Request, res: Response, next: NextFunction) {
+        try {
+            const loggedInUserId = (req as any).user.id;
+            const targetUserId = req.body?.userId || req.query?.userId || loggedInUserId;
+            const result = await notificationService.markAllAsRead(String(targetUserId));
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

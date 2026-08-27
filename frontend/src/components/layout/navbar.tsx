@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import MobileMenu from "./mobile-menu";
 import LanguageSwitcher from "./language-switcher";
+import NotificationBell from "./notification-bell";
 
 export default function Navbar() {
     const t = useTranslations("Navbar");
@@ -132,8 +133,10 @@ export default function Navbar() {
                     </div>
                 )}
 
-                <div className="hidden md:flex items-center gap-6">
+                <div className="hidden md:flex items-center gap-5">
                     <LanguageSwitcher />
+
+                    {isLoggedIn && <NotificationBell />}
 
                     {isLoggedIn ? (
                         <div className="flex items-center gap-4">

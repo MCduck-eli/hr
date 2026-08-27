@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import StatusBadge from "./status-badge";
 
 interface EmployeeDetailsTableProps {
     users: any[];
@@ -23,6 +24,7 @@ export default function EmployeeDetailsTable({
                     <thead>
                         <tr className="border-b border-gray-200 text-[11px] text-gray-500 uppercase tracking-widest whitespace-nowrap">
                             <th className="p-3">{t("name")}</th>
+                            <th className="p-3">{t("status")}</th>
                             <th className="p-3">{t("email")}</th>
                             <th className="p-3">{t("role")}</th>
                             <th className="p-3">{t("department")}</th>
@@ -38,7 +40,7 @@ export default function EmployeeDetailsTable({
                         {users.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={10}
+                                    colSpan={11}
                                     className="p-4 text-center text-gray-500 text-xs"
                                 >
                                     {t("noUsers")}
@@ -51,8 +53,16 @@ export default function EmployeeDetailsTable({
                                     className="border-b border-gray-100 hover:bg-[#f8f8f8]"
                                 >
                                     <td className="p-3 text-xs font-medium text-black whitespace-nowrap">
-                                        {u.employee?.firstName}{" "}
-                                        {u.employee?.lastName}
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold">{u.employee?.firstName} {u.employee?.lastName}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-3 whitespace-nowrap">
+                                        <StatusBadge
+                                            status={u.employee?.status}
+                                            statusConfig={u.employee?.statusConfig}
+                                            statusExpiresAt={u.employee?.statusExpiresAt}
+                                        />
                                     </td>
                                     <td className="p-3 text-xs font-medium text-gray-600">
                                         {u.email}

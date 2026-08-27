@@ -87,6 +87,13 @@ enum EventType {
   OFFLINE
 }
 
+enum EmployeeStatus {
+  NEW
+  ACTIVE
+  INACTIVE
+  TERMINATED
+}
+
 model User {
   id        String    @id @default(uuid())
   email     String    @unique
@@ -129,6 +136,11 @@ model Employee {
   user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName           String
   lastName            String
+  status              EmployeeStatus          @default(NEW)
+  statusConfigId      String?
+  statusConfig        EmployeeStatusConfig?   @relation(fields: [statusConfigId], references: [id])
+  statusStartedAt     DateTime?               @default(now())
+  statusExpiresAt     DateTime?
   leaveBalance        Float                   @default(20.0)
   departmentId        String?
   department          Department?             @relation(fields: [departmentId], references: [id])
@@ -154,15 +166,31 @@ model Employee {
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
   lifecycleChecklists EmployeeLifecycleChecklist[]
-  objectives Objective[]
-  discAssessments DiscAssessment[]
-  feedbackTargets   FeedbackAssignment[] @relation("FeedbackTarget")
-feedbackReviewers FeedbackAssignment[] @relation("FeedbackReviewer")
-gradeId           String?
-grade             JobGrade?          @relation(fields: [gradeId], references: [id])
-promotions        PromotionRequest[] @relation("EmployeePromotion")
-careerHistories   CareerHistory[]
-targetedCourses   AcademyCourse[]      @relation("CourseTargetEmployee")
+  objectives          Objective[]
+  discAssessments     DiscAssessment[]
+  feedbackTargets     FeedbackAssignment[]    @relation("FeedbackTarget")
+  feedbackReviewers   FeedbackAssignment[]    @relation("FeedbackReviewer")
+  gradeId             String?
+  grade               JobGrade?               @relation(fields: [gradeId], references: [id])
+  promotions          PromotionRequest[]      @relation("EmployeePromotion")
+  careerHistories     CareerHistory[]
+  targetedCourses     AcademyCourse[]         @relation("CourseTargetEmployee")
+}
+
+model EmployeeStatusConfig {
+  id            String                 @id @default(uuid())
+  name          String
+  code          String                 @unique
+  color         String                 @default("#3b82f6")
+  durationDays  Int?
+  nextStatusId  String?
+  nextStatus    EmployeeStatusConfig?  @relation("StatusHierarchy", fields: [nextStatusId], references: [id])
+  prevStatuses  EmployeeStatusConfig[] @relation("StatusHierarchy")
+  isSystem      Boolean                @default(false)
+  employees           Employee[]
+  onboardingTemplates OnboardingTemplate[]
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 }
 
 model Attendance {
@@ -182,10 +210,28 @@ model Attendance {
   isSpoofed         Boolean          @default(false)
   status            AttendanceStatus @default(PRESENT)
   note              String?
+  lateMinutes       Int?             @default(0)
+  earlyMinutes      Int?             @default(0)
+  absenceReason     String?
+  reasonSubmittedBy String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
   @@unique([employeeId, date])
+}
+
+model WorkSchedule {
+  id                 String   @id @default(uuid())
+  name               String   @default("Standart Ish Jadvali")
+  startTime          String   @default("09:00")
+  endTime            String   @default("18:00")
+  workingDays        Int[]    @default([1, 2, 3, 4, 5])
+  gracePeriodMinutes Int      @default(15)
+  departmentId       String?
+  employeeId         String?
+  isDefault          Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model GeofenceZone {
@@ -314,18 +360,21 @@ model CandidateFeedback {
 }
 
 model OnboardingTemplate {
-  id           String             @id @default(uuid())
-  title        String
-  description  String?
-  coverUrl     String?           
-  videoUrl     String?           
-  isRequired   Boolean            @default(false) 
-  departmentId String?
-  department   Department?        @relation(fields: [departmentId], references: [id])
-  tasks        OnboardingTask[]
-  courses      OnboardingCourse[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id                   String                 @id @default(uuid())
+  title                String
+  description          String?
+  coverUrl             String?           
+  videoUrl             String?           
+  isRequired           Boolean                @default(false) 
+  targetStatus         EmployeeStatus?
+  targetStatusConfigId String?
+  targetStatusConfig   EmployeeStatusConfig?  @relation(fields: [targetStatusConfigId], references: [id])
+  departmentId         String?
+  department           Department?            @relation(fields: [departmentId], references: [id])
+  tasks                OnboardingTask[]
+  courses              OnboardingCourse[]
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 }
 
 model OnboardingTask {
@@ -399,7 +448,7 @@ model CompanyPolicy {
   title       String
   description String?
   content     String?           @db.Text
-  documentUrl String
+  documentUrl String?
   version     Int               @default(1)
   isRequired  Boolean           @default(true)
   parentId    String?

@@ -2,23 +2,25 @@ import { z } from "zod";
 
 export const createTemplateSchema = z.object({
     body: z.object({
-        title: z.string().min(3),
+        title: z.string().min(1),
         description: z.string().optional(),
-        departmentId: z.string().uuid().optional(),
+        targetStatus: z.string().optional().nullable(),
+        departmentId: z.string().optional().nullable(),
+        isRequired: z.union([z.boolean(), z.string()]).optional(),
         tasks: z
             .array(
                 z.object({
-                    title: z.string().min(2),
+                    title: z.string().min(1),
                     description: z.string().optional(),
-                    stage: z.enum(["DAY_1", "WEEK_1", "MONTH_1", "MONTH_3"]),
+                    stage: z.enum(["DAY_1", "WEEK_1", "MONTH_1", "MONTH_3"]).optional(),
                 }),
             )
             .optional(),
         courses: z
             .array(
                 z.object({
-                    title: z.string().min(2),
-                    videoUrl: z.string().url(),
+                    title: z.string().min(1),
+                    videoUrl: z.string().optional(),
                     description: z.string().optional(),
                 }),
             )

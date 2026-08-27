@@ -2,9 +2,12 @@ import nodemailer from "nodemailer";
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 import { hashPassword } from "../../utils/password";
+import { employeeStatusService } from "../employee-status/employee-status-service";
 
 export class UserService {
     async getAllUsers() {
+        await employeeStatusService.checkAndTransitionEmployeeStatuses();
+
         const users = await prisma.user.findMany({
             select: {
                 id: true,
@@ -16,10 +19,13 @@ export class UserService {
                         department: true,
                         position: true,
                         grade: true,
+                        statusConfig: {
+                            include: { nextStatus: true },
+                        },
                         feedbackReviewers: {
                             where: { isCompleted: false },
-                            select: { id: true }
-                        }
+                            select: { id: true },
+                        },
                     },
                 },
             },
@@ -118,6 +124,54 @@ export class UserService {
 
         const hashedPassword = await hashPassword(password);
 
+        let statusConfigId = payload.statusConfigId;
+        let statusConfig = null;
+        if (statusConfigId) {
+            statusConfig = await prisma.employeeStatusConfig.findUnique({
+                where: { id: statusConfigId },
+            });
+        }
+        if (!statusConfig && payload.status) {
+            statusConfig = await prisma.employeeStatusConfig.findFirst({
+                where: {
+                    OR: [
+                        { code: payload.status },
+                        { id: payload.status },
+                        { name: payload.status },
+                    ],
+                },
+            });
+            if (statusConfig) {
+                statusConfigId = statusConfig.id;
+            }
+        }
+
+        if (!statusConfig) {
+            statusConfig = await prisma.employeeStatusConfig.findFirst({
+                where: { code: "NEW" },
+            });
+            if (statusConfig) {
+                statusConfigId = statusConfig.id;
+            }
+        }
+
+        const statusExpiresAt = statusConfig?.durationDays
+            ? new Date(
+                  Date.now() +
+                      statusConfig.durationDays * 24 * 60 * 60 * 1000,
+              )
+            : null;
+
+        let enumStatus: any = "ACTIVE";
+        if (statusConfig?.code === "NEW" || payload.status === "NEW") {
+            enumStatus = "NEW";
+        } else if (
+            statusConfig?.code === "INACTIVE" ||
+            payload.status === "INACTIVE"
+        ) {
+            enumStatus = "INACTIVE";
+        }
+
         const newUser = await prisma.user.create({
             data: {
                 email,
@@ -127,6 +181,10 @@ export class UserService {
                     create: {
                         firstName: firstName || "",
                         lastName: lastName || "",
+                        status: enumStatus,
+                        statusConfigId: statusConfigId || undefined,
+                        statusStartedAt: new Date(),
+                        statusExpiresAt,
                         ...(departmentId && { departmentId }),
                         ...(positionId && { positionId }),
                         ...(leaveBalance !== undefined && { leaveBalance }),
@@ -152,7 +210,6 @@ export class UserService {
             },
         });
 
-        // Agar nomzod orqali qabul qilingan bo'lsa, nomzod holatini HIRED ga yangilash
         if (payload.candidateId) {
             await prisma.candidate.update({
                 where: { id: payload.candidateId },
@@ -165,7 +222,6 @@ export class UserService {
             }).catch(() => {});
         }
 
-        // Yangi qabul qilingan xodimning emailiga chiroyli xush kelibsiz (qabul qilindi) xati yuborish
         try {
             let transporter;
             if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -307,6 +363,52 @@ export class UserService {
             });
         }
 
+        let statusConfigId = payload.statusConfigId;
+        let statusExpiresAt: any = undefined;
+        let statusStartedAt: any = undefined;
+        let enumStatus = payload.status;
+
+        if (payload.statusConfigId !== undefined || payload.status !== undefined) {
+            let statusConfig = null;
+            if (statusConfigId) {
+                statusConfig = await prisma.employeeStatusConfig.findUnique({
+                    where: { id: statusConfigId },
+                });
+            }
+            if (!statusConfig && payload.status) {
+                statusConfig = await prisma.employeeStatusConfig.findFirst({
+                    where: {
+                        OR: [
+                            { code: payload.status },
+                            { id: payload.status },
+                            { name: payload.status },
+                        ],
+                    },
+                });
+                if (statusConfig) {
+                    statusConfigId = statusConfig.id;
+                }
+            }
+
+            if (statusConfig) {
+                statusStartedAt = new Date();
+                statusExpiresAt = statusConfig.durationDays
+                    ? new Date(
+                          Date.now() +
+                              statusConfig.durationDays * 24 * 60 * 60 * 1000,
+                      )
+                    : null;
+
+                if (statusConfig.code === "NEW") {
+                    enumStatus = "NEW";
+                } else if (statusConfig.code === "INACTIVE") {
+                    enumStatus = "INACTIVE";
+                } else {
+                    enumStatus = "ACTIVE";
+                }
+            }
+        }
+
         return prisma.user.update({
             where: { id },
             data: {
@@ -325,6 +427,16 @@ export class UserService {
                             positionId: positionId === "" ? null : positionId,
                         }),
                         ...(leaveBalance !== undefined && { leaveBalance }),
+                        ...(enumStatus !== undefined && { status: enumStatus }),
+                        ...(statusConfigId !== undefined && {
+                            statusConfigId,
+                        }),
+                        ...(statusStartedAt !== undefined && {
+                            statusStartedAt,
+                        }),
+                        ...(statusExpiresAt !== undefined && {
+                            statusExpiresAt,
+                        }),
                     },
                 },
             },

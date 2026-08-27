@@ -17,11 +17,28 @@ export class OnboardingController {
                 ? `/uploads/${files.video[0].filename}`
                 : undefined;
 
+            const targetStatus =
+                req.body.targetStatus === "ALL" ||
+                !req.body.targetStatus ||
+                req.body.targetStatus === "null" ||
+                req.body.targetStatus === "undefined"
+                    ? null
+                    : req.body.targetStatus;
+            const departmentId =
+                req.body.departmentId &&
+                req.body.departmentId !== "null" &&
+                req.body.departmentId !== "undefined" &&
+                req.body.departmentId !== ""
+                    ? req.body.departmentId
+                    : undefined;
+
             const payload = {
                 ...req.body,
                 isRequired:
                     req.body.isRequired === "true" ||
                     req.body.isRequired === true,
+                targetStatus,
+                departmentId,
                 coverUrl,
                 videoUrl,
             };
@@ -90,8 +107,24 @@ export class OnboardingController {
         next: NextFunction,
     ) {
         try {
+            const user = (req as any).user;
+            if (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN") {
+                return res.status(200).json({
+                    status: "success",
+                    data: null,
+                    message: "Admin uchun progress yozilmaydi",
+                });
+            }
+            const employee = await prisma.employee.findFirst({
+                where: {
+                    OR: [
+                        ...(user?.id ? [{ userId: user.id }, { id: user.id }] : []),
+                    ],
+                },
+            });
             const result = await onboardingService.completeCourse(
                 req.params.courseId,
+                employee?.id,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -132,6 +165,24 @@ export class OnboardingController {
                 updateData.isRequired =
                     req.body.isRequired === "true" ||
                     req.body.isRequired === true;
+            }
+            if (req.body.targetStatus !== undefined) {
+                updateData.targetStatus =
+                    req.body.targetStatus === "ALL" ||
+                    !req.body.targetStatus ||
+                    req.body.targetStatus === "null" ||
+                    req.body.targetStatus === "undefined"
+                        ? null
+                        : req.body.targetStatus;
+            }
+            if (req.body.departmentId !== undefined) {
+                updateData.departmentId =
+                    req.body.departmentId &&
+                    req.body.departmentId !== "null" &&
+                    req.body.departmentId !== "undefined" &&
+                    req.body.departmentId !== ""
+                        ? req.body.departmentId
+                        : null;
             }
             if (files?.cover) {
                 updateData.coverUrl = `/uploads/${files.cover[0].filename}`;

@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import EmployeeAssigner from "../components/employee-assigner";
 import HRMonitoring from "../components/hr-monitoring";
+import HRAttendanceWidget from "@/src/components/hr/dashboard/hr-attendance-widget";
 
 export default function HRAdminDashboard() {
     const t = useTranslations("HRDashboard");
@@ -33,12 +33,17 @@ export default function HRAdminDashboard() {
 
     return (
         <div className="max-w-[1400px] mx-auto p-8">
-            <h1 className="text-3xl font-bold tracking-tight mb-2 text-black">
-                {t("title")}
-            </h1>
-            <p className="mb-8 text-gray-500 uppercase text-xs font-bold tracking-widest">
-                {t("welcome")}
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-gray-100">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight mb-2 text-black">
+                        {t("title")}
+                    </h1>
+                    <p className="text-gray-500 uppercase text-xs font-bold tracking-widest">
+                        {t("welcome")}
+                    </p>
+                </div>
+                <HRAttendanceWidget />
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
                 <Link href={`/${locale}/hr/employees`}>
@@ -106,15 +111,20 @@ export default function HRAdminDashboard() {
                         </h2>
                     </div>
                 </Link>
+
+                <Link href={`/${locale}/hr/attendance`}>
+                    <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4 h-full">
+                        <div className="w-10 h-10 bg-emerald-50 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">⏱️</span>
+                        </div>
+                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
+                            {t("attendance")}
+                        </h2>
+                    </div>
+                </Link>
             </div>
 
-            <div className="mt-12">
-                <h2 className="text-2xl font-bold tracking-tight mb-6 text-black">
-                    {t("assignerTitle")}
-                </h2>
-                <EmployeeAssigner />
-            </div>
-            <div className="mt-16 pt-8 border-t border-gray-200">
+            <div className="mt-8 pt-8 border-t border-gray-200">
                 <HRMonitoring />
             </div>
         </div>

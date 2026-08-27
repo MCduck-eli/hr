@@ -93,15 +93,21 @@ export default function EmployeeAcademyPage() {
         }
     };
 
-    const saveProgressToBackend = (progress: number) => {
-        if (!selectedCourse || selectedCourse.isCompleted) return;
+    const saveProgressToBackend = (
+        progress: number,
+        courseToSave = selectedCourse,
+    ) => {
+        if (!courseToSave || courseToSave.isCompleted) return;
         const token = localStorage.getItem("token");
         const API_URL = process.env.NEXT_PUBLIC_API_URL;
-        
+
         let targetUserId: string | null = null;
         if (typeof window !== "undefined") {
-            const searchParams = new URLSearchParams(window.location.search);
-            targetUserId = searchParams.get("userId") || searchParams.get("id");
+            const searchParams = new URLSearchParams(
+                window.location.search,
+            );
+            targetUserId =
+                searchParams.get("userId") || searchParams.get("id");
         }
 
         if (!targetUserId) {
@@ -121,8 +127,8 @@ export default function EmployeeAcademyPage() {
                 Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
-                courseId: selectedCourse.id,
-                type: selectedCourse.type,
+                courseId: courseToSave.id,
+                type: courseToSave.type,
                 progress: progress,
                 targetUserId: targetUserId || undefined,
             }),
@@ -136,19 +142,33 @@ export default function EmployeeAcademyPage() {
         }
     };
 
-    const handleVideoLoaded = (e: any) => {};
+    const handleVideoLoaded = (e: any) => {
+        const video = e.target;
+        if (
+            selectedCourse?.progress &&
+            video.duration &&
+            !selectedCourse.isCompleted
+        ) {
+            video.currentTime =
+                (selectedCourse.progress / 100) * video.duration;
+        }
+    };
 
-    const handleVideoEnded = async () => {
+    const handleVideoEnded = async (courseToComplete = selectedCourse) => {
+        if (!courseToComplete) return;
         setVideoProgress(100);
 
         try {
             const token = localStorage.getItem("token");
             const API_URL = process.env.NEXT_PUBLIC_API_URL;
-            
+
             let targetUserId: string | null = null;
             if (typeof window !== "undefined") {
-                const searchParams = new URLSearchParams(window.location.search);
-                targetUserId = searchParams.get("userId") || searchParams.get("id");
+                const searchParams = new URLSearchParams(
+                    window.location.search,
+                );
+                targetUserId =
+                    searchParams.get("userId") || searchParams.get("id");
             }
 
             await fetch(`${API_URL}/employee/progress`, {
@@ -158,8 +178,8 @@ export default function EmployeeAcademyPage() {
                     Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    courseId: selectedCourse.id,
-                    type: selectedCourse.type,
+                    courseId: courseToComplete.id,
+                    type: courseToComplete.type,
                     progress: 100,
                     targetUserId: targetUserId || undefined,
                 }),
@@ -169,10 +189,10 @@ export default function EmployeeAcademyPage() {
             let method = "PATCH";
             let body = null;
 
-            if (selectedCourse.type === "ONBOARDING") {
-                endpoint = `${API_URL}/onboarding/courses/${selectedCourse.id}/complete`;
-            } else if (selectedCourse.type === "ONBOARDING_TASK") {
-                endpoint = `${API_URL}/onboarding/tasks/${selectedCourse.id}/status`;
+            if (courseToComplete.type === "ONBOARDING") {
+                endpoint = `${API_URL}/onboarding/courses/${courseToComplete.id}/complete`;
+            } else if (courseToComplete.type === "ONBOARDING_TASK") {
+                endpoint = `${API_URL}/onboarding/tasks/${courseToComplete.id}/status`;
                 body = JSON.stringify({ status: "COMPLETED" });
             }
 
@@ -189,47 +209,63 @@ export default function EmployeeAcademyPage() {
 
             setCourses((prevCourses) =>
                 prevCourses.map((c) =>
-                    c.id === selectedCourse.id && c.type === selectedCourse.type
+                    c.id === courseToComplete.id &&
+                    c.type === courseToComplete.type
                         ? { ...c, isCompleted: true, progress: 100 }
                         : c,
                 ),
             );
 
-            setSelectedCourse((prev: any) => ({
-                ...prev,
-                isCompleted: true,
-                progress: 100,
-            }));
+            setSelectedCourse((prev: any) =>
+                prev
+                    ? {
+                          ...prev,
+                          isCompleted: true,
+                          progress: 100,
+                      }
+                    : null,
+            );
         } catch (error) {}
     };
 
     const handleCloseModal = async () => {
-        if (
-            selectedCourse &&
-            !selectedCourse.isCompleted &&
-            videoProgress > 0 && 
-            videoProgress > lastSavedProgressRef.current
-        ) {
-            lastSavedProgressRef.current = videoProgress;
-            saveProgressToBackend(videoProgress);
+        if (selectedCourse && !selectedCourse.isCompleted) {
+            if (!selectedCourse.videoUrl) {
+                handleVideoEnded(selectedCourse);
+            } else if (
+                videoProgress > 0 &&
+                videoProgress > lastSavedProgressRef.current
+            ) {
+                lastSavedProgressRef.current = videoProgress;
+                saveProgressToBackend(videoProgress);
+            }
         }
         setSelectedCourse(null);
     };
 
-    // Save before unload (refresh)
     useEffect(() => {
         const handleBeforeUnload = () => {
-            if (selectedCourse && !selectedCourse.isCompleted && videoProgress > lastSavedProgressRef.current) {
-                saveProgressToBackend(videoProgress);
+            if (selectedCourse && !selectedCourse.isCompleted) {
+                if (!selectedCourse.videoUrl) {
+                    handleVideoEnded(selectedCourse);
+                } else if (videoProgress > lastSavedProgressRef.current) {
+                    saveProgressToBackend(videoProgress);
+                }
             }
         };
         window.addEventListener("beforeunload", handleBeforeUnload);
-        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+        return () =>
+            window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [selectedCourse, videoProgress]);
 
     const openCourseModal = (course: any) => {
         setSelectedCourse(course);
         setVideoProgress(course.progress || 0);
+        lastSavedProgressRef.current = course.progress || 0;
+
+        if (!course.videoUrl && !course.isCompleted) {
+            handleVideoEnded(course);
+        }
     };
 
     if (loading) return <div className="p-8">Loading...</div>;
@@ -465,15 +501,14 @@ export default function EmployeeAcademyPage() {
                                 )}
                             </div>
                             <button
-                                onClick={() => {
+                                onClick={async () => {
                                     if (
                                         !selectedCourse.videoUrl &&
                                         !selectedCourse.isCompleted
                                     ) {
-                                        handleVideoEnded();
-                                    } else {
-                                        handleCloseModal();
+                                        await handleVideoEnded(selectedCourse);
                                     }
+                                    handleCloseModal();
                                 }}
                                 className="py-2 px-6 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors"
                             >

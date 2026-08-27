@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { fetchDepartments, createDepartment } from "@/src/services/department-service";
+import { fetchAllStatuses } from "@/src/services/employee-status-service";
 import DepartmentModal from "./department-modal";
+import StatusManagementModal from "./status-management-modal";
 
 interface EmployeeFormProps {
     initialData: any;
@@ -19,7 +21,9 @@ export default function EmployeeForm({
     const t = useTranslations("HREmployees");
 
     const [departments, setDepartments] = useState<any[]>([]);
+    const [statuses, setStatuses] = useState<any[]>([]);
     const [isCreatingDept, setIsCreatingDept] = useState(false);
+    const [isManagingStatus, setIsManagingStatus] = useState(false);
     const [isDeptLoading, setIsDeptLoading] = useState(false);
 
     const loadDepartments = async () => {
@@ -31,8 +35,18 @@ export default function EmployeeForm({
         }
     };
 
+    const loadStatuses = async () => {
+        try {
+            const data = await fetchAllStatuses();
+            setStatuses(data || []);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     useEffect(() => {
         loadDepartments();
+        loadStatuses();
     }, []);
 
     const [form, setForm] = useState<any>({
@@ -41,6 +55,8 @@ export default function EmployeeForm({
         firstName: "",
         lastName: "",
         role: "EMPLOYEE",
+        status: "NEW",
+        statusConfigId: "",
         departmentId: "",
         positionId: "",
         leaveBalance: "",
@@ -69,6 +85,11 @@ export default function EmployeeForm({
                     initialData.employee?.lastName ||
                     "",
                 role: initialData.role || "EMPLOYEE",
+                status: initialData.status || initialData.employee?.status || "NEW",
+                statusConfigId:
+                    initialData.statusConfigId ||
+                    initialData.employee?.statusConfigId ||
+                    "",
                 departmentId:
                     initialData.departmentId ||
                     initialData.employee?.departmentId ||
@@ -86,6 +107,8 @@ export default function EmployeeForm({
                 firstName: "",
                 lastName: "",
                 role: "EMPLOYEE",
+                status: "NEW",
+                statusConfigId: "",
                 departmentId: "",
                 positionId: "",
                 leaveBalance: "",
@@ -231,7 +254,7 @@ export default function EmployeeForm({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
                             {t("role")}
@@ -246,6 +269,49 @@ export default function EmployeeForm({
                             <option value="EMPLOYEE">{t("employee")}</option>
                             <option value="MANAGER">{t("manager")}</option>
                             <option value="RECRUITER">{t("recruiter")}</option>
+                        </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                                {t("status")}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setIsManagingStatus(true)}
+                                className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                                + Sozlash
+                            </button>
+                        </div>
+                        <select
+                            value={form.statusConfigId || form.status || ""}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                const matchedConfig = statuses.find(
+                                    (s) => s.id === val || s.code === val,
+                                );
+                                setForm({
+                                    ...form,
+                                    statusConfigId: matchedConfig?.id || val,
+                                    status: matchedConfig?.code || val,
+                                });
+                            }}
+                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black font-bold"
+                        >
+                            {statuses.length > 0 ? (
+                                statuses.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name} {s.durationDays ? `(${s.durationDays} kun)` : ""}
+                                    </option>
+                                ))
+                            ) : (
+                                <>
+                                    <option value="NEW">✨ {t("statusNew")}</option>
+                                    <option value="ACTIVE">🟢 {t("statusActive")}</option>
+                                    <option value="INACTIVE">⚪ {t("statusInactive")}</option>
+                                </>
+                            )}
                         </select>
                     </div>
                     <div className="flex flex-col gap-1">
@@ -338,6 +404,12 @@ export default function EmployeeForm({
                 onClose={() => setIsCreatingDept(false)}
                 onSave={handleCreateDept}
                 departments={departments}
+            />
+            <StatusManagementModal
+                isOpen={isManagingStatus}
+                onClose={() => setIsManagingStatus(false)}
+                statuses={statuses}
+                onRefresh={loadStatuses}
             />
         </div>
     );

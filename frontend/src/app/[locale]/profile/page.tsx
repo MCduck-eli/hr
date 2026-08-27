@@ -607,7 +607,9 @@ export default function EmployeeProfilePage() {
                     <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
                         {t("quickActions")}
                     </h2>
-                    <QuickActions />
+                    <QuickActions
+                        onAttendanceUpdated={() => setRefreshKey((k) => k + 1)}
+                    />
                 </div>
             </div>
         </div>

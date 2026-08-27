@@ -37,12 +37,20 @@ export class DashboardController {
 
     async updateProgress(req: Request, res: Response, next: NextFunction) {
         try {
-            const userId = (req as any).user?.id;
+            const user = (req as any).user;
+            const userId = user?.id;
 
             if (!userId) {
                 return res
                     .status(401)
                     .json({ message: "Avtorizatsiyadan o'tilmagan" });
+            }
+
+            if (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN") {
+                return res.status(200).json({
+                    status: "success",
+                    message: "Admin uchun progress yozilmaydi",
+                });
             }
 
             await dashboardService.updateVideoProgress(userId, req.body);

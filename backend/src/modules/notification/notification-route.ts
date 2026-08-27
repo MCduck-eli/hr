@@ -16,13 +16,15 @@ notificationRouter.get(
     notificationController.getMyNotifications,
 );
 
+notificationRouter.patch("/read-all", notificationController.markAllAsRead);
+
+notificationRouter.patch("/:id/read", notificationController.markAsRead);
+
 notificationRouter.post(
     "/register-device",
     validate(registerDeviceTokenSchema),
     notificationController.registerDeviceToken,
 );
-
-notificationRouter.patch("/:id/read", notificationController.markAsRead);
 
 notificationRouter.post(
     "/send-manual",

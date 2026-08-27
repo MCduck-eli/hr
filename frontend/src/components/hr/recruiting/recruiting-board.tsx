@@ -150,11 +150,10 @@ export default function RecruitingBoard({
                     <button
                         key={v.id}
                         onClick={() => setSelectedVacancyId(v.id)}
-                        className={`px-6 py-3 whitespace-nowrap text-xs font-bold uppercase tracking-widest border transition-colors ${
-                            selectedVacancy?.id === v.id
-                                ? "bg-black text-white border-black"
-                                : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                        }`}
+                        className={`px-6 py-3 whitespace-nowrap text-xs font-bold uppercase tracking-widest border transition-colors ${selectedVacancy?.id === v.id
+                            ? "bg-black text-white border-black"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                            }`}
                     >
                         {v.title} ({v._count?.candidates || 0})
                     </button>
@@ -176,7 +175,7 @@ export default function RecruitingBoard({
                             </button>
                             <button
                                 onClick={() => {
-                                    if(confirm(t("confirmDeleteVacancy"))) {
+                                    if (confirm(t("confirmDeleteVacancy"))) {
                                         onDelete(selectedVacancy.id);
                                     }
                                 }}
@@ -227,96 +226,96 @@ export default function RecruitingBoard({
                                             const taskInfo = getTaskDeadlineInfo(c);
 
                                             return (
-                                        <tr key={c.id} className="border-b border-gray-100 hover:bg-[#f8f8f8]">
-                                            <td className="p-4">
-                                                <div 
-                                                    className="text-xs font-bold text-blue-600 cursor-pointer hover:underline"
-                                                    onClick={() => setViewCandidate(c)}
-                                                >
-                                                    {c.fullName}
-                                                </div>
-                                                <div className="text-[10px] font-bold mt-1 uppercase tracking-widest text-green-600">
-                                                    {t("match")}: {matchScore}%
-                                                </div>
-                                            </td>
-                                            <td className="p-4 text-xs text-gray-600">
-                                                <div>{c.email}</div>
-                                                <div className="font-bold">{c.phone}</div>
-                                                {c.location && (
-                                                    <div className="mt-1 text-[10px] text-gray-500 uppercase flex items-center gap-1">
-                                                        <span title={c.location}>📍 {c.location.length > 20 ? c.location.substring(0, 20) + "..." : c.location}</span>
-                                                    </div>
-                                                )}
-                                                {c.coverLetter && (
-                                                    <div className="mt-1 text-[10px] text-gray-500 italic max-w-[200px] truncate" title={c.coverLetter}>
-                                                        "{c.coverLetter}"
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="p-4 text-xs font-bold uppercase text-gray-500">{c.source}</td>
-                                            <td className="p-4 min-w-[200px]">
-                                                 <select
-                                                     value={c.stage}
-                                                     onChange={(e) => handleStageSelect(c, e.target.value)}
-                                                     className={`w-full p-2.5 border text-xs font-bold uppercase tracking-widest focus:outline-none focus:ring-1 focus:ring-black rounded transition-all cursor-pointer shadow-sm ${getStageBadgeStyle(c.stage)}`}
-                                                 >
-                                                     {STAGE_VALUES.map((val) => (
-                                                         <option key={val} value={val} className="bg-white text-gray-900 font-semibold py-1">
-                                                             {t(STAGE_KEYS[val] || val)}
-                                                         </option>
-                                                     ))}
-                                                 </select>
+                                                <tr key={c.id} className="border-b border-gray-100 hover:bg-[#f8f8f8]">
+                                                    <td className="p-4">
+                                                        <div
+                                                            className="text-xs font-bold text-blue-600 cursor-pointer hover:underline"
+                                                            onClick={() => setViewCandidate(c)}
+                                                        >
+                                                            {c.fullName}
+                                                        </div>
+                                                        <div className="text-[10px] font-bold mt-1 uppercase tracking-widest text-green-600">
+                                                            {t("match")}: {matchScore}%
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-xs text-gray-600">
+                                                        <div>{c.email}</div>
+                                                        <div className="font-bold">{c.phone}</div>
+                                                        {c.location && (
+                                                            <div className="mt-1 text-[10px] text-gray-500 uppercase flex items-center gap-1">
+                                                                <span title={c.location}>📍 {c.location.length > 20 ? c.location.substring(0, 20) + "..." : c.location}</span>
+                                                            </div>
+                                                        )}
+                                                        {c.coverLetter && (
+                                                            <div className="mt-1 text-[10px] text-gray-500 italic max-w-[200px] truncate" title={c.coverLetter}>
+                                                                "{c.coverLetter}"
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4 text-xs font-bold uppercase text-gray-500">{c.source}</td>
+                                                    <td className="p-4 min-w-[200px]">
+                                                        <select
+                                                            value={c.stage}
+                                                            onChange={(e) => handleStageSelect(c, e.target.value)}
+                                                            className={`w-full p-2.5 border text-xs font-bold uppercase tracking-widest focus:outline-none focus:ring-1 focus:ring-black rounded transition-all cursor-pointer shadow-sm ${getStageBadgeStyle(c.stage)}`}
+                                                        >
+                                                            {STAGE_VALUES.map((val) => (
+                                                                <option key={val} value={val} className="bg-white text-gray-900 font-semibold py-1">
+                                                                    {t(STAGE_KEYS[val] || val)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
 
-                                                 {taskInfo && (
-                                                     <div className={`mt-2 px-2.5 py-1 text-[10px] uppercase font-bold border rounded flex items-center justify-between gap-1.5 shadow-sm ${taskInfo.colorClass}`}>
-                                                         <span className="flex items-center gap-1">
-                                                             <span>{taskInfo.icon}</span>
-                                                             <span>{taskInfo.label}</span>
-                                                         </span>
-                                                         {c.testTaskSubmittedAt && (
-                                                             <button
-                                                                 onClick={() => setViewCandidate(c)}
-                                                                 className="text-[9px] underline font-black hover:text-black"
-                                                             >
-                                                                 {t("taskStatus.view")}
-                                                             </button>
-                                                         )}
-                                                     </div>
-                                                 )}
-                                             </td>
-                                            <td className="p-4 text-right">
-                                                <div className="flex items-center justify-end gap-2 flex-wrap">
-                                                    {c.stage === "TEST_TASK" && taskInfo?.isExpired && !c.testTaskSubmittedAt && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => setEmailModal({ open: true, candidate: c, type: "TASK_REMINDER" })}
-                                                                className="text-[10px] font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded transition-colors shadow-sm"
-                                                                title={t("taskStatus.sendReminder")}
+                                                        {taskInfo && (
+                                                            <div className={`mt-2 px-2.5 py-1 text-[10px] uppercase font-bold border rounded flex items-center justify-between gap-1.5 shadow-sm ${taskInfo.colorClass}`}>
+                                                                <span className="flex items-center gap-1">
+                                                                    <span>{taskInfo.icon}</span>
+                                                                    <span>{taskInfo.label}</span>
+                                                                </span>
+                                                                {c.testTaskSubmittedAt && (
+                                                                    <button
+                                                                        onClick={() => setViewCandidate(c)}
+                                                                        className="text-[9px] underline font-black hover:text-black"
+                                                                    >
+                                                                        {t("taskStatus.view")}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <div className="flex items-center justify-end gap-2 flex-wrap">
+                                                            {c.stage === "TEST_TASK" && taskInfo?.isExpired && !c.testTaskSubmittedAt && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => setEmailModal({ open: true, candidate: c, type: "TASK_REMINDER" })}
+                                                                        className="text-[10px] font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded transition-colors shadow-sm"
+                                                                        title={t("taskStatus.sendReminder")}
+                                                                    >
+                                                                        {t("taskStatus.remind")}
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleStageSelect(c, "REJECTED")}
+                                                                        className="text-[10px] font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded transition-colors shadow-sm"
+                                                                        title={t("taskStatus.rejectCandidate")}
+                                                                    >
+                                                                        {t("taskStatus.reject")}
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                            <a
+                                                                href={c.resumeUrl?.startsWith("/") ? serverOrigin + c.resumeUrl : c.resumeUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:underline border border-blue-200 bg-blue-50 px-2.5 py-1.5 rounded"
                                                             >
-                                                                {t("taskStatus.remind")}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleStageSelect(c, "REJECTED")}
-                                                                className="text-[10px] font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded transition-colors shadow-sm"
-                                                                title={t("taskStatus.rejectCandidate")}
-                                                            >
-                                                                {t("taskStatus.reject")}
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                    <a
-                                                        href={c.resumeUrl?.startsWith("/") ? serverOrigin + c.resumeUrl : c.resumeUrl}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:underline border border-blue-200 bg-blue-50 px-2.5 py-1.5 rounded"
-                                                    >
-                                                        {t("resume")}
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
+                                                                {t("resume")}
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                 )}
                             </tbody>
                         </table>
@@ -371,8 +370,6 @@ export default function RecruitingBoard({
                                     </a>
                                 </div>
                             </div>
-                            
-                            {/* Test Task details section in candidate modal */}
                             {(viewCandidate.stage === "TEST_TASK" || viewCandidate.testTaskSubmittedAt) && (
                                 <div className="p-5 bg-amber-50/60 border border-amber-200 rounded flex flex-col gap-3">
                                     <div className="flex items-center justify-between">
@@ -464,19 +461,19 @@ export default function RecruitingBoard({
                             <div>
                                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{t("thStage")}</div>
                                 <select
-                                     value={viewCandidate.stage}
-                                     onChange={(e) => {
-                                         handleStageSelect(viewCandidate, e.target.value);
-                                         setViewCandidate({ ...viewCandidate, stage: e.target.value });
-                                     }}
-                                     className={`w-full max-w-xs p-3 border text-xs font-bold uppercase tracking-widest focus:outline-none rounded transition-all cursor-pointer ${getStageBadgeStyle(viewCandidate.stage)}`}
-                                 >
-                                     {STAGE_VALUES.map((val) => (
-                                         <option key={val} value={val} className="bg-white text-gray-900 font-semibold py-1">
-                                             {t(STAGE_KEYS[val] || val)}
-                                         </option>
-                                     ))}
-                                 </select>
+                                    value={viewCandidate.stage}
+                                    onChange={(e) => {
+                                        handleStageSelect(viewCandidate, e.target.value);
+                                        setViewCandidate({ ...viewCandidate, stage: e.target.value });
+                                    }}
+                                    className={`w-full max-w-xs p-3 border text-xs font-bold uppercase tracking-widest focus:outline-none rounded transition-all cursor-pointer ${getStageBadgeStyle(viewCandidate.stage)}`}
+                                >
+                                    {STAGE_VALUES.map((val) => (
+                                        <option key={val} value={val} className="bg-white text-gray-900 font-semibold py-1">
+                                            {t(STAGE_KEYS[val] || val)}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -487,12 +484,12 @@ export default function RecruitingBoard({
                 <EmailActionModal
                     candidate={emailModal.candidate}
                     vacancyTitle={selectedVacancy?.title}
+                    companyName={selectedVacancy?.companyName}
                     type={emailModal.type}
                     onClose={() => setEmailModal({ open: false, candidate: null, type: null })}
                     onSuccess={(meta) => {
                         if (emailModal.type && emailModal.type !== "HIRE" && emailModal.type !== "HIRED") {
                             if (emailModal.type === "TASK_REMINDER") {
-                                // Just a reminder email, keep stage
                             } else {
                                 const nextStage = emailModal.type === "REJECT" ? "REJECTED" : emailModal.type;
                                 onStageChange(emailModal.candidate.id, nextStage, meta?.testTaskDeadline);

@@ -10,16 +10,30 @@ export class DashboardService {
             include: {
                 employee: {
                     include: {
+                        department: true,
+                        statusConfig: true,
                         courseProgresses: {
                             include: { course: true },
                         },
                         onboarding: {
                             include: {
                                 courses: {
-                                    include: { course: true },
+                                    include: {
+                                        course: {
+                                            include: {
+                                                template: true,
+                                            },
+                                        },
+                                    },
                                 },
                                 tasks: {
-                                    include: { task: true },
+                                    include: {
+                                        task: {
+                                            include: {
+                                                template: true,
+                                            },
+                                        },
+                                    },
                                 },
                             },
                         },
@@ -43,16 +57,30 @@ export class DashboardService {
                     include: {
                         employee: {
                             include: {
+                                department: true,
+                                statusConfig: true,
                                 courseProgresses: {
                                     include: { course: true },
                                 },
                                 onboarding: {
                                     include: {
                                         courses: {
-                                            include: { course: true },
+                                            include: {
+                                                course: {
+                                                    include: {
+                                                        template: true,
+                                                    },
+                                                },
+                                            },
                                         },
                                         tasks: {
-                                            include: { task: true },
+                                            include: {
+                                                task: {
+                                                    include: {
+                                                        template: true,
+                                                    },
+                                                },
+                                            },
                                         },
                                     },
                                 },
@@ -75,17 +103,62 @@ export class DashboardService {
             !user.employee &&
             (user.role === "SUPER_ADMIN" || user.role === "HR_ADMIN")
         ) {
-            return {
-                okrProgress: 100,
-                attendanceHours: 0,
-                pendingFeedbacks: 0,
-                leaveBalance: 0,
-                activeCourses: [],
-                recentActivities: [],
-            };
+            let adminEmployee = await prisma.employee.findFirst({
+                where: { userId: user.id },
+            });
+            if (!adminEmployee) {
+                adminEmployee = await prisma.employee.create({
+                    data: {
+                        userId: user.id,
+                        firstName: user.firstName || "Admin",
+                        lastName: user.lastName || "User",
+                        status: "NEW",
+                    },
+                });
+            }
+            user = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: {
+                    employee: {
+                        include: {
+                            department: true,
+                            statusConfig: true,
+                            courseProgresses: {
+                                include: { course: true },
+                            },
+                            onboarding: {
+                                include: {
+                                    courses: {
+                                        include: {
+                                            course: {
+                                                include: {
+                                                    template: true,
+                                                },
+                                            },
+                                        },
+                                    },
+                                    tasks: {
+                                        include: {
+                                            task: {
+                                                include: {
+                                                    template: true,
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                            lifecycleEvents: {
+                                orderBy: { createdAt: "desc" },
+                                take: 3,
+                            },
+                        },
+                    },
+                },
+            });
         }
 
-        const employee = user.employee;
+        const employee = user?.employee;
 
         if (!employee) {
             throw new AppError("Xodim topilmadi", 404);
@@ -122,28 +195,143 @@ export class DashboardService {
             };
         });
 
-        const onboardingCourses = (employee.onboarding?.courses || []).map(
-            (oc) => ({
-                id: oc.courseId,
-                title: oc.course?.title || "Onboarding Kursi",
-                description: oc.course?.description,
-                videoUrl: oc.course?.videoUrl,
-                progress: oc.progressPercent || 0,
-                type: "ONBOARDING",
-                isCompleted: oc.isCompleted,
-            }),
-        );
+        const allTemplates = await prisma.onboardingTemplate.findMany({
+            include: {
+                tasks: true,
+                courses: true,
+                targetStatusConfig: true,
+            },
+        });
 
-        const onboardingTasks = (employee.onboarding?.tasks || []).map(
-            (ot) => ({
-                id: ot.taskId,
-                title: ot.task?.title || "Onboarding Vazifa",
-                description: ot.task?.description,
-                progress: ot.status === "COMPLETED" ? 100 : 0,
+        const matchingTemplates = allTemplates.filter((t) => {
+            if (
+                t.departmentId &&
+                employee.departmentId &&
+                t.departmentId !== employee.departmentId
+            ) {
+                return false;
+            }
+
+            const isTemplateForAll = !t.targetStatusConfigId && !t.targetStatus;
+            if (isTemplateForAll) return true;
+
+            if (t.targetStatusConfigId) {
+                return employee.statusConfigId === t.targetStatusConfigId;
+            }
+
+            if (t.targetStatus) {
+                if (employee.statusConfig?.code) {
+                    return employee.statusConfig.code === t.targetStatus;
+                }
+                return employee.status === t.targetStatus;
+            }
+
+            return false;
+        });
+
+        const employeeOnboardingRecord =
+            await prisma.employeeOnboarding.findUnique({
+                where: { employeeId: employee.id },
+                include: {
+                    courses: {
+                        include: {
+                            course: {
+                                include: {
+                                    template: true,
+                                },
+                            },
+                        },
+                    },
+                    tasks: {
+                        include: {
+                            task: {
+                                include: {
+                                    template: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+        const onboardingCourses = matchingTemplates.flatMap((t) => {
+            const templateEnrollments = (
+                employeeOnboardingRecord?.courses || []
+            ).filter(
+                (item: any) =>
+                    item.courseId === t.id ||
+                    item.course?.templateId === t.id ||
+                    (t.courses &&
+                        t.courses.some((c) => c.id === item.courseId)),
+            );
+
+            const latestProgress = templateEnrollments.reduce((max, item) => {
+                const p = item.isCompleted
+                    ? 100
+                    : item.progressPercent || 0;
+                return p > max ? p : max;
+            }, 0);
+
+            const isTemplateCompleted =
+                templateEnrollments.some(
+                    (item) =>
+                        item.isCompleted ||
+                        (item.progressPercent || 0) >= 95,
+                ) || latestProgress >= 95;
+
+            if (t.courses && t.courses.length > 0) {
+                return t.courses.map((c) => {
+                    const specificEnrollment = templateEnrollments.find(
+                        (item: any) => item.courseId === c.id,
+                    );
+                    const progress = specificEnrollment
+                        ? specificEnrollment.isCompleted
+                            ? 100
+                            : specificEnrollment.progressPercent || 0
+                        : latestProgress;
+                    const isDone = isTemplateCompleted || progress >= 95;
+                    return {
+                        id: c.id,
+                        title: c.title || t.title,
+                        description: c.description || t.description,
+                        coverUrl: t.coverUrl,
+                        videoUrl: c.videoUrl || t.videoUrl,
+                        progress: isDone ? 100 : progress,
+                        type: "ONBOARDING",
+                        isCompleted: isDone,
+                    };
+                });
+            } else {
+                return [
+                    {
+                        id: t.id,
+                        title: t.title || "Onboarding Kursi",
+                        description: t.description,
+                        coverUrl: t.coverUrl,
+                        videoUrl: t.videoUrl,
+                        progress: isTemplateCompleted ? 100 : latestProgress,
+                        type: "ONBOARDING",
+                        isCompleted: isTemplateCompleted,
+                    },
+                ];
+            }
+        });
+
+        const allMatchingTasks = matchingTemplates.flatMap((t) => t.tasks);
+
+        const onboardingTasks = allMatchingTasks.map((t) => {
+            const ot = (employeeOnboardingRecord?.tasks || []).find(
+                (item: any) => item.taskId === t.id,
+            );
+            return {
+                id: t.id,
+                title: t.title || "Onboarding Vazifa",
+                description: t.description,
+                progress: ot?.status === "COMPLETED" ? 100 : 0,
                 type: "ONBOARDING_TASK",
-                isCompleted: ot.status === "COMPLETED",
-            }),
-        );
+                isCompleted: ot?.status === "COMPLETED" || false,
+            };
+        });
 
         const activeCourses = [
             ...academyCourses,
@@ -176,7 +364,6 @@ export class DashboardService {
                 const total = employeeOkrs.reduce((acc, okr) => acc + okr.progress, 0);
                 okrProgress = Math.round(total / employeeOkrs.length);
                 
-                // Average of minExpectedProgress from individual OKRs if set
                 const okrsWithMinProgress = employeeOkrs.filter(o => o.minExpectedProgress !== null && o.minExpectedProgress !== undefined);
                 if (okrsWithMinProgress.length > 0) {
                     const totalMin = okrsWithMinProgress.reduce((acc, okr) => acc + (okr.minExpectedProgress as number), 0);
@@ -186,6 +373,39 @@ export class DashboardService {
                 okrs = employeeOkrs;
             }
         }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const attendances = await prisma.attendance.findMany({
+            where: { employeeId: employee.id },
+            orderBy: { date: "desc" },
+        });
+
+        let totalMs = 0;
+        const now = new Date();
+        for (const att of attendances) {
+            if (att.checkIn && att.checkOut) {
+                totalMs += att.checkOut.getTime() - att.checkIn.getTime();
+            } else if (att.checkIn && att.date.getTime() === today.getTime()) {
+                totalMs += Math.max(0, now.getTime() - att.checkIn.getTime());
+            } else if (att.checkIn) {
+                totalMs += 8 * 60 * 60 * 1000;
+            }
+        }
+        const attendanceHours = Math.round((totalMs / (1000 * 60 * 60)) * 10) / 10;
+
+        const todayAtt = attendances.find(
+            (a) => a.date.getTime() === today.getTime(),
+        );
+
+        const todayAttendance = {
+            isCheckedIn: Boolean(todayAtt?.checkIn),
+            isCheckedOut: Boolean(todayAtt?.checkOut),
+            checkInTime: todayAtt?.checkIn ? todayAtt.checkIn.toISOString() : null,
+            checkOutTime: todayAtt?.checkOut ? todayAtt.checkOut.toISOString() : null,
+            status: todayAtt?.status || null,
+        };
 
         return {
             user: {
@@ -200,7 +420,8 @@ export class DashboardService {
             okrProgress,
             minExpectedProgress,
             okrs,
-            attendanceHours: 38,
+            attendanceHours,
+            todayAttendance,
             pendingFeedbacks,
             leaveBalance: employee.leaveBalance,
             activeCourses,
@@ -214,20 +435,38 @@ export class DashboardService {
 
     async updateVideoProgress(
         userId: string,
-        payload: { courseId: string; type: string; progress: number; targetUserId?: string },
+        payload: {
+            courseId: string;
+            type: string;
+            progress: number;
+            targetUserId?: string;
+        },
     ) {
         const user = await prisma.user.findUnique({
             where: { id: userId },
         });
-        
+
+        if (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN") {
+            return null;
+        }
+
         let targetId = userId;
-        if (payload.targetUserId && (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN")) {
+        if (
+            payload.targetUserId &&
+            (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN")
+        ) {
             targetId = payload.targetUserId;
         }
 
-        const employee = await prisma.employee.findUnique({
+        let employee = await prisma.employee.findUnique({
             where: { userId: targetId },
         });
+
+        if (!employee) {
+            employee = await prisma.employee.findUnique({
+                where: { id: targetId },
+            });
+        }
 
         if (!employee) {
             throw new AppError("Xodim topilmadi", 404);
@@ -259,17 +498,52 @@ export class DashboardService {
         }
 
         if (payload.type === "ONBOARDING") {
-            const onboarding = await prisma.employeeOnboarding.findUnique({
+            let onboarding = await prisma.employeeOnboarding.findUnique({
                 where: { employeeId: employee.id },
             });
 
-            if (!onboarding) throw new AppError("Onboarding topilmadi", 404);
+            if (!onboarding) {
+                onboarding = await prisma.employeeOnboarding.create({
+                    data: {
+                        employeeId: employee.id,
+                        status: "IN_PROGRESS",
+                    },
+                });
+            }
+
+            let validCourseId = payload.courseId;
+            const existingCourse = await prisma.onboardingCourse.findUnique({
+                where: { id: payload.courseId },
+            });
+
+            if (!existingCourse) {
+                const template = await prisma.onboardingTemplate.findUnique({
+                    where: { id: payload.courseId },
+                    include: { courses: true },
+                });
+
+                if (template) {
+                    if (template.courses && template.courses.length > 0) {
+                        validCourseId = template.courses[0].id;
+                    } else {
+                        const newCourse = await prisma.onboardingCourse.create({
+                            data: {
+                                templateId: template.id,
+                                title: template.title,
+                                description: template.description,
+                                videoUrl: template.videoUrl || "",
+                            },
+                        });
+                        validCourseId = newCourse.id;
+                    }
+                }
+            }
 
             return prisma.employeeOnboardingCourse.upsert({
                 where: {
                     onboardingId_courseId: {
                         onboardingId: onboarding.id,
-                        courseId: payload.courseId,
+                        courseId: validCourseId,
                     },
                 },
                 update: {
@@ -279,7 +553,7 @@ export class DashboardService {
                 },
                 create: {
                     onboardingId: onboarding.id,
-                    courseId: payload.courseId,
+                    courseId: validCourseId,
                     progressPercent: payload.progress,
                     isCompleted: isFullyCompleted,
                     completedAt: isFullyCompleted ? new Date() : undefined,
