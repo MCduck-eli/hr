@@ -1,5 +1,6 @@
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
+import { notificationService } from "../notification/notification-service";
 
 export class OkrService {
     async createCycle(payload: {
@@ -42,6 +43,7 @@ export class OkrService {
         employeeId?: string;
         parentId?: string;
         minExpectedProgress?: number;
+        isIndividualForEach?: boolean;
         keyResults: {
             title: string;
             initialValue?: number;
@@ -49,14 +51,123 @@ export class OkrService {
             unit?: string;
         }[];
     }) {
-        return prisma.objective.create({
+        if (payload.isIndividualForEach && payload.level === "DEPARTMENT" && payload.departmentId) {
+            const deptEmployees = await prisma.employee.findMany({
+                where: { departmentId: payload.departmentId },
+                include: { user: true },
+            });
+            const createdObjectives = [];
+            for (const emp of deptEmployees) {
+                const indObj = await prisma.objective.create({
+                    data: {
+                        cycleId: payload.cycleId,
+                        level: "INDIVIDUAL",
+                        title: payload.title,
+                        description: payload.description,
+                        departmentId: payload.departmentId,
+                        employeeId: emp.id,
+                        parentId: payload.parentId,
+                        minExpectedProgress: payload.minExpectedProgress,
+                        keyResults: {
+                            create: payload.keyResults.map((kr) => ({
+                                title: kr.title,
+                                initialValue: kr.initialValue ?? 0,
+                                currentValue: kr.initialValue ?? 0,
+                                targetValue: kr.targetValue,
+                                unit: kr.unit ?? "%",
+                                progress: 0,
+                            })),
+                        },
+                    },
+                    include: { keyResults: true },
+                });
+                createdObjectives.push(indObj);
+                if (emp.userId) {
+                    await notificationService.createAndSendNotification({
+                        userId: emp.userId,
+                        title: "Yangi OKR Maqsadi (Alohida hisobot)",
+                        message: `Sizga shaxsiy hisobotli yangi OKR maqsadi biriktirildi: ${payload.title}`,
+                        type: "GENERAL",
+                        metadata: { type: "OKR_ASSIGNED", objectiveId: indObj.id },
+                    }).catch(() => {});
+                }
+            }
+            return createdObjectives[0] || null;
+        }
+
+        if (payload.isIndividualForEach && payload.level === "COMPANY") {
+            const allEmployees = await prisma.employee.findMany({
+                where: {
+                    user: { role: { not: "SUPER_ADMIN" } },
+                },
+                include: { user: true },
+            });
+            const createdObjectives = [];
+            for (const emp of allEmployees) {
+                const indObj = await prisma.objective.create({
+                    data: {
+                        cycleId: payload.cycleId,
+                        level: "INDIVIDUAL",
+                        title: payload.title,
+                        description: payload.description,
+                        departmentId: emp.departmentId,
+                        employeeId: emp.id,
+                        parentId: payload.parentId,
+                        minExpectedProgress: payload.minExpectedProgress,
+                        keyResults: {
+                            create: payload.keyResults.map((kr) => ({
+                                title: kr.title,
+                                initialValue: kr.initialValue ?? 0,
+                                currentValue: kr.initialValue ?? 0,
+                                targetValue: kr.targetValue,
+                                unit: kr.unit ?? "%",
+                                progress: 0,
+                            })),
+                        },
+                    },
+                    include: { keyResults: true },
+                });
+                createdObjectives.push(indObj);
+                if (emp.userId) {
+                    await notificationService.createAndSendNotification({
+                        userId: emp.userId,
+                        title: "Yangi OKR Maqsadi (Alohida hisobot)",
+                        message: `Sizga shaxsiy hisobotli yangi OKR maqsadi biriktirildi: ${payload.title}`,
+                        type: "GENERAL",
+                        metadata: { type: "OKR_ASSIGNED", objectiveId: indObj.id },
+                    }).catch(() => {});
+                }
+            }
+            return createdObjectives[0] || null;
+        }
+
+        let resolvedEmployeeId = payload.employeeId;
+        let resolvedUserId: string | null = null;
+
+        if (payload.level === "INDIVIDUAL" && payload.employeeId) {
+            const emp = await prisma.employee.findFirst({
+                where: {
+                    OR: [
+                        { id: payload.employeeId },
+                        { userId: payload.employeeId },
+                    ],
+                },
+                select: { id: true, userId: true },
+            });
+            if (emp) {
+                resolvedEmployeeId = emp.id;
+                resolvedUserId = emp.userId;
+            }
+        }
+
+        const objective = await prisma.objective.create({
             data: {
                 cycleId: payload.cycleId,
                 level: payload.level,
                 title: payload.title,
                 description: payload.description,
-                departmentId: payload.departmentId,
-                employeeId: payload.employeeId,
+                departmentId: payload.level === "DEPARTMENT" ? payload.departmentId : undefined,
+                employeeId: payload.level === "INDIVIDUAL" ? resolvedEmployeeId : undefined,
                 parentId: payload.parentId,
                 minExpectedProgress: payload.minExpectedProgress,
                 keyResults: {
@@ -74,6 +185,48 @@ export class OkrService {
                 keyResults: true,
             },
         });
+
+        if (payload.level === "INDIVIDUAL" && resolvedUserId) {
+            await notificationService.createAndSendNotification({
+                userId: resolvedUserId,
+                title: "Yangi OKR Maqsadi",
+                message: `Sizga yangi OKR maqsadi biriktirildi: ${payload.title}`,
+                type: "GENERAL",
+                metadata: { type: "OKR_ASSIGNED", objectiveId: objective.id },
+            }).catch(() => {});
+        } else if (payload.level === "DEPARTMENT" && payload.departmentId) {
+            const deptEmployees = await prisma.employee.findMany({
+                where: { departmentId: payload.departmentId },
+                select: { userId: true },
+            });
+            for (const deptEmp of deptEmployees) {
+                if (deptEmp.userId) {
+                    await notificationService.createAndSendNotification({
+                        userId: deptEmp.userId,
+                        title: "Bo'lim OKR Maqsadi",
+                        message: `Bo'limingizga yangi OKR maqsadi biriktirildi: ${payload.title}`,
+                        type: "GENERAL",
+                        metadata: { type: "OKR_ASSIGNED", objectiveId: objective.id },
+                    }).catch(() => {});
+                }
+            }
+        } else if (payload.level === "COMPANY") {
+            const allUsers = await prisma.user.findMany({
+                where: { role: { not: "SUPER_ADMIN" } },
+                select: { id: true },
+            });
+            for (const u of allUsers) {
+                await notificationService.createAndSendNotification({
+                    userId: u.id,
+                    title: "Kompaniya OKR Maqsadi",
+                    message: `Kompaniya bo'yicha yangi OKR maqsadi belgilandi: ${payload.title}`,
+                    type: "GENERAL",
+                    metadata: { type: "OKR_ASSIGNED", objectiveId: objective.id },
+                }).catch(() => {});
+            }
+        }
+
+        return objective;
     }
 
     async updateObjective(
@@ -102,25 +255,49 @@ export class OkrService {
 
         if (!objective) throw new AppError("Objective not found", 404);
 
-        const updateData: any = {};
-        if (payload.level !== undefined) updateData.level = payload.level;
-        if (payload.title !== undefined) updateData.title = payload.title;
-        if (payload.description !== undefined) updateData.description = payload.description;
-        if (payload.departmentId !== undefined) updateData.departmentId = payload.departmentId;
-        if (payload.employeeId !== undefined) updateData.employeeId = payload.employeeId;
-        if (payload.parentId !== undefined) updateData.parentId = payload.parentId;
-        if (payload.minExpectedProgress !== undefined) updateData.minExpectedProgress = payload.minExpectedProgress;
+        let resolvedEmployeeId = payload.employeeId;
+        let resolvedUserId: string | null = null;
+
+        if (payload.level === "INDIVIDUAL" && payload.employeeId) {
+            const emp = await prisma.employee.findFirst({
+                where: {
+                    OR: [
+                        { id: payload.employeeId },
+                        { userId: payload.employeeId },
+                    ],
+                },
+                select: { id: true, userId: true },
+            });
+            if (emp) {
+                resolvedEmployeeId = emp.id;
+                resolvedUserId = emp.userId;
+            }
+        }
+
+        const updateData: any = {
+            level: payload.level,
+            title: payload.title,
+            description: payload.description,
+            departmentId: payload.level === "DEPARTMENT" ? (payload.departmentId || null) : null,
+            employeeId: payload.level === "INDIVIDUAL" ? (resolvedEmployeeId || null) : null,
+            parentId: payload.parentId,
+            minExpectedProgress: payload.minExpectedProgress,
+        };
 
         if (payload.keyResults) {
-            const existingKrIds = objective.keyResults.map(kr => kr.id);
-            const payloadKrIds = payload.keyResults.map(kr => kr.id).filter(id => id);
-            
-            const krsToDelete = existingKrIds.filter(id => !payloadKrIds.includes(id));
-            
+            const currentKrIds = objective.keyResults.map(k => k.id);
+            const updatedKrIds = payload.keyResults.filter(k => k.id).map(k => k.id as string);
+            const toDelete = currentKrIds.filter(id => !updatedKrIds.includes(id));
+
+            if (toDelete.length > 0) {
+                await prisma.keyResult.deleteMany({
+                    where: { id: { in: toDelete } }
+                });
+            }
+
             updateData.keyResults = {
-                deleteMany: krsToDelete.length > 0 ? { id: { in: krsToDelete } } : undefined,
-                upsert: payload.keyResults.map(kr => ({
-                    where: { id: kr.id || "new-kr" },
+                upsert: payload.keyResults.map((kr) => ({
+                    where: { id: kr.id || "new-id" },
                     create: {
                         title: kr.title,
                         initialValue: kr.initialValue ?? 0,
@@ -133,7 +310,6 @@ export class OkrService {
                         title: kr.title,
                         targetValue: kr.targetValue,
                         unit: kr.unit,
-                        // Not updating initialValue or currentValue to prevent messing up progress during normal edit
                     }
                 }))
             };
@@ -146,6 +322,47 @@ export class OkrService {
         });
         
         await this.recalculateObjectiveProgress(objectiveId);
+
+        if (payload.level === "INDIVIDUAL" && resolvedUserId) {
+            await notificationService.createAndSendNotification({
+                userId: resolvedUserId,
+                title: "Yangi OKR Maqsadi",
+                message: `Sizga yangi OKR maqsadi biriktirildi: ${updated.title}`,
+                type: "GENERAL",
+                metadata: { type: "OKR_ASSIGNED", objectiveId: updated.id },
+            }).catch(() => {});
+        } else if (payload.level === "DEPARTMENT" && payload.departmentId) {
+            const deptEmployees = await prisma.employee.findMany({
+                where: { departmentId: payload.departmentId },
+                select: { userId: true },
+            });
+            for (const deptEmp of deptEmployees) {
+                if (deptEmp.userId) {
+                    await notificationService.createAndSendNotification({
+                        userId: deptEmp.userId,
+                        title: "Bo'lim OKR Maqsadi",
+                        message: `Bo'limingizga yangi OKR maqsadi biriktirildi: ${updated.title}`,
+                        type: "GENERAL",
+                        metadata: { type: "OKR_ASSIGNED", objectiveId: updated.id },
+                    }).catch(() => {});
+                }
+            }
+        } else if (payload.level === "COMPANY") {
+            const allUsers = await prisma.user.findMany({
+                where: { role: { not: "SUPER_ADMIN" } },
+                select: { id: true },
+            });
+            for (const u of allUsers) {
+                await notificationService.createAndSendNotification({
+                    userId: u.id,
+                    title: "Kompaniya OKR Maqsadi",
+                    message: `Kompaniya bo'yicha yangi OKR maqsadi belgilandi: ${updated.title}`,
+                    type: "GENERAL",
+                    metadata: { type: "OKR_ASSIGNED", objectiveId: updated.id },
+                }).catch(() => {});
+            }
+        }
+
         return updated;
     }
 
@@ -163,14 +380,14 @@ export class OkrService {
     ) {
         const kr = await prisma.keyResult.findUnique({
             where: { id: keyResultId },
-            include: { objective: true },
+            include: { objective: { include: { employee: true } } },
         });
 
         if (!kr) throw new AppError("Key Result not found", 404);
 
-        const value = kr.targetValue; // Storing target value in the check-in record for reference
+        const value = kr.targetValue;
 
-        await prisma.okrCheckIn.create({
+        const checkIn = await prisma.okrCheckIn.create({
             data: {
                 keyResultId,
                 value,
@@ -181,8 +398,39 @@ export class OkrService {
             },
         });
 
-        // We don't update KeyResult or Objective yet. 
-        // Wait for HR Admin to review it.
+        let empName = "Xodim";
+        if (userId) {
+            const submittingUser = await prisma.user.findUnique({
+                where: { id: userId },
+                include: { employee: true },
+            });
+            if (submittingUser?.employee) {
+                empName = `${submittingUser.employee.firstName} ${submittingUser.employee.lastName}`.trim();
+            }
+        } else if (kr.objective.employee) {
+            empName = `${kr.objective.employee.firstName} ${kr.objective.employee.lastName}`.trim();
+        }
+
+        const hrAdminsAndDirectors = await prisma.user.findMany({
+            where: {
+                role: { in: ["HR_ADMIN", "DIRECTOR"] },
+            },
+            select: { id: true },
+        });
+
+        for (const admin of hrAdminsAndDirectors) {
+            await notificationService.createAndSendNotification({
+                userId: admin.id,
+                title: "OKR Natijasi Topshirildi",
+                message: `${empName} '${kr.title}' vazifasi bo'yicha OKR natijasini topshirdi. Iltimos, tekshiring.`,
+                type: "GENERAL",
+                metadata: {
+                    type: "OKR_CHECKIN_SUBMITTED",
+                    keyResultId,
+                    checkInId: checkIn.id,
+                },
+            }).catch(() => {});
+        }
 
         return prisma.keyResult.findUnique({
             where: { id: keyResultId },
@@ -211,7 +459,15 @@ export class OkrService {
     async reviewCheckIn(checkInId: string, status: "APPROVED" | "REJECTED") {
         const checkIn = await prisma.okrCheckIn.findUnique({
             where: { id: checkInId },
-            include: { keyResult: true }
+            include: {
+                keyResult: {
+                    include: {
+                        objective: {
+                            include: { employee: true },
+                        },
+                    },
+                },
+            },
         });
 
         if (!checkIn) throw new AppError("Check-in not found", 404);
@@ -234,6 +490,27 @@ export class OkrService {
             });
 
             await this.recalculateObjectiveProgress(kr.objectiveId);
+        }
+
+        let targetUserId = checkIn.createdById !== "SYSTEM" ? checkIn.createdById : null;
+        if (!targetUserId && checkIn.keyResult.objective.employee?.userId) {
+            targetUserId = checkIn.keyResult.objective.employee.userId;
+        }
+
+        if (targetUserId) {
+            await notificationService.createAndSendNotification({
+                userId: targetUserId,
+                title: status === "APPROVED" ? "OKR Natijangiz Tasdiqlandi" : "OKR Natijangiz Qaytarildi",
+                message: status === "APPROVED"
+                    ? `'${checkIn.keyResult.title}' bo'yicha yuborgan OKR natijangiz tasdiqlandi.`
+                    : `'${checkIn.keyResult.title}' bo'yicha yuborgan OKR natijangiz rad etildi.`,
+                type: "GENERAL",
+                metadata: {
+                    type: "OKR_CHECKIN_REVIEWED",
+                    checkInId,
+                    status,
+                },
+            }).catch(() => {});
         }
 
         return prisma.okrCheckIn.findUnique({

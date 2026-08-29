@@ -43,6 +43,22 @@ export class DepartmentController {
             next(error);
         }
     }
+
+    async delete(
+        req: Request<{ id: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            await departmentService.deleteDepartment(req.params.id);
+            res.status(200).json({
+                status: "success",
+                message: "Department deleted successfully",
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const departmentController = new DepartmentController();

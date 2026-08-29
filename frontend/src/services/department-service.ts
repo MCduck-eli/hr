@@ -33,3 +33,15 @@ export const createDepartment = async (payload: { name: string; parentId?: strin
     }
     return res.json().then(data => data.data);
 };
+
+export const deleteDepartment = async (id: string) => {
+    const res = await fetch(`${API_URL}/departments/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to delete department");
+    }
+    return res.json().then(data => data.data);
+};

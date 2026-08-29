@@ -18,4 +18,10 @@ departmentRouter.post(
     departmentController.create,
 );
 
+departmentRouter.delete(
+    "/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    departmentController.delete,
+);
+
 export default departmentRouter;

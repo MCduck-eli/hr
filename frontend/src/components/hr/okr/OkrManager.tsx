@@ -24,12 +24,10 @@ export default function OkrManager() {
     const [departments, setDepartments] = useState<any[]>([]);
     const [pendingCheckIns, setPendingCheckIns] = useState<any[]>([]);
     
-    // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
     const [editingObjective, setEditingObjective] = useState<any>(null);
     
-    // Form state
     const [form, setForm] = useState({
         level: "INDIVIDUAL",
         title: "",
@@ -37,6 +35,7 @@ export default function OkrManager() {
         employeeId: "",
         departmentId: "",
         minExpectedProgress: "" as number | string,
+        isIndividualForEach: true,
         keyResults: [{ id: "", title: "", targetValue: 1, unit: "" }]
     });
 
@@ -96,13 +95,33 @@ export default function OkrManager() {
     const loadEmployees = async () => {
         try {
             const token = localStorage.getItem("token");
+            const storedUser = localStorage.getItem("user");
+            let currentUserId = "";
+            let currentUserEmpId = "";
+            if (storedUser) {
+                try {
+                    const parsed = JSON.parse(storedUser);
+                    currentUserId = parsed.id;
+                    currentUserEmpId = parsed.employee?.id;
+                } catch (e) {}
+            }
+
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1"}/users`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
-                // Filter users who have employee records
-                setEmployees(data.data?.filter((u: any) => u.employee) || []);
+                setEmployees(
+                    data.data?.filter(
+                        (u: any) =>
+                            u.employee &&
+                            u.role !== "SUPER_ADMIN" &&
+                            u.role !== "DIRECTOR" &&
+                            u.role !== "HR_ADMIN" &&
+                            u.id !== currentUserId &&
+                            u.employee?.id !== currentUserEmpId
+                    ) || []
+                );
             }
         } catch (e) {
             console.error("Failed to load employees");
@@ -128,6 +147,7 @@ export default function OkrManager() {
                 employeeId: objective.employee?.id || objective.employeeId || "",
                 departmentId: objective.department?.id || objective.departmentId || "",
                 minExpectedProgress: objective.minExpectedProgress || 0,
+                isIndividualForEach: false,
                 keyResults: objective.keyResults?.map((kr: any) => ({
                     id: kr.id,
                     title: kr.title,
@@ -144,11 +164,12 @@ export default function OkrManager() {
                 employeeId: "",
                 departmentId: "",
                 minExpectedProgress: "",
+                isIndividualForEach: true,
                 keyResults: [{ id: "", title: "", targetValue: 1, unit: "" }]
             });
         }
         setIsModalOpen(true);
-        setIsCycleModalOpen(false); // close other form if open
+        setIsCycleModalOpen(false);
         setTimeout(() => {
             document.getElementById('okr-form')?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
@@ -251,7 +272,7 @@ export default function OkrManager() {
                     <button 
                         onClick={() => {
                             setIsCycleModalOpen(true);
-                            setIsModalOpen(false); // close other form if open
+                            setIsModalOpen(false);
                             setTimeout(() => {
                                 document.getElementById('cycle-form')?.scrollIntoView({ behavior: 'smooth' });
                             }, 100);
@@ -275,7 +296,6 @@ export default function OkrManager() {
                 <div className="flex justify-center py-20 text-xs font-bold uppercase tracking-widest text-gray-400">{t("noData")}</div>
             ) : (
                 <div className="flex flex-col gap-12">
-                    {/* Pending Approvals */}
                     {pendingCheckIns.length > 0 && (
                         <div className="flex flex-col gap-6">
                             <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-200 pb-4 text-orange-600">
@@ -433,49 +453,146 @@ export default function OkrManager() {
                             </button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6">
-                            <div className="grid grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{t("level")}</label>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                        {t("targetScope") || t("level")}
+                                    </label>
                                     <select 
-                                        className="border border-gray-200 p-3 text-sm focus:border-black outline-none transition-colors"
+                                        className="border border-gray-200 p-3 text-sm focus:border-black outline-none transition-colors bg-white font-medium"
                                         value={form.level}
-                                        onChange={(e) => setForm({...form, level: e.target.value})}
+                                        onChange={(e) => {
+                                            const newLevel = e.target.value;
+                                            setForm({
+                                                ...form,
+                                                level: newLevel,
+                                                employeeId: newLevel === "INDIVIDUAL" ? form.employeeId : "",
+                                                departmentId: newLevel === "DEPARTMENT" ? form.departmentId : "",
+                                            });
+                                        }}
                                     >
-                                        <option value="INDIVIDUAL">{t("levelIndividual")}</option>
-                                        <option value="DEPARTMENT">{t("levelDepartment")}</option>
                                         <option value="COMPANY">{t("levelCompany")}</option>
+                                        <option value="DEPARTMENT">{t("levelDepartment")}</option>
+                                        <option value="INDIVIDUAL">{t("levelIndividual")}</option>
                                     </select>
                                 </div>
+
+                                {form.level === "COMPANY" && (
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                            {t("employee")}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            disabled
+                                            value={t("appliesToAllEmployees") || "Barcha xodimlarga avtomatik tegishli"}
+                                            className="border border-gray-200 p-3 text-xs bg-gray-100 text-gray-500 font-bold uppercase tracking-wider cursor-not-allowed outline-none"
+                                        />
+                                    </div>
+                                )}
+
+                                {form.level === "DEPARTMENT" && (
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                            {t("departmentLabel")}
+                                        </label>
+                                        {departments.length === 0 ? (
+                                            <div className="border border-dashed border-gray-300 p-3 text-xs text-gray-400 font-bold uppercase tracking-wider bg-gray-50">
+                                                {t("noDepartmentsFound") || "Bo'limlar mavjud emas"}
+                                            </div>
+                                        ) : (
+                                            <select 
+                                                className="border border-gray-200 p-3 text-sm focus:border-black outline-none transition-colors bg-white font-medium"
+                                                value={form.departmentId}
+                                                onChange={(e) => setForm({...form, departmentId: e.target.value})}
+                                                required
+                                            >
+                                                <option value="">{t("selectDepartment")}</option>
+                                                {departments.map((d: any) => (
+                                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                )}
+
                                 {form.level === "INDIVIDUAL" && (
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{t("employee")}</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                            {t("employee")}
+                                        </label>
                                         <select 
-                                            className="border border-gray-200 p-3 text-sm focus:border-black outline-none transition-colors"
+                                            className="border border-gray-200 p-3 text-sm focus:border-black outline-none transition-colors bg-white font-medium"
                                             value={form.employeeId}
                                             onChange={(e) => setForm({...form, employeeId: e.target.value})}
                                             required
                                         >
-                                            <option value="">-- Xodimni tanlang --</option>
+                                            <option value="">{t("selectEmployee")}</option>
                                             {employees.map(u => (
-                                                <option key={u.id} value={u.employee.id}>{u.employee?.firstName} {u.employee?.lastName} ({u.email})</option>
+                                                <option key={u.id} value={u.employee?.id || u.id}>
+                                                    {u.employee?.firstName} {u.employee?.lastName} ({u.email})
+                                                </option>
                                             ))}
                                         </select>
                                     </div>
                                 )}
-                                {form.level === "DEPARTMENT" && (
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{t("levelDepartment")}</label>
-                                        <select 
-                                            className="border border-gray-200 p-3 text-sm focus:border-black outline-none transition-colors"
-                                            value={form.departmentId}
-                                            onChange={(e) => setForm({...form, departmentId: e.target.value})}
-                                            required
-                                        >
-                                            <option value="">-- Bo'limni tanlang --</option>
-                                            {departments.map((d: any) => (
-                                                <option key={d.id} value={d.id}>{d.name}</option>
-                                            ))}
-                                        </select>
+
+                                {(form.level === "COMPANY" || form.level === "DEPARTMENT") && !editingObjective && (
+                                    <div className="col-span-1 md:col-span-2 flex flex-col gap-3 p-4 bg-gray-50 border border-gray-200">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-700">
+                                            {t("executionModeLabel") || "Ijro usuli (Hisobot topshirish tartibi)"}
+                                        </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div
+                                                onClick={() => setForm({ ...form, isIndividualForEach: true })}
+                                                className={`flex items-start gap-3 p-3 border cursor-pointer transition-colors ${
+                                                    form.isIndividualForEach
+                                                        ? "bg-white border-black shadow-xs"
+                                                        : "bg-transparent border-gray-200 hover:bg-white"
+                                                }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="executionMode"
+                                                    checked={form.isIndividualForEach}
+                                                    onChange={() => setForm({ ...form, isIndividualForEach: true })}
+                                                    className="mt-1 accent-black"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-black">
+                                                        {t("modeIndividualEach")}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-500 mt-0.5 leading-tight">
+                                                        {t("modeIndividualEachDesc")}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                onClick={() => setForm({ ...form, isIndividualForEach: false })}
+                                                className={`flex items-start gap-3 p-3 border cursor-pointer transition-colors ${
+                                                    !form.isIndividualForEach
+                                                        ? "bg-white border-black shadow-xs"
+                                                        : "bg-transparent border-gray-200 hover:bg-white"
+                                                }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="executionMode"
+                                                    checked={!form.isIndividualForEach}
+                                                    onChange={() => setForm({ ...form, isIndividualForEach: false })}
+                                                    className="mt-1 accent-black"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-black">
+                                                        {t("modeCollective")}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-500 mt-0.5 leading-tight">
+                                                        {t("modeCollectiveDesc")}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>

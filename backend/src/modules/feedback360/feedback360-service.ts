@@ -1,5 +1,6 @@
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
+import { notificationService } from "../notification/notification-service";
 
 export class Feedback360Service {
     async createCycle(payload: {
@@ -40,7 +41,6 @@ export class Feedback360Service {
 
         const { questions, ...cycleData } = data;
 
-        // Delete old questions and insert new ones
         await prisma.feedbackQuestion.deleteMany({
             where: { cycleId },
         });
@@ -75,6 +75,7 @@ export class Feedback360Service {
                 ...(targetId ? { targetId } : {}),
             },
             include: {
+                answers: true,
                 reviewer: {
                     select: {
                         id: true,
@@ -134,14 +135,43 @@ export class Feedback360Service {
             }),
         );
 
-        return Promise.all(assignments);
+        const createdAssignments = await Promise.all(assignments);
+
+        const targetEmployee = await prisma.employee.findUnique({
+            where: { id: targetId },
+            select: { firstName: true, lastName: true },
+        });
+        const targetName = targetEmployee
+            ? `${targetEmployee.firstName} ${targetEmployee.lastName}`.trim()
+            : "hamkasbingiz";
+
+        for (const r of reviewers) {
+            const reviewerEmp = await prisma.employee.findUnique({
+                where: { id: r.reviewerId },
+                select: { userId: true },
+            });
+            if (reviewerEmp?.userId) {
+                await notificationService.createAndSendNotification({
+                    userId: reviewerEmp.userId,
+                    title: "360 Baholash So'rovi",
+                    message: `Sizga 360 baholash so'rovi biriktirildi. Iltimos, ${targetName}ni baholang.`,
+                    type: "GENERAL",
+                    metadata: {
+                        type: "FEEDBACK_360_REQUEST",
+                        cycleId,
+                        targetId,
+                    },
+                }).catch(() => {});
+            }
+        }
+
+        return createdAssignments;
     }
 
     async getMyPendingTasks(userId: string) {
         const employee = await prisma.employee.findUnique({
             where: { userId },
         });
-        console.log("getMyPendingTasks - userId:", userId, "employee:", employee);
         if (!employee) return [];
 
         return prisma.feedbackAssignment.findMany({
@@ -247,10 +277,32 @@ export class Feedback360Service {
 
         await Promise.all(answerCreates);
 
-        return prisma.feedbackAssignment.update({
+        const updatedAssignment = await prisma.feedbackAssignment.update({
             where: { id: assignmentId },
             data: { isCompleted: true },
         });
+
+        const targetEmployee = await prisma.employee.findUnique({
+            where: { id: assignment.targetId },
+            select: { userId: true, firstName: true, lastName: true },
+        });
+
+        if (targetEmployee?.userId) {
+            await notificationService.createAndSendNotification({
+                userId: targetEmployee.userId,
+                title: "360 Baholash Yakunlandi",
+                message: "Siz 360 baholash doirasida baholandingiz.",
+                type: "GENERAL",
+                metadata: {
+                    type: "FEEDBACK_360_COMPLETED",
+                    cycleId: assignment.cycleId,
+                    targetId: assignment.targetId,
+                    assignmentId,
+                },
+            }).catch(() => {});
+        }
+
+        return updatedAssignment;
     }
 
     async getTargetReport(

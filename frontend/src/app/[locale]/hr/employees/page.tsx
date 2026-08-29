@@ -45,9 +45,23 @@ export default function HREmployeesPage() {
     const loadUsers = async () => {
         try {
             const data = await fetchAllUsers();
-            const filteredUsers = data.filter(
+            let currentUserId = "";
+            let currentUserRole = "";
+            try {
+                const userStr = localStorage.getItem("user");
+                if (userStr) {
+                    const parsed = JSON.parse(userStr);
+                    currentUserId = parsed.id;
+                    currentUserRole = parsed.role;
+                }
+            } catch (e) {}
+
+            const filteredUsers = (data || []).filter(
                 (user: any) =>
-                    user.role !== "SUPER_ADMIN" && user.role !== "HR_ADMIN",
+                    user.role !== "SUPER_ADMIN" &&
+                    user.role !== "DIRECTOR" &&
+                    user.id !== currentUserId &&
+                    (currentUserRole === "HR_ADMIN" ? user.role !== "HR_ADMIN" : true),
             );
             setUsers(filteredUsers);
         } catch (err: any) {

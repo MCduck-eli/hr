@@ -29,7 +29,7 @@ export class AttendanceService {
         });
         const employees = await prisma.employee.findMany({
             where: {
-                user: { role: { not: "SUPER_ADMIN" } },
+                user: { role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] } },
             },
             select: { id: true, firstName: true, lastName: true },
         });
@@ -349,7 +349,7 @@ export class AttendanceService {
                 message: `${employee.firstName} ${employee.lastName} soat ${timeStr} da Face ID orqali davomatni qayd etdi (${statusLabel}). Kutilgan vaqt: ${schedule.startTime}`,
                 type: "GENERAL",
                 excludeUserId: employee.userId,
-                targetRoles: ["SUPER_ADMIN", "HR_ADMIN"],
+                targetRoles: ["DIRECTOR", "HR_ADMIN"],
                 metadata: {
                     type: "ATTENDANCE",
                     employeeId: employee.id,
@@ -448,7 +448,7 @@ export class AttendanceService {
                 message: `${employee.firstName} ${employee.lastName} soat ${timeStr} da ishdan chiqishni (Check Out) qayd etdi${earlyLabel}. Kutilgan vaqt: ${schedule.endTime}`,
                 type: "GENERAL",
                 excludeUserId: employee.userId,
-                targetRoles: ["SUPER_ADMIN", "HR_ADMIN"],
+                targetRoles: ["DIRECTOR", "HR_ADMIN"],
                 metadata: {
                     type: "ATTENDANCE",
                     employeeId: employee.id,

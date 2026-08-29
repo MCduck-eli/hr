@@ -28,11 +28,25 @@ export default function EmployeeAssigner() {
                 allUsers = empData.data || empData || [];
             }
 
+            const storedUser = localStorage.getItem("user");
+            let currentUserId = "";
+            let currentUserEmpId = "";
+            if (storedUser) {
+                try {
+                    const parsed = JSON.parse(storedUser);
+                    currentUserId = parsed.id;
+                    currentUserEmpId = parsed.employee?.id;
+                } catch (err) {}
+            }
+
             const filteredUsers = allUsers.filter(
                 (u: any) =>
+                    u.employee?.id &&
                     u.role !== "SUPER_ADMIN" &&
+                    u.role !== "DIRECTOR" &&
                     u.role !== "HR_ADMIN" &&
-                    u.employee?.id,
+                    u.id !== currentUserId &&
+                    u.employee?.id !== currentUserEmpId,
             );
             setEmployees(filteredUsers);
 

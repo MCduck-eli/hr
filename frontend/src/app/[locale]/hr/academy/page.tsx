@@ -38,9 +38,30 @@ export default function HRAcademyManagementPage() {
                 setDepartments(data.data || data || []);
             }
             if (empRes.ok) {
+                const storedUser = localStorage.getItem("user");
+                let currentUserId = "";
+                let currentUserEmpId = "";
+                if (storedUser) {
+                    try {
+                        const parsed = JSON.parse(storedUser);
+                        currentUserId = parsed.id;
+                        currentUserEmpId = parsed.employee?.id;
+                    } catch (err) {}
+                }
+
                 const data = await empRes.json();
                 const allUsers = data.data || data || [];
-                setEmployees(allUsers.filter((u: any) => u.employee?.id));
+                setEmployees(
+                    allUsers.filter(
+                        (u: any) =>
+                            u.employee?.id &&
+                            u.role !== "SUPER_ADMIN" &&
+                            u.role !== "DIRECTOR" &&
+                            u.role !== "HR_ADMIN" &&
+                            u.id !== currentUserId &&
+                            u.employee?.id !== currentUserEmpId
+                    )
+                );
             }
         } catch (e) {
             console.error(e);

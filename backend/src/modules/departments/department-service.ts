@@ -43,6 +43,20 @@ export class DepartmentService {
 
         return department;
     }
+
+    async deleteDepartment(id: string) {
+        await prisma.employee.updateMany({
+            where: { departmentId: id },
+            data: { departmentId: null },
+        });
+        await prisma.department.updateMany({
+            where: { parentId: id },
+            data: { parentId: null },
+        });
+        return prisma.department.delete({
+            where: { id },
+        });
+    }
 }
 
 export const departmentService = new DepartmentService();

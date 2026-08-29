@@ -4,7 +4,7 @@ import { userService } from "./user-service";
 export class UserController {
     async getAll(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await userService.getAllUsers();
+            const result = await userService.getAllUsers(req.user);
             res.status(200).json({
                 status: "success",
                 data: result,
@@ -32,7 +32,7 @@ export class UserController {
 
     async create(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await userService.createUser(req.body);
+            const result = await userService.createUser(req.body, req.user);
             res.status(201).json({
                 status: "success",
                 data: result,

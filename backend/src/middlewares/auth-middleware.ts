@@ -3,6 +3,7 @@ import { verifyToken } from "../utils/jwt";
 
 export type Role =
     | "SUPER_ADMIN"
+    | "DIRECTOR"
     | "HR_ADMIN"
     | "DEPARTMENT_HEAD"
     | "EMPLOYEE"
@@ -51,12 +52,24 @@ export const authenticate = (
 
 export const authorize = (...roles: Role[]) => {
     return (req: Request, res: Response, next: NextFunction) => {
-        if (!req.user || !roles.includes(req.user.role)) {
+        if (!req.user) {
             return res.status(403).json({
                 status: "fail",
                 message: "Permission denied",
             });
         }
-        next();
+
+        if (
+            req.user.role === "SUPER_ADMIN" ||
+            req.user.role === "DIRECTOR" ||
+            roles.includes(req.user.role)
+        ) {
+            return next();
+        }
+
+        return res.status(403).json({
+            status: "fail",
+            message: "Permission denied",
+        });
     };
 };

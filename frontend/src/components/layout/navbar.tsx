@@ -44,6 +44,17 @@ export default function Navbar() {
             localStorage.setItem("user", originalAdminUser);
             localStorage.removeItem("originalAdminUser");
             setHasOriginalAdmin(false);
+            try {
+                const parsed = JSON.parse(originalAdminUser);
+                if (parsed.role === "DIRECTOR") {
+                    router.push(`/${locale}/director/dashboard`);
+                    return;
+                }
+                if (parsed.role === "HR_ADMIN") {
+                    router.push(`/${locale}/hr/dashboard`);
+                    return;
+                }
+            } catch (e) {}
             router.push(`/${locale}/dashboard`);
         }
     };
@@ -59,7 +70,11 @@ export default function Navbar() {
     };
 
     const getDashboardLink = () => {
-        if (userRole === "SUPER_ADMIN" || userRole === "HR_ADMIN") {
+        if (userRole === "SUPER_ADMIN") {
+            return `/${locale}/dashboard`;
+        } else if (userRole === "DIRECTOR") {
+            return `/${locale}/director/dashboard`;
+        } else if (userRole === "HR_ADMIN") {
             return `/${locale}/hr/dashboard`;
         } else if (userRole === "MANAGER") {
             return `/${locale}/manager/okr`;
@@ -104,7 +119,7 @@ export default function Navbar() {
                     </Link>
                 </div>
 
-                {(userRole === "SUPER_ADMIN" || userRole === "HR_ADMIN") && (
+                {(userRole === "DIRECTOR" || userRole === "HR_ADMIN") && (
                     <div className="hidden md:flex items-center gap-8 text-[11px] font-bold text-gray-500 uppercase tracking-widest bg-gray-200/50 px-6 py-2 rounded-sm">
                         <Link
                             href={`/${locale}/hr/okr`}
@@ -136,7 +151,7 @@ export default function Navbar() {
                 <div className="hidden md:flex items-center gap-5">
                     <LanguageSwitcher />
 
-                    {isLoggedIn && <NotificationBell />}
+                    {isLoggedIn && userRole !== "SUPER_ADMIN" && <NotificationBell />}
 
                     {isLoggedIn ? (
                         <div className="flex items-center gap-4">

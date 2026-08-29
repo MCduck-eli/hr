@@ -351,8 +351,11 @@ export class DashboardService {
             const employeeOkrs = await prisma.objective.findMany({
                 where: {
                     cycleId: currentCycle.id,
-                    employeeId: employee.id,
-                    level: "INDIVIDUAL"
+                    OR: [
+                        { level: "COMPANY" },
+                        ...(employee.departmentId ? [{ level: "DEPARTMENT" as const, departmentId: employee.departmentId }] : []),
+                        { level: "INDIVIDUAL" as const, employeeId: employee.id }
+                    ]
                 },
                 include: { 
                     keyResults: {

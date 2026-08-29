@@ -5,14 +5,34 @@ import { hashPassword } from "../../utils/password";
 import { employeeStatusService } from "../employee-status/employee-status-service";
 
 export class UserService {
-    async getAllUsers() {
+    async getAllUsers(currentUser?: any) {
         await employeeStatusService.checkAndTransitionEmployeeStatuses();
 
+        let companyNameFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyNameFilter = caller.companyName || null;
+            }
+        }
+
+        const whereClause: any = {};
+        if (companyNameFilter) {
+            whereClause.companyName = companyNameFilter;
+            whereClause.role = { not: "SUPER_ADMIN" };
+        }
+
         const users = await prisma.user.findMany({
+            where: whereClause,
             select: {
                 id: true,
                 email: true,
                 role: true,
+                companyName: true,
+                phone: true,
                 createdAt: true,
                 employee: {
                     include: {
@@ -39,26 +59,36 @@ export class UserService {
             return users;
         }
 
-        const employeeIds = users.map(u => u.employee?.id).filter(Boolean) as string[];
         const objectives = await prisma.objective.findMany({
             where: {
                 cycleId: currentCycle.id,
-                level: "INDIVIDUAL",
-                employeeId: { in: employeeIds }
             },
             select: {
+                id: true,
+                level: true,
+                departmentId: true,
                 employeeId: true,
-                progress: true
-            }
+                progress: true,
+            },
         });
 
-        const okrProgressByEmployee = employeeIds.reduce((acc, id) => {
-            const employeeOkrs = objectives.filter(o => o.employeeId === id);
-            if (employeeOkrs.length > 0) {
-                const total = employeeOkrs.reduce((sum, okr) => sum + okr.progress, 0);
-                acc[id] = Math.round(total / employeeOkrs.length);
+        const okrProgressByEmployee = users.reduce((acc, u) => {
+            if (!u.employee) return acc;
+            const empId = u.employee.id;
+            const deptId = u.employee.departmentId;
+
+            const relevantOkrs = objectives.filter((o) => {
+                if (o.level === "COMPANY") return true;
+                if (o.level === "DEPARTMENT" && deptId && o.departmentId === deptId) return true;
+                if (o.level === "INDIVIDUAL" && o.employeeId === empId) return true;
+                return false;
+            });
+
+            if (relevantOkrs.length > 0) {
+                const total = relevantOkrs.reduce((sum, okr) => sum + okr.progress, 0);
+                acc[empId] = Math.round(total / relevantOkrs.length);
             } else {
-                acc[id] = 0;
+                acc[empId] = 0;
             }
             return acc;
         }, {} as Record<string, number>);
@@ -84,6 +114,8 @@ export class UserService {
                 id: true,
                 email: true,
                 role: true,
+                companyName: true,
+                phone: true,
                 createdAt: true,
                 employee: {
                     include: {
@@ -101,25 +133,41 @@ export class UserService {
         return user;
     }
 
-    async createUser(payload: any) {
+    async createUser(payload: any, currentUser?: any) {
         const {
             email,
             password,
             role,
             firstName,
             lastName,
+            companyName,
+            phone,
             departmentId,
             positionId,
             leaveBalance,
             assignedCourseIds,
         } = payload;
 
-        const existingUser = await prisma.user.findUnique({
-            where: { email },
+        let finalCompanyName = companyName || null;
+        if (!finalCompanyName && currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { companyName: true },
+            });
+            if (caller?.companyName) {
+                finalCompanyName = caller.companyName;
+            }
+        }
+
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                email,
+                ...(finalCompanyName ? { companyName: finalCompanyName } : { companyName: null }),
+            },
         });
 
         if (existingUser) {
-            throw new AppError("User with this email already exists", 400);
+            throw new AppError("Ushbu email bilan ushbu kompaniyada xodim allaqachon mavjud", 400);
         }
 
         const hashedPassword = await hashPassword(password);
@@ -172,11 +220,39 @@ export class UserService {
             enumStatus = "INACTIVE";
         }
 
+        let resolvedPositionId = null;
+        if (positionId && typeof positionId === "string" && positionId.trim()) {
+            const trimmedPos = positionId.trim();
+            const existingPos = await prisma.position.findFirst({
+                where: {
+                    OR: [
+                        { id: trimmedPos },
+                        { title: { equals: trimmedPos, mode: "insensitive" } },
+                    ],
+                },
+            });
+            if (existingPos) {
+                resolvedPositionId = existingPos.id;
+            } else {
+                const newPos = await prisma.position.create({
+                    data: {
+                        title: trimmedPos,
+                        departmentId: departmentId || null,
+                    },
+                }).catch(() => null);
+                if (newPos) {
+                    resolvedPositionId = newPos.id;
+                }
+            }
+        }
+
         const newUser = await prisma.user.create({
             data: {
                 email,
                 password: hashedPassword,
                 role: role || "EMPLOYEE",
+                companyName: finalCompanyName,
+                phone: phone || null,
                 employee: {
                     create: {
                         firstName: firstName || "",
@@ -186,7 +262,7 @@ export class UserService {
                         statusStartedAt: new Date(),
                         statusExpiresAt,
                         ...(departmentId && { departmentId }),
-                        ...(positionId && { positionId }),
+                        ...(resolvedPositionId && { positionId: resolvedPositionId }),
                         ...(leaveBalance !== undefined && { leaveBalance }),
                         ...(assignedCourseIds &&
                             assignedCourseIds.length > 0 && {
@@ -205,6 +281,8 @@ export class UserService {
                 id: true,
                 email: true,
                 role: true,
+                companyName: true,
+                phone: true,
                 createdAt: true,
                 employee: true,
             },
@@ -339,6 +417,8 @@ export class UserService {
             role,
             firstName,
             lastName,
+            companyName,
+            phone,
             departmentId,
             positionId,
             password,
@@ -409,11 +489,41 @@ export class UserService {
             }
         }
 
+        let resolvedPositionId: string | null | undefined = undefined;
+        if (positionId !== undefined) {
+            if (!positionId || positionId === "") {
+                resolvedPositionId = null;
+            } else {
+                const trimmedPos = String(positionId).trim();
+                const existingPos = await prisma.position.findFirst({
+                    where: {
+                        OR: [
+                            { id: trimmedPos },
+                            { title: { equals: trimmedPos, mode: "insensitive" } },
+                        ],
+                    },
+                });
+                if (existingPos) {
+                    resolvedPositionId = existingPos.id;
+                } else {
+                    const newPos = await prisma.position.create({
+                        data: {
+                            title: trimmedPos,
+                            departmentId: departmentId || null,
+                        },
+                    }).catch(() => null);
+                    resolvedPositionId = newPos ? newPos.id : null;
+                }
+            }
+        }
+
         return prisma.user.update({
             where: { id },
             data: {
                 ...(email && { email }),
                 ...(role && { role }),
+                ...(companyName !== undefined && { companyName }),
+                ...(phone !== undefined && { phone }),
                 ...(hashedPassword && { password: hashedPassword }),
                 employee: {
                     update: {
@@ -423,8 +533,8 @@ export class UserService {
                             departmentId:
                                 departmentId === "" ? null : departmentId,
                         }),
-                        ...(positionId !== undefined && {
-                            positionId: positionId === "" ? null : positionId,
+                        ...(resolvedPositionId !== undefined && {
+                            positionId: resolvedPositionId,
                         }),
                         ...(leaveBalance !== undefined && { leaveBalance }),
                         ...(enumStatus !== undefined && { status: enumStatus }),
@@ -444,6 +554,8 @@ export class UserService {
                 id: true,
                 email: true,
                 role: true,
+                companyName: true,
+                phone: true,
                 employee: true,
             },
         });
@@ -451,19 +563,187 @@ export class UserService {
     async deleteUser(id: string) {
         const userExists = await prisma.user.findUnique({
             where: { id },
+            include: { employee: true },
         });
 
         if (!userExists) {
             throw new AppError("User not found", 404);
         }
 
-        await prisma.employee.deleteMany({
-            where: { userId: id },
-        });
+        if (userExists.role === "DIRECTOR") {
+            const companyName = userExists.companyName;
+
+            const remainingDirectors = await prisma.user.count({
+                where: {
+                    role: "DIRECTOR",
+                    id: { not: id },
+                },
+            });
+
+            if (remainingDirectors === 0) {
+                const companyTables = [
+                    "Attendance",
+                    "WorkSchedule",
+                    "LeaveRequest",
+                    "Payroll",
+                    "PerformanceReview",
+                    "DeviceLog",
+                    "CandidateFeedback",
+                    "CandidateMatch",
+                    "Candidate",
+                    "JobVacancy",
+                    "EmployeeOnboardingTask",
+                    "EmployeeOnboardingCourse",
+                    "EmployeeOnboarding",
+                    "OnboardingTask",
+                    "OnboardingCourse",
+                    "OnboardingTemplate",
+                    "PolicySignature",
+                    "CompanyPolicy",
+                    "CourseProgress",
+                    "CourseCertificate",
+                    "EventRegistration",
+                    "TrainingEvent",
+                    "AcademyQuiz",
+                    "AcademyResource",
+                    "AcademyLesson",
+                    "AcademyCourse",
+                    "AcademyCategory",
+                    "OrgStructureHistory",
+                    "EmployeeLifecycleEvent",
+                    "OffboardingTaskItem",
+                    "OffboardingRequest",
+                    "EmployeeLifecycleChecklist",
+                    "LifecycleTemplateTask",
+                    "LifecycleTemplate",
+                    "OkrCheckIn",
+                    "KeyResult",
+                    "Objective",
+                    "OkrCycle",
+                    "DiscUserResponse",
+                    "DiscAssessment",
+                    "FeedbackAnswer",
+                    "FeedbackAssignment",
+                    "FeedbackQuestion",
+                    "FeedbackCycle",
+                    "PromotionRequest",
+                    "CareerHistory",
+                    "JobGrade",
+                    "GeofenceZone",
+                    "Position",
+                    "Department",
+                ];
+
+                const truncateSql = `TRUNCATE TABLE ${companyTables.map((t) => `"${t}"`).join(", ")} CASCADE;`;
+                await prisma.$executeRawUnsafe(truncateSql).catch(async () => {
+                    for (const t of companyTables) {
+                        await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE;`).catch(() => {});
+                    }
+                });
+
+                await prisma.notification.deleteMany({
+                    where: { user: { role: { not: "SUPER_ADMIN" } } },
+                }).catch(() => {});
+                await prisma.userDeviceToken.deleteMany({
+                    where: { user: { role: { not: "SUPER_ADMIN" } } },
+                }).catch(() => {});
+                await prisma.employee.deleteMany({
+                    where: { user: { role: { not: "SUPER_ADMIN" } } },
+                }).catch(() => {});
+                await prisma.user.deleteMany({
+                    where: { role: { not: "SUPER_ADMIN" } },
+                }).catch(() => {});
+
+                return { success: true, id };
+            }
+
+            const companyUsers = await prisma.user.findMany({
+                where: companyName ? { companyName } : { id },
+                include: { employee: true },
+            });
+
+            const companyUserIds = companyUsers.map((u) => u.id);
+            const companyEmpIds = companyUsers
+                .map((u) => u.employee?.id)
+                .filter(Boolean) as string[];
+
+            if (companyEmpIds.length > 0) {
+                await prisma.attendance.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.workSchedule.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.leaveRequest.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.payroll.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.performanceReview.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.employeeOnboarding.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.policySignature.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.courseProgress.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.eventRegistration.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.objective.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.feedbackAssignment.deleteMany({
+                    where: {
+                        OR: [
+                            { targetId: { in: companyEmpIds } },
+                            { reviewerId: { in: companyEmpIds } }
+                        ]
+                    }
+                }).catch(() => {});
+                await prisma.discAssessment.deleteMany({ where: { employeeId: { in: companyEmpIds } } }).catch(() => {});
+                await prisma.employee.deleteMany({ where: { id: { in: companyEmpIds } } }).catch(() => {});
+            }
+
+            if (companyUserIds.length > 0) {
+                await prisma.notification.deleteMany({ where: { userId: { in: companyUserIds } } }).catch(() => {});
+                await prisma.userDeviceToken.deleteMany({ where: { userId: { in: companyUserIds } } }).catch(() => {});
+                await prisma.user.deleteMany({ where: { id: { in: companyUserIds } } }).catch(() => {});
+            }
+
+            return { success: true, id };
+        }
+
+        const emp = userExists.employee;
+        if (emp) {
+            await prisma.employee.updateMany({
+                where: { managerId: emp.id },
+                data: { managerId: null },
+            }).catch(() => {});
+            await prisma.employeeOnboarding.updateMany({
+                where: { mentorId: emp.id },
+                data: { mentorId: null },
+            }).catch(() => {});
+            await prisma.attendance.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.workSchedule.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.leaveRequest.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.payroll.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.performanceReview.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.feedbackAssignment.deleteMany({
+                where: { OR: [{ reviewerId: emp.id }, { targetId: emp.id }] },
+            }).catch(() => {});
+            await prisma.okrCheckIn.deleteMany({ where: { objective: { employeeId: emp.id } } }).catch(() => {});
+            await prisma.keyResult.deleteMany({ where: { objective: { employeeId: emp.id } } }).catch(() => {});
+            await prisma.objective.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.discUserResponse.deleteMany({ where: { assessment: { employeeId: emp.id } } }).catch(() => {});
+            await prisma.discAssessment.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.employeeOnboardingTask.deleteMany({ where: { employeeOnboarding: { employeeId: emp.id } } }).catch(() => {});
+            await prisma.employeeOnboardingCourse.deleteMany({ where: { employeeOnboarding: { employeeId: emp.id } } }).catch(() => {});
+            await prisma.employeeOnboarding.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.policySignature.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.courseProgress.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.courseCertificate.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.eventRegistration.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.employeeLifecycleChecklist.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.offboardingRequest.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.employeeLifecycleEvent.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
+            await prisma.orgStructureHistory.deleteMany({
+                where: { OR: [{ employeeId: emp.id }, { changedById: emp.id }] },
+            }).catch(() => {});
+            await prisma.employee.delete({ where: { id: emp.id } }).catch(() => {});
+        }
+
+        await prisma.notification.deleteMany({ where: { userId: id } }).catch(() => {});
+        await prisma.userDeviceToken.deleteMany({ where: { userId: id } }).catch(() => {});
 
         return prisma.user.delete({
             where: { id },
-        });
+        }).catch(() => ({ id }));
     }
 }
 

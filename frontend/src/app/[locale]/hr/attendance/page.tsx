@@ -73,7 +73,11 @@ export default function HRAttendancePage() {
         }
         try {
             const user = JSON.parse(userStr);
-            if (user.role !== "HR_ADMIN" && user.role !== "SUPER_ADMIN") {
+            if (
+                user.role !== "HR_ADMIN" &&
+                user.role !== "SUPER_ADMIN" &&
+                user.role !== "DIRECTOR"
+            ) {
                 router.push(`/${locale}/profile`);
                 return;
             }

@@ -44,7 +44,16 @@ export default function EmployeeForm({
         }
     };
 
+    const [currentUserRole, setCurrentUserRole] = useState("");
+
     useEffect(() => {
+        try {
+            const userStr = localStorage.getItem("user");
+            if (userStr) {
+                const parsed = JSON.parse(userStr);
+                setCurrentUserRole(parsed.role || "");
+            }
+        } catch (e) {}
         loadDepartments();
         loadStatuses();
     }, []);
@@ -269,6 +278,9 @@ export default function EmployeeForm({
                             <option value="EMPLOYEE">{t("employee")}</option>
                             <option value="MANAGER">{t("manager")}</option>
                             <option value="RECRUITER">{t("recruiter")}</option>
+                            {(currentUserRole === "DIRECTOR" || currentUserRole === "SUPER_ADMIN") && (
+                                <option value="HR_ADMIN">{t("hrAdmin") || "HR Admin"}</option>
+                            )}
                         </select>
                     </div>
                     <div className="flex flex-col gap-1">

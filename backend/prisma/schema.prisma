@@ -9,6 +9,7 @@ datasource db {
 
 enum Role {
   SUPER_ADMIN
+  DIRECTOR
   HR_ADMIN
   DEPARTMENT_HEAD
   EMPLOYEE
@@ -95,15 +96,19 @@ enum EmployeeStatus {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  password  String
-  role      Role      @default(EMPLOYEE)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  employee  Employee?
+  id            String            @id @default(uuid())
+  email         String
+  password      String
+  role          Role              @default(EMPLOYEE)
+  companyName   String?
+  phone         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  employee      Employee?
   notifications Notification[]
-deviceTokens  UserDeviceToken[]
+  deviceTokens  UserDeviceToken[]
+
+  @@unique([email, companyName])
 }
 
 model Department {
