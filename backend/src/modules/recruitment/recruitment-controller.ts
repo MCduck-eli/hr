@@ -5,7 +5,7 @@ import { recruitmentService } from "./recruitment-service";
 export class RecruitmentController {
     async createVacancy(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await recruitmentService.createVacancy(req.body);
+            const result = await recruitmentService.createVacancy(req.body, (req as any).user);
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -14,7 +14,7 @@ export class RecruitmentController {
 
     async updateVacancy(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await recruitmentService.updateVacancy(req.params.id, req.body);
+            const result = await recruitmentService.updateVacancy(req.params.id, req.body, (req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -23,7 +23,7 @@ export class RecruitmentController {
 
     async deleteVacancy(req: Request, res: Response, next: NextFunction) {
         try {
-            await recruitmentService.deleteVacancy(req.params.id);
+            await recruitmentService.deleteVacancy(req.params.id, (req as any).user);
             res.status(200).json({ status: "success", message: "Vacancy deleted" });
         } catch (error) {
             next(error);
@@ -32,7 +32,7 @@ export class RecruitmentController {
 
     async getAllVacancies(req: Request, res: Response, next: NextFunction) {
         try {
-            const vacancies = await recruitmentService.getAllVacancies();
+            const vacancies = await recruitmentService.getAllVacancies((req as any).user);
             res.status(200).json({ status: "success", data: vacancies });
         } catch (error) {
             next(error);
@@ -167,6 +167,7 @@ export class RecruitmentController {
             const result = await recruitmentService.hireCandidate(
                 req.params.candidateId,
                 req.body,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {

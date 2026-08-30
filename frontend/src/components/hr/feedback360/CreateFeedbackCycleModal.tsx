@@ -47,7 +47,6 @@ export default function CreateFeedbackCycleModal({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Filter out empty questions
         const validQuestions = questions.filter(q => q.competency.trim() && q.text.trim());
         
         if (validQuestions.length === 0) {

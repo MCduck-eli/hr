@@ -87,66 +87,66 @@ recruitmentRouter.use(authenticate);
 
 recruitmentRouter.get(
     "/vacancies",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     recruitmentController.getAllVacancies,
 );
 
 recruitmentRouter.post(
     "/vacancies",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     validate(createVacancySchema),
     recruitmentController.createVacancy,
 );
 
 recruitmentRouter.put(
     "/vacancies/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     validate(updateVacancySchema),
     recruitmentController.updateVacancy,
 );
 
 recruitmentRouter.delete(
     "/vacancies/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     recruitmentController.deleteVacancy,
 );
 
 recruitmentRouter.get(
     "/candidates/:candidateId",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     recruitmentController.getCandidateDetails,
 );
 
 recruitmentRouter.patch(
     "/candidates/:candidateId/stage",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     validate(updateStageSchema),
     recruitmentController.updateStage,
 );
 
 recruitmentRouter.post(
     "/candidates/:candidateId/feedback",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER", "DEPARTMENT_HEAD"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER", "DEPARTMENT_HEAD"),
     validate(addFeedbackSchema),
     recruitmentController.addFeedback,
 );
 
 recruitmentRouter.post(
     "/candidates/:candidateId/hire",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     recruitmentController.hireCandidate,
 );
 
 recruitmentRouter.post(
     "/candidates/:candidateId/email",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     validate(sendCandidateEmailSchema),
     recruitmentController.sendEmail,
 );
 
 recruitmentRouter.post(
     "/upload-task",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     uploadTask.single("file"),
     recruitmentController.uploadTaskFile,
 );

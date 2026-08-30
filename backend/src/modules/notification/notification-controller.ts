@@ -20,11 +20,8 @@ export class NotificationController {
     async getMyNotifications(req: Request, res: Response, next: NextFunction) {
         try {
             const loggedInUserId = (req as any).user.id;
-            const targetUserId = req.query.userId
-                ? String(req.query.userId)
-                : loggedInUserId;
             const result =
-                await notificationService.getUserNotifications(targetUserId);
+                await notificationService.getUserNotifications(loggedInUserId);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -38,10 +35,9 @@ export class NotificationController {
     ) {
         try {
             const loggedInUserId = (req as any).user.id;
-            const targetUserId = req.body?.userId || req.query?.userId || loggedInUserId;
             const result = await notificationService.markAsRead(
                 req.params.id,
-                String(targetUserId),
+                loggedInUserId,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -52,8 +48,7 @@ export class NotificationController {
     async markAllAsRead(req: Request, res: Response, next: NextFunction) {
         try {
             const loggedInUserId = (req as any).user.id;
-            const targetUserId = req.body?.userId || req.query?.userId || loggedInUserId;
-            const result = await notificationService.markAllAsRead(String(targetUserId));
+            const result = await notificationService.markAllAsRead(loggedInUserId);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

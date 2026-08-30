@@ -4,7 +4,7 @@ import { feedback360Service } from "./feedback360-service";
 export class Feedback360Controller {
     async createCycle(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await feedback360Service.createCycle(req.body);
+            const result = await feedback360Service.createCycle(req.body, (req as any).user);
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -13,7 +13,7 @@ export class Feedback360Controller {
 
     async getCycles(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await feedback360Service.getCycles();
+            const result = await feedback360Service.getCycles((req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

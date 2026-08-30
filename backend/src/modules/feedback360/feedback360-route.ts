@@ -16,40 +16,40 @@ feedback360Router.use(authenticate);
 
 feedback360Router.get(
     "/cycles",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "EMPLOYEE", "CEO"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "EMPLOYEE", "CEO"),
     feedback360Controller.getCycles,
 );
 
 feedback360Router.put(
     "/cycles/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     validate(createCycleSchema),
     feedback360Controller.updateCycle,
 );
 
 feedback360Router.delete(
     "/cycles/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     feedback360Controller.deleteCycle,
 );
 
 feedback360Router.post(
     "/cycles",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     validate(createCycleSchema),
     feedback360Controller.createCycle,
 );
 
 feedback360Router.get(
     "/assignments",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     validate(getAssignmentsSchema),
     feedback360Controller.getAssignments,
 );
 
 feedback360Router.post(
     "/assign",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     validate(assignReviewersSchema),
     feedback360Controller.assignReviewers,
 );

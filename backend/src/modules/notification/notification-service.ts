@@ -94,9 +94,11 @@ export class NotificationService {
         excludeUserId?: string;
         excludeRoles?: string[];
         targetRoles?: string[];
+        companyName?: string;
     }) {
         const users = await prisma.user.findMany({
             where: {
+                ...(payload.companyName ? { companyName: payload.companyName } : {}),
                 ...(payload.excludeUserId ? { id: { not: payload.excludeUserId } } : {}),
                 ...(payload.excludeRoles && payload.excludeRoles.length > 0
                     ? { role: { notIn: payload.excludeRoles as any } }

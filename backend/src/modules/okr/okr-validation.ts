@@ -2,11 +2,11 @@ import { z } from "zod";
 
 export const createCycleSchema = z.object({
     body: z.object({
-        title: z.string().min(2),
-        startDate: z.string().datetime(),
-        endDate: z.string().datetime(),
+        title: z.string().min(1),
+        startDate: z.string().min(1),
+        endDate: z.string().min(1),
         isCurrent: z.boolean().optional(),
-        minExpectedProgress: z.number().optional(),
+        minExpectedProgress: z.coerce.number().optional(),
     }),
 });
 
@@ -14,28 +14,31 @@ export const createObjectiveSchema = z.object({
     body: z.object({
         cycleId: z.string().uuid(),
         level: z.enum(["COMPANY", "DEPARTMENT", "INDIVIDUAL"]),
-        title: z.string().min(3),
-        description: z.string().optional(),
-        departmentId: z.string().uuid().optional(),
-        employeeId: z.string().uuid().optional(),
-        parentId: z.string().uuid().optional(),
-        minExpectedProgress: z.number().optional(),
+        title: z.string().min(1),
+        description: z.string().optional().nullable(),
+        departmentId: z.string().uuid().optional().nullable(),
+        employeeId: z.string().uuid().optional().nullable(),
+        parentId: z.string().uuid().optional().nullable(),
+        minExpectedProgress: z.coerce.number().optional().nullable(),
+        executionMode: z.string().optional().nullable(),
         keyResults: z
             .array(
                 z.object({
-                    title: z.string().min(2),
-                    initialValue: z.number().default(0),
-                    targetValue: z.number(),
-                    unit: z.string().default("%"),
+                    id: z.string().optional().nullable(),
+                    title: z.string().min(1),
+                    initialValue: z.coerce.number().default(0).optional(),
+                    targetValue: z.coerce.number(),
+                    unit: z.string().optional().default("%"),
                 }),
             )
-            .min(1),
+            .optional()
+            .default([]),
     }),
 });
 
 export const checkInKeyResultSchema = z.object({
     body: z.object({
-        comment: z.string().optional(),
+        comment: z.string().optional().nullable(),
     }),
 });
 
@@ -48,21 +51,22 @@ export const updateOkrStatusSchema = z.object({
 export const updateObjectiveSchema = z.object({
     body: z.object({
         level: z.enum(["COMPANY", "DEPARTMENT", "INDIVIDUAL"]).optional(),
-        title: z.string().min(3).optional(),
-        description: z.string().optional(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional().nullable(),
         departmentId: z.string().uuid().optional().nullable(),
         employeeId: z.string().uuid().optional().nullable(),
         parentId: z.string().uuid().optional().nullable(),
-        minExpectedProgress: z.number().optional().nullable(),
+        minExpectedProgress: z.coerce.number().optional().nullable(),
+        executionMode: z.string().optional().nullable(),
         keyResults: z
             .array(
                 z.object({
-                    id: z.string().uuid().optional(),
-                    title: z.string().min(2),
-                    initialValue: z.number().default(0),
-                    targetValue: z.number(),
-                    unit: z.string().default("%"),
-                })
+                    id: z.string().optional().nullable(),
+                    title: z.string().min(1),
+                    initialValue: z.coerce.number().default(0).optional(),
+                    targetValue: z.coerce.number(),
+                    unit: z.string().optional().default("%"),
+                }),
             )
             .optional(),
     }),

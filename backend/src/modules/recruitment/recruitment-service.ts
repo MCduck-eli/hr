@@ -13,11 +13,20 @@ export class RecruitmentService {
         description: string;
         requirements: string;
         departmentId?: string;
-    }) {
+    }, currentUser?: any) {
+        let resolvedCompany = payload.companyName || null;
+        if (!resolvedCompany && currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { companyName: true },
+            });
+            resolvedCompany = caller?.companyName || null;
+        }
+
         return prisma.jobVacancy.create({
             data: {
                 title: payload.title,
-                companyName: payload.companyName,
+                companyName: resolvedCompany,
                 description: payload.description,
                 requirements: payload.requirements,
                 departmentId: payload.departmentId || null,
@@ -32,7 +41,7 @@ export class RecruitmentService {
         description?: string;
         requirements?: string;
         departmentId?: string;
-    }) {
+    }, currentUser?: any) {
         return prisma.jobVacancy.update({
             where: { id },
             data: {
@@ -42,17 +51,34 @@ export class RecruitmentService {
         });
     }
 
-    async deleteVacancy(id: string) {
+    async deleteVacancy(id: string, currentUser?: any) {
         return prisma.jobVacancy.delete({
             where: { id },
         });
     }
 
-    async getAllVacancies() {
+    async getAllVacancies(currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
         return prisma.jobVacancy.findMany({
+            where: {
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
             include: {
                 department: { select: { id: true, name: true } },
                 candidates: {
+                    where: {
+                        ...(companyFilter ? { companyName: companyFilter } : {}),
+                    },
                     include: {
                         vacancyMatches: true,
                     },
@@ -86,6 +112,15 @@ export class RecruitmentService {
         location?: string;
         coverLetter?: string;
     }) {
+        let vacancyCompany: string | null = null;
+        if (payload.vacancyId) {
+            const vac = await prisma.jobVacancy.findUnique({
+                where: { id: payload.vacancyId },
+                select: { companyName: true },
+            });
+            vacancyCompany = vac?.companyName || null;
+        }
+
         const candidate = await prisma.candidate.create({
             data: {
                 fullName: payload.fullName,
@@ -95,6 +130,7 @@ export class RecruitmentService {
                 source: payload.source || "DIRECT",
                 stage: CandidatePipelineStage.APPLIED,
                 primaryVacancyId: payload.vacancyId || null,
+                companyName: vacancyCompany,
                 location: payload.location,
                 coverLetter: payload.coverLetter,
             },
@@ -232,9 +268,11 @@ export class RecruitmentService {
     async hireCandidate(
         candidateId: string,
         payload: { departmentId?: string; managerId?: string },
+        currentUser?: any,
     ) {
         const candidate = await prisma.candidate.findUnique({
             where: { id: candidateId },
+            include: { primaryVacancy: true },
         });
 
         if (!candidate) {
@@ -245,12 +283,21 @@ export class RecruitmentService {
             throw new AppError("Candidate is already hired", 400);
         }
 
-        const existingUser = await prisma.user.findUnique({
+        const existingUser = await prisma.user.findFirst({
             where: { email: candidate.email },
         });
 
         if (existingUser) {
             throw new AppError("User with this email already exists", 400);
+        }
+
+        let resolvedCompany = candidate.companyName || candidate.primaryVacancy?.companyName || null;
+        if (!resolvedCompany && currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { companyName: true },
+            });
+            resolvedCompany = caller?.companyName || null;
         }
 
         const nameParts = candidate.fullName.split(" ");
@@ -264,6 +311,7 @@ export class RecruitmentService {
                     email: candidate.email,
                     password: hashedPassword,
                     role: "EMPLOYEE",
+                    companyName: resolvedCompany,
                 },
             });
 
@@ -299,18 +347,16 @@ export class RecruitmentService {
         let transporter;
 
         if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-            // Haqiqiy elektron pochtaga yuborish (.env orqali)
             transporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST || "smtp.gmail.com",
                 port: Number(process.env.SMTP_PORT) || 587,
-                secure: Number(process.env.SMTP_PORT) === 465, // 465 bo'lsa true, qolganlarida false
+                secure: Number(process.env.SMTP_PORT) === 465,
                 auth: {
                     user: process.env.SMTP_USER,
                     pass: process.env.SMTP_PASS,
                 },
             });
         } else {
-            // For development, fallback to Ethereal Email (a free SMTP catch-all service for testing)
             const testAccount = await nodemailer.createTestAccount();
             transporter = nodemailer.createTransport({
                 host: 'smtp.ethereal.email',

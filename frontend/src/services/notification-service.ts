@@ -8,27 +8,6 @@ const getHeaders = () => {
     };
 };
 
-const getEffectiveUserId = (explicitId?: string): string | undefined => {
-    if (explicitId) return explicitId;
-    if (typeof window !== "undefined") {
-        const searchParams = new URLSearchParams(window.location.search);
-        const urlId =
-            searchParams.get("userId") ||
-            searchParams.get("id") ||
-            searchParams.get("employeeId");
-        if (urlId) return urlId;
-
-        const userStr = localStorage.getItem("user");
-        if (userStr) {
-            try {
-                const u = JSON.parse(userStr);
-                return u.id;
-            } catch (e) {}
-        }
-    }
-    return undefined;
-};
-
 export interface AppNotification {
     id: string;
     userId: string;
@@ -45,12 +24,8 @@ export interface MyNotificationsResponse {
     unreadCount: number;
 }
 
-export const fetchMyNotifications = async (
-    targetUserId?: string,
-): Promise<MyNotificationsResponse> => {
-    const effectiveId = getEffectiveUserId(targetUserId);
-    const query = effectiveId ? `?userId=${encodeURIComponent(effectiveId)}` : "";
-    const res = await fetch(`${API_URL}/notifications/my-notifications${query}`, {
+export const fetchMyNotifications = async (): Promise<MyNotificationsResponse> => {
+    const res = await fetch(`${API_URL}/notifications/my-notifications`, {
         headers: getHeaders(),
     });
     const data = await res.json();
@@ -64,30 +39,19 @@ export const fetchMyNotifications = async (
     return data.data || { notifications: [], unreadCount: 0 };
 };
 
-export const markNotificationAsRead = async (
-    id: string,
-    targetUserId?: string,
-): Promise<void> => {
-    const effectiveId = getEffectiveUserId(targetUserId);
-    const query = effectiveId ? `?userId=${encodeURIComponent(effectiveId)}` : "";
-    const res = await fetch(`${API_URL}/notifications/${id}/read${query}`, {
+export const markNotificationAsRead = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/notifications/${id}/read`, {
         method: "PATCH",
         headers: getHeaders(),
-        body: JSON.stringify({ userId: effectiveId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Xatolik yuz berdi");
 };
 
-export const markAllNotificationsAsRead = async (
-    targetUserId?: string,
-): Promise<void> => {
-    const effectiveId = getEffectiveUserId(targetUserId);
-    const query = effectiveId ? `?userId=${encodeURIComponent(effectiveId)}` : "";
-    const res = await fetch(`${API_URL}/notifications/read-all${query}`, {
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+    const res = await fetch(`${API_URL}/notifications/read-all`, {
         method: "PATCH",
         headers: getHeaders(),
-        body: JSON.stringify({ userId: effectiveId }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Xatolik yuz berdi");

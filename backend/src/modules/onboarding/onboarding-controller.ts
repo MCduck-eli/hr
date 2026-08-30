@@ -43,7 +43,7 @@ export class OnboardingController {
                 videoUrl,
             };
 
-            const result = await onboardingService.createTemplate(payload);
+            const result = await onboardingService.createTemplate(payload, (req as any).user);
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -134,7 +134,7 @@ export class OnboardingController {
 
     async getHRMonitoring(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await onboardingService.getHRDashboardMonitoring();
+            const result = await onboardingService.getHRDashboardMonitoring(req.user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -143,7 +143,7 @@ export class OnboardingController {
 
     async getAllTemplates(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await onboardingService.getAllTemplates();
+            const result = await onboardingService.getAllTemplates((req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

@@ -343,6 +343,13 @@ export class AttendanceService {
         const statusLabel =
             status === "LATE" ? formattedLate : "Vaqtida keldi";
 
+        const empUser = employee.userId
+            ? await prisma.user.findUnique({
+                  where: { id: employee.userId },
+                  select: { companyName: true },
+              })
+            : null;
+
         try {
             await notificationService.notifyAllUsers({
                 title: `Xodim Keldi (${employee.firstName} ${employee.lastName})`,
@@ -350,6 +357,7 @@ export class AttendanceService {
                 type: "GENERAL",
                 excludeUserId: employee.userId,
                 targetRoles: ["DIRECTOR", "HR_ADMIN"],
+                companyName: empUser?.companyName || undefined,
                 metadata: {
                     type: "ATTENDANCE",
                     employeeId: employee.id,
@@ -442,6 +450,13 @@ export class AttendanceService {
         const earlyLabel =
             earlyMinutes > 0 ? ` (${formattedEarly})` : "";
 
+        const empUser = employee.userId
+            ? await prisma.user.findUnique({
+                  where: { id: employee.userId },
+                  select: { companyName: true },
+              })
+            : null;
+
         try {
             await notificationService.notifyAllUsers({
                 title: `Xodim Ketdi (${employee.firstName} ${employee.lastName})`,
@@ -449,6 +464,7 @@ export class AttendanceService {
                 type: "GENERAL",
                 excludeUserId: employee.userId,
                 targetRoles: ["DIRECTOR", "HR_ADMIN"],
+                companyName: empUser?.companyName || undefined,
                 metadata: {
                     type: "ATTENDANCE",
                     employeeId: employee.id,
@@ -615,12 +631,15 @@ export class AttendanceService {
         return Math.round((totalMs / (1000 * 60 * 60)) * 10) / 10;
     }
 
-    async getAllAttendance(query: {
-        startDate?: string;
-        endDate?: string;
-        employeeId?: string;
-        search?: string;
-    }) {
+    async getAllAttendance(
+        query: {
+            startDate?: string;
+            endDate?: string;
+            employeeId?: string;
+            search?: string;
+        },
+        currentUser?: any,
+    ) {
         const schedules = await prisma.workSchedule.findMany();
         const defaultSchedule = schedules.find((s) => s.isDefault) || {
             id: "default",
@@ -640,9 +659,21 @@ export class AttendanceService {
         const dayOfWeek =
             selectedDate.getDay() === 0 ? 7 : selectedDate.getDay();
 
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
         const whereEmployee: any = {
             user: {
-                role: { not: "SUPER_ADMIN" },
+                role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
+                ...(companyFilter ? { companyName: companyFilter } : {}),
             },
         };
 

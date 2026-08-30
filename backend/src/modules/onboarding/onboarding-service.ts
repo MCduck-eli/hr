@@ -3,17 +3,31 @@ import { AppError } from "../../utils/appError";
 import { TaskStatus } from "@prisma/client";
 
 export class OnboardingService {
-    async createTemplate(payload: {
-        title: string;
-        description?: string;
-        coverUrl?: string;
-        videoUrl?: string;
-        isRequired?: boolean;
-        targetStatus?: any;
-        departmentId?: string;
-        tasks?: { title: string; description?: string; stage: any }[];
-        courses?: { title: string; videoUrl: string; description?: string }[];
-    }) {
+    async createTemplate(
+        payload: {
+            title: string;
+            description?: string;
+            coverUrl?: string;
+            videoUrl?: string;
+            isRequired?: boolean;
+            targetStatus?: any;
+            departmentId?: string;
+            tasks?: { title: string; description?: string; stage: any }[];
+            courses?: { title: string; videoUrl: string; description?: string }[];
+        },
+        currentUser?: any,
+    ) {
+        let companyName: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller?.companyName) {
+                companyName = caller.companyName;
+            }
+        }
+
         const coursesToCreate = payload.courses ? [...payload.courses] : [];
 
         if (coursesToCreate.length === 0) {
@@ -58,6 +72,7 @@ export class OnboardingService {
                 targetStatus: targetStatus || null,
                 targetStatusConfigId: targetStatusConfigId || null,
                 departmentId: payload.departmentId,
+                companyName,
                 tasks:
                     payload.tasks && payload.tasks.length > 0
                         ? { create: payload.tasks }
@@ -358,7 +373,18 @@ export class OnboardingService {
         return null;
     }
 
-    async getHRDashboardMonitoring() {
+    async getHRDashboardMonitoring(currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
         const templates = await prisma.onboardingTemplate.findMany({
             include: {
                 tasks: true,
@@ -372,8 +398,9 @@ export class OnboardingService {
             where: {
                 user: {
                     role: {
-                        not: "SUPER_ADMIN",
+                        notIn: ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"],
                     },
+                    ...(companyFilter ? { companyName: companyFilter } : {}),
                 },
             },
             include: {
@@ -538,8 +565,20 @@ export class OnboardingService {
         });
     }
 
-    async getAllTemplates() {
+    async getAllTemplates(currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
         return prisma.onboardingTemplate.findMany({
+            where: companyFilter ? { companyName: companyFilter } : {},
             include: {
                 tasks: true,
                 courses: true,
@@ -638,6 +677,19 @@ export class OnboardingService {
         if (!template) {
             throw new AppError("Template not found", 404);
         }
+
+        await prisma.employeeOnboardingCourse.deleteMany({
+            where: {
+                course: { templateId },
+            },
+        }).catch(() => {});
+        await prisma.employeeOnboardingTask.deleteMany({
+            where: {
+                task: { templateId },
+            },
+        }).catch(() => {});
+        await prisma.onboardingCourse.deleteMany({ where: { templateId } }).catch(() => {});
+        await prisma.onboardingTask.deleteMany({ where: { templateId } }).catch(() => {});
 
         return prisma.onboardingTemplate.delete({
             where: { id: templateId },

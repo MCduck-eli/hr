@@ -2,19 +2,20 @@ import { z } from "zod";
 
 export const createCycleSchema = z.object({
     body: z.object({
-        title: z.string().min(3),
-        description: z.string().optional(),
-        startDate: z.string().datetime(),
-        endDate: z.string().datetime(),
+        title: z.string().min(1),
+        description: z.string().optional().nullable(),
+        startDate: z.string().min(1),
+        endDate: z.string().min(1),
         questions: z
             .array(
                 z.object({
-                    competency: z.string().min(2),
-                    text: z.string().min(3),
+                    competency: z.string().min(1),
+                    text: z.string().min(1),
                     order: z.number().int().optional(),
                 }),
             )
-            .min(1),
+            .optional()
+            .default([]),
     }),
 });
 

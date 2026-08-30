@@ -32,12 +32,13 @@ export default function HRMonitoring() {
                 if (res.ok) {
                     let list = data.data || [];
 
-                    if (currentUserEmpId) {
-                        list = list.filter(
-                            (record: any) =>
-                                record.employeeId !== currentUserEmpId,
-                        );
-                    }
+                    list = list.filter(
+                        (record: any) =>
+                            record.employee?.user?.role !== "SUPER_ADMIN" &&
+                            record.employee?.user?.role !== "DIRECTOR" &&
+                            record.employee?.user?.role !== "HR_ADMIN" &&
+                            record.employeeId !== currentUserEmpId,
+                    );
 
                     setMonitoringData(list);
                 }

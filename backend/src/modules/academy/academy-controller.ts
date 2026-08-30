@@ -43,7 +43,7 @@ export class AcademyController {
                 videoUrl,
             };
 
-            const result = await academyService.createCourse(payload);
+            const result = await academyService.createCourse(payload, (req as any).user);
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);

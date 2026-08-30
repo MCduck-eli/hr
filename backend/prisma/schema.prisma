@@ -97,7 +97,7 @@ enum EmployeeStatus {
 
 model User {
   id            String            @id @default(uuid())
-  email         String
+  email         String            @unique
   password      String
   role          Role              @default(EMPLOYEE)
   companyName   String?
@@ -107,8 +107,6 @@ model User {
   employee      Employee?
   notifications Notification[]
   deviceTokens  UserDeviceToken[]
-
-  @@unique([email, companyName])
 }
 
 model Department {
@@ -337,6 +335,7 @@ model Candidate {
   testTaskSubmittedAt    DateTime?
   vacancyMatches         CandidateMatch[]
   feedbacks              CandidateFeedback[]
+  companyName            String?
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
 }
@@ -376,6 +375,7 @@ model OnboardingTemplate {
   targetStatusConfig   EmployeeStatusConfig?  @relation(fields: [targetStatusConfigId], references: [id])
   departmentId         String?
   department           Department?            @relation(fields: [departmentId], references: [id])
+  companyName          String?
   tasks                OnboardingTask[]
   courses              OnboardingCourse[]
   createdAt            DateTime               @default(now())
@@ -460,6 +460,7 @@ model CompanyPolicy {
   parent      CompanyPolicy?    @relation("SubPolicies", fields: [parentId], references: [id])
   children    CompanyPolicy[]   @relation("SubPolicies")
   signatures  PolicySignature[]
+  companyName String?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 }
@@ -492,7 +493,7 @@ model AcademyCourse {
   title        String
   description  String?
   coverUrl     String?
-  videoUrl     String?           // Shu qatorni qo'shing
+  videoUrl     String?
   isRequired   Boolean           @default(false)
   lessons      AcademyLesson[]
   quizzes      AcademyQuiz[]
@@ -503,6 +504,7 @@ model AcademyCourse {
   targetDepartment   Department?       @relation("CourseTargetDepartment", fields: [targetDepartmentId], references: [id])
   targetEmployeeId   String?
   targetEmployee     Employee?         @relation("CourseTargetEmployee", fields: [targetEmployeeId], references: [id])
+  companyName  String?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 }
@@ -739,6 +741,7 @@ model OkrCycle {
   endDate               DateTime    @db.Date
   isCurrent             Boolean     @default(false)
   minExpectedProgress   Float       @default(0.0)
+  companyName           String?
   objectives            Objective[]
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
@@ -761,6 +764,7 @@ model Objective {
   status       OkrStatus   @default(DRAFT)
   progress     Float       @default(0.0)
   minExpectedProgress Float?
+  companyName  String?
   keyResults   KeyResult[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -860,6 +864,7 @@ model FeedbackCycle {
   startDate    DateTime            @db.Date
   endDate      DateTime            @db.Date
   status       FeedbackCycleStatus @default(DRAFT)
+  companyName  String?
   assignments  FeedbackAssignment[]
   questions    FeedbackQuestion[]
   createdAt    DateTime            @default(now())

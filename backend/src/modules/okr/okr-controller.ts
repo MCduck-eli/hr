@@ -4,7 +4,7 @@ import { okrService } from "./okr-service";
 export class OkrController {
     async createCycle(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await okrService.createCycle(req.body);
+            const result = await okrService.createCycle(req.body, (req as any).user);
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -13,7 +13,7 @@ export class OkrController {
 
     async getCycles(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await okrService.getCycles();
+            const result = await okrService.getCycles((req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -22,7 +22,7 @@ export class OkrController {
 
     async createObjective(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await okrService.createObjective(req.body);
+            const result = await okrService.createObjective(req.body, (req as any).user);
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -92,7 +92,7 @@ export class OkrController {
         try {
             const cycleId = req.query.cycleId as string | undefined;
             const departmentId = req.query.departmentId as string | undefined;
-            const result = await okrService.getDashboard(cycleId, departmentId);
+            const result = await okrService.getDashboard(cycleId, departmentId, (req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -101,7 +101,7 @@ export class OkrController {
 
     async getPendingCheckIns(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await okrService.getPendingCheckIns();
+            const result = await okrService.getPendingCheckIns((req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

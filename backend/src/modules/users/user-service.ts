@@ -159,15 +159,12 @@ export class UserService {
             }
         }
 
-        const existingUser = await prisma.user.findFirst({
-            where: {
-                email,
-                ...(finalCompanyName ? { companyName: finalCompanyName } : { companyName: null }),
-            },
+        const existingUser = await prisma.user.findUnique({
+            where: { email },
         });
 
         if (existingUser) {
-            throw new AppError("Ushbu email bilan ushbu kompaniyada xodim allaqachon mavjud", 400);
+            throw new AppError("Ushbu email bilan foydalanuvchi allaqachon mavjud", 400);
         }
 
         const hashedPassword = await hashPassword(password);

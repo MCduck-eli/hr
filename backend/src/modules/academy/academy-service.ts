@@ -11,18 +11,35 @@ export class AcademyService {
             include: { _count: { select: { courses: true } } },
         });
     }
-    async createCourse(payload: {
-        title: string;
-        description?: string;
-        coverUrl?: string;
-        videoUrl?: string;
-        isRequired?: boolean;
-        categoryId?: string;
-        targetDepartmentId?: string;
-        targetEmployeeId?: string;
-    }) {
+    async createCourse(
+        payload: {
+            title: string;
+            description?: string;
+            coverUrl?: string;
+            videoUrl?: string;
+            isRequired?: boolean;
+            categoryId?: string;
+            targetDepartmentId?: string;
+            targetEmployeeId?: string;
+        },
+        currentUser?: any,
+    ) {
+        let companyName: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller?.companyName) {
+                companyName = caller.companyName;
+            }
+        }
+
         const course = await prisma.academyCourse.create({
-            data: payload,
+            data: {
+                ...payload,
+                companyName,
+            },
         });
 
         return course;
@@ -35,6 +52,12 @@ export class AcademyService {
         if (!course) {
             throw new AppError("Course not found", 404);
         }
+
+        await prisma.courseProgress.deleteMany({ where: { courseId } }).catch(() => {});
+        await prisma.courseCertificate.deleteMany({ where: { courseId } }).catch(() => {});
+        await prisma.academyQuiz.deleteMany({ where: { courseId } }).catch(() => {});
+        await prisma.academyResource.deleteMany({ where: { courseId } }).catch(() => {});
+        await prisma.academyLesson.deleteMany({ where: { courseId } }).catch(() => {});
 
         return prisma.academyCourse.delete({
             where: { id: courseId },
@@ -83,16 +106,25 @@ export class AcademyService {
     }
 
     async getAllCourses(userId: string, role: string, categoryId?: string) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true, companyName: true },
+        });
+
         const employee = await prisma.employee.findUnique({
             where: { userId },
         });
 
         const where: any = {};
+        if (user && user.role !== "SUPER_ADMIN" && user.companyName) {
+            where.companyName = user.companyName;
+        }
+
         if (categoryId) {
             where.categoryId = categoryId;
         }
 
-        if (employee && role !== "HR_ADMIN" && role !== "SUPER_ADMIN") {
+        if (employee && role !== "HR_ADMIN" && role !== "SUPER_ADMIN" && role !== "DIRECTOR") {
             const orConditions: any[] = [
                 { targetEmployeeId: employee.id },
                 { AND: [{ targetEmployeeId: null }, { targetDepartmentId: null }] }

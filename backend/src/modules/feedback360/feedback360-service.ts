@@ -3,13 +3,27 @@ import { AppError } from "../../utils/appError";
 import { notificationService } from "../notification/notification-service";
 
 export class Feedback360Service {
-    async createCycle(payload: {
-        title: string;
-        description?: string;
-        startDate: string;
-        endDate: string;
-        questions: { competency: string; text: string; order?: number }[];
-    }) {
+    async createCycle(
+        payload: {
+            title: string;
+            description?: string;
+            startDate: string;
+            endDate: string;
+            questions: { competency: string; text: string; order?: number }[];
+        },
+        currentUser?: any,
+    ) {
+        let companyName: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller?.companyName) {
+                companyName = caller.companyName;
+            }
+        }
+
         return prisma.feedbackCycle.create({
             data: {
                 title: payload.title,
@@ -17,6 +31,7 @@ export class Feedback360Service {
                 startDate: new Date(payload.startDate),
                 endDate: new Date(payload.endDate),
                 status: "ACTIVE",
+                companyName,
                 questions: {
                     create: payload.questions,
                 },
@@ -25,8 +40,20 @@ export class Feedback360Service {
         });
     }
 
-    async getCycles() {
+    async getCycles(currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
         return prisma.feedbackCycle.findMany({
+            where: companyFilter ? { companyName: companyFilter } : {},
             orderBy: { createdAt: "desc" },
             include: { 
                 questions: true,

@@ -173,6 +173,7 @@ export class DashboardService {
 
         const targetedCourses = await prisma.academyCourse.findMany({
             where: {
+                ...(user.companyName ? { companyName: user.companyName } : {}),
                 OR: [
                     { targetEmployeeId: employee.id },
                     { AND: [{ targetEmployeeId: null }, { targetDepartmentId: null }] },
@@ -196,6 +197,9 @@ export class DashboardService {
         });
 
         const allTemplates = await prisma.onboardingTemplate.findMany({
+            where: {
+                ...(user.companyName ? { companyName: user.companyName } : {}),
+            },
             include: {
                 tasks: true,
                 courses: true,
@@ -234,6 +238,13 @@ export class DashboardService {
                 where: { employeeId: employee.id },
                 include: {
                     courses: {
+                        where: {
+                            course: {
+                                template: {
+                                    ...(user.companyName ? { companyName: user.companyName } : {}),
+                                },
+                            },
+                        },
                         include: {
                             course: {
                                 include: {
@@ -243,6 +254,13 @@ export class DashboardService {
                         },
                     },
                     tasks: {
+                        where: {
+                            task: {
+                                template: {
+                                    ...(user.companyName ? { companyName: user.companyName } : {}),
+                                },
+                            },
+                        },
                         include: {
                             task: {
                                 include: {
@@ -342,39 +360,60 @@ export class DashboardService {
         let okrProgress = 0;
         let okrs: any[] = [];
         let minExpectedProgress = 0;
-        const currentCycle = await prisma.okrCycle.findFirst({
-            where: { isCurrent: true },
+
+        let currentCycle = await prisma.okrCycle.findFirst({
+            where: {
+                isCurrent: true,
+                ...(user.companyName ? { companyName: user.companyName } : {}),
+            },
+        });
+
+        if (!currentCycle) {
+            currentCycle = await prisma.okrCycle.findFirst({
+                where: user.companyName ? { companyName: user.companyName } : {},
+                orderBy: { startDate: "desc" },
+            });
+        }
+
+        const employeeOkrs = await prisma.objective.findMany({
+            where: {
+                ...(currentCycle ? { cycleId: currentCycle.id } : {}),
+                ...(user.companyName ? { companyName: user.companyName } : {}),
+                OR: [
+                    { level: "COMPANY" },
+                    ...(employee.departmentId ? [{ level: "DEPARTMENT" as const, departmentId: employee.departmentId }] : []),
+                    {
+                        level: "INDIVIDUAL" as const,
+                        OR: [
+                            { employeeId: employee.id },
+                            { employeeId: user.id },
+                        ],
+                    },
+                ],
+            },
+            include: { 
+                keyResults: {
+                    include: { checkIns: true },
+                },
+            },
+            orderBy: { createdAt: "desc" },
         });
 
         if (currentCycle) {
             minExpectedProgress = currentCycle.minExpectedProgress || 0;
-            const employeeOkrs = await prisma.objective.findMany({
-                where: {
-                    cycleId: currentCycle.id,
-                    OR: [
-                        { level: "COMPANY" },
-                        ...(employee.departmentId ? [{ level: "DEPARTMENT" as const, departmentId: employee.departmentId }] : []),
-                        { level: "INDIVIDUAL" as const, employeeId: employee.id }
-                    ]
-                },
-                include: { 
-                    keyResults: {
-                        include: { checkIns: true }
-                    } 
-                }
-            });
-            if (employeeOkrs.length > 0) {
-                const total = employeeOkrs.reduce((acc, okr) => acc + okr.progress, 0);
-                okrProgress = Math.round(total / employeeOkrs.length);
-                
-                const okrsWithMinProgress = employeeOkrs.filter(o => o.minExpectedProgress !== null && o.minExpectedProgress !== undefined);
-                if (okrsWithMinProgress.length > 0) {
-                    const totalMin = okrsWithMinProgress.reduce((acc, okr) => acc + (okr.minExpectedProgress as number), 0);
-                    minExpectedProgress = Math.round(totalMin / okrsWithMinProgress.length);
-                }
+        }
 
-                okrs = employeeOkrs;
+        if (employeeOkrs.length > 0) {
+            const total = employeeOkrs.reduce((acc, okr) => acc + okr.progress, 0);
+            okrProgress = Math.round(total / employeeOkrs.length);
+            
+            const okrsWithMinProgress = employeeOkrs.filter(o => o.minExpectedProgress !== null && o.minExpectedProgress !== undefined);
+            if (okrsWithMinProgress.length > 0) {
+                const totalMin = okrsWithMinProgress.reduce((acc, okr) => acc + (okr.minExpectedProgress as number), 0);
+                minExpectedProgress = Math.round(totalMin / okrsWithMinProgress.length);
             }
+
+            okrs = employeeOkrs;
         }
 
         const today = new Date();

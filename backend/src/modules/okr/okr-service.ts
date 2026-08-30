@@ -3,16 +3,33 @@ import { AppError } from "../../utils/appError";
 import { notificationService } from "../notification/notification-service";
 
 export class OkrService {
-    async createCycle(payload: {
-        title: string;
-        startDate: string;
-        endDate: string;
-        isCurrent?: boolean;
-        minExpectedProgress?: number;
-    }) {
+    async createCycle(
+        payload: {
+            title: string;
+            startDate: string;
+            endDate: string;
+            isCurrent?: boolean;
+            minExpectedProgress?: number;
+        },
+        currentUser?: any,
+    ) {
+        let companyName: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller?.companyName) {
+                companyName = caller.companyName;
+            }
+        }
+
         if (payload.isCurrent) {
             await prisma.okrCycle.updateMany({
-                where: { isCurrent: true },
+                where: {
+                    isCurrent: true,
+                    ...(companyName ? { companyName } : {}),
+                },
                 data: { isCurrent: false },
             });
         }
@@ -24,36 +41,69 @@ export class OkrService {
                 endDate: new Date(payload.endDate),
                 isCurrent: payload.isCurrent ?? false,
                 minExpectedProgress: payload.minExpectedProgress ?? 0.0,
+                companyName,
             },
         });
     }
 
-    async getCycles() {
+    async getCycles(currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
         return prisma.okrCycle.findMany({
+            where: companyFilter ? { companyName: companyFilter } : {},
             orderBy: { startDate: "desc" },
         });
     }
 
-    async createObjective(payload: {
-        cycleId: string;
-        level: "COMPANY" | "DEPARTMENT" | "INDIVIDUAL";
-        title: string;
-        description?: string;
-        departmentId?: string;
-        employeeId?: string;
-        parentId?: string;
-        minExpectedProgress?: number;
-        isIndividualForEach?: boolean;
-        keyResults: {
+    async createObjective(
+        payload: {
+            cycleId: string;
+            level: "COMPANY" | "DEPARTMENT" | "INDIVIDUAL";
             title: string;
-            initialValue?: number;
-            targetValue: number;
-            unit?: string;
-        }[];
-    }) {
+            description?: string;
+            departmentId?: string;
+            employeeId?: string;
+            parentId?: string;
+            minExpectedProgress?: number;
+            isIndividualForEach?: boolean;
+            keyResults: {
+                title: string;
+                initialValue?: number;
+                targetValue: number;
+                unit?: string;
+            }[];
+        },
+        currentUser?: any,
+    ) {
+        let companyName: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller?.companyName) {
+                companyName = caller.companyName;
+            }
+        }
+
         if (payload.isIndividualForEach && payload.level === "DEPARTMENT" && payload.departmentId) {
             const deptEmployees = await prisma.employee.findMany({
-                where: { departmentId: payload.departmentId },
+                where: {
+                    departmentId: payload.departmentId,
+                    user: {
+                        role: { notIn: ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"] },
+                        ...(companyName ? { companyName } : {}),
+                    },
+                },
                 include: { user: true },
             });
             const createdObjectives = [];
@@ -68,8 +118,9 @@ export class OkrService {
                         employeeId: emp.id,
                         parentId: payload.parentId,
                         minExpectedProgress: payload.minExpectedProgress,
+                        companyName,
                         keyResults: {
-                            create: payload.keyResults.map((kr) => ({
+                            create: (payload.keyResults || []).map((kr) => ({
                                 title: kr.title,
                                 initialValue: kr.initialValue ?? 0,
                                 currentValue: kr.initialValue ?? 0,
@@ -98,7 +149,10 @@ export class OkrService {
         if (payload.isIndividualForEach && payload.level === "COMPANY") {
             const allEmployees = await prisma.employee.findMany({
                 where: {
-                    user: { role: { not: "SUPER_ADMIN" } },
+                    user: {
+                        role: { notIn: ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"] },
+                        ...(companyName ? { companyName } : {}),
+                    },
                 },
                 include: { user: true },
             });
@@ -114,8 +168,9 @@ export class OkrService {
                         employeeId: emp.id,
                         parentId: payload.parentId,
                         minExpectedProgress: payload.minExpectedProgress,
+                        companyName,
                         keyResults: {
-                            create: payload.keyResults.map((kr) => ({
+                            create: (payload.keyResults || []).map((kr) => ({
                                 title: kr.title,
                                 initialValue: kr.initialValue ?? 0,
                                 currentValue: kr.initialValue ?? 0,
@@ -166,12 +221,13 @@ export class OkrService {
                 level: payload.level,
                 title: payload.title,
                 description: payload.description,
-                departmentId: payload.level === "DEPARTMENT" ? payload.departmentId : undefined,
-                employeeId: payload.level === "INDIVIDUAL" ? resolvedEmployeeId : undefined,
-                parentId: payload.parentId,
+                departmentId: payload.level === "DEPARTMENT" ? (payload.departmentId || null) : null,
+                employeeId: payload.level === "INDIVIDUAL" ? (resolvedEmployeeId || null) : null,
+                parentId: payload.parentId || null,
                 minExpectedProgress: payload.minExpectedProgress,
+                companyName,
                 keyResults: {
-                    create: payload.keyResults.map((kr) => ({
+                    create: (payload.keyResults || []).map((kr) => ({
                         title: kr.title,
                         initialValue: kr.initialValue ?? 0,
                         currentValue: kr.initialValue ?? 0,
@@ -212,7 +268,10 @@ export class OkrService {
             }
         } else if (payload.level === "COMPANY") {
             const allUsers = await prisma.user.findMany({
-                where: { role: { not: "SUPER_ADMIN" } },
+                where: {
+                    role: { notIn: ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"] },
+                    ...(companyName ? { companyName } : {}),
+                },
                 select: { id: true },
             });
             for (const u of allUsers) {
@@ -349,7 +408,10 @@ export class OkrService {
             }
         } else if (payload.level === "COMPANY") {
             const allUsers = await prisma.user.findMany({
-                where: { role: { not: "SUPER_ADMIN" } },
+                where: {
+                    role: { notIn: ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"] },
+                    ...(existing.companyName ? { companyName: existing.companyName } : {}),
+                },
                 select: { id: true },
             });
             for (const u of allUsers) {
@@ -411,9 +473,21 @@ export class OkrService {
             empName = `${kr.objective.employee.firstName} ${kr.objective.employee.lastName}`.trim();
         }
 
+        let objCompany = kr.objective.companyName;
+        if (!objCompany && userId) {
+            const caller = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { companyName: true },
+            });
+            if (caller?.companyName) {
+                objCompany = caller.companyName;
+            }
+        }
+
         const hrAdminsAndDirectors = await prisma.user.findMany({
             where: {
                 role: { in: ["HR_ADMIN", "DIRECTOR"] },
+                ...(objCompany ? { companyName: objCompany } : {}),
             },
             select: { id: true },
         });
@@ -438,21 +512,43 @@ export class OkrService {
         });
     }
 
-    async getPendingCheckIns() {
+    async getPendingCheckIns(currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
         return prisma.okrCheckIn.findMany({
-            where: { status: "PENDING" },
+            where: {
+                status: "PENDING",
+                ...(companyFilter
+                    ? {
+                          keyResult: {
+                              objective: {
+                                  companyName: companyFilter,
+                              },
+                          },
+                      }
+                    : {}),
+            },
             include: {
                 keyResult: {
                     include: {
                         objective: {
                             include: {
-                                employee: true
-                            }
-                        }
-                    }
-                }
+                                employee: true,
+                            },
+                        },
+                    },
+                },
             },
-            orderBy: { createdAt: "desc" }
+            orderBy: { createdAt: "desc" },
         });
     }
 
@@ -502,8 +598,8 @@ export class OkrService {
                 userId: targetUserId,
                 title: status === "APPROVED" ? "OKR Natijangiz Tasdiqlandi" : "OKR Natijangiz Qaytarildi",
                 message: status === "APPROVED"
-                    ? `'${checkIn.keyResult.title}' bo'yicha yuborgan OKR natijangiz tasdiqlandi.`
-                    : `'${checkIn.keyResult.title}' bo'yicha yuborgan OKR natijangiz rad etildi.`,
+                    ? `'${checkIn.keyResult.title}' bo'yicho yuborgan OKR natijangiz tasdiqlandi.`
+                    : `'${checkIn.keyResult.title}' bo'yicho yuborgan OKR natijangiz rad etildi.`,
                 type: "GENERAL",
                 metadata: {
                     type: "OKR_CHECKIN_REVIEWED",
@@ -553,12 +649,26 @@ export class OkrService {
         });
     }
 
-    async getDashboard(cycleId?: string, departmentId?: string) {
+    async getDashboard(cycleId?: string, departmentId?: string, currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
         let activeCycleId = cycleId;
 
         if (!activeCycleId) {
             const currentCycle = await prisma.okrCycle.findFirst({
-                where: { isCurrent: true },
+                where: {
+                    isCurrent: true,
+                    ...(companyFilter ? { companyName: companyFilter } : {}),
+                },
             });
             activeCycleId = currentCycle?.id;
         }
@@ -566,6 +676,7 @@ export class OkrService {
         const where: any = {};
         if (activeCycleId) where.cycleId = activeCycleId;
         if (departmentId) where.departmentId = departmentId;
+        if (companyFilter) where.companyName = companyFilter;
 
         const objectives = await prisma.objective.findMany({
             where,

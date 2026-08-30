@@ -2,8 +2,18 @@ import prisma from "../../config/db";
 
 export class AIScreeningService {
     async analyzeAndRankCandidate(candidateId: string, resumeText: string) {
+        const candidateInfo = await prisma.candidate.findUnique({
+            where: { id: candidateId },
+            include: { primaryVacancy: true },
+        });
+
+        const targetCompany = candidateInfo?.companyName || candidateInfo?.primaryVacancy?.companyName;
+
         const openVacancies = await prisma.jobVacancy.findMany({
-            where: { status: "OPEN" },
+            where: {
+                status: "OPEN",
+                ...(targetCompany ? { companyName: targetCompany } : {}),
+            },
         });
 
         if (openVacancies.length === 0) return;

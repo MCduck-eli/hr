@@ -10,84 +10,48 @@ export class AuthService {
             process.env.SUPER_ADMIN_PASSWORD || "SuperAdmin123!";
         const hashedPassword = await hashPassword(adminPassword);
 
-        await prisma.user.upsert({
-            where: { email: adminEmail },
-            update: {
-                password: hashedPassword,
-                role: "SUPER_ADMIN",
-            },
-            create: {
-                email: adminEmail,
-                password: hashedPassword,
-                role: "SUPER_ADMIN",
-            },
+        const superAdmin = await prisma.user.findFirst({
+            where: { email: adminEmail, role: "SUPER_ADMIN" },
         });
+
+        if (superAdmin) {
+            await prisma.user.update({
+                where: { id: superAdmin.id },
+                data: {
+                    password: hashedPassword,
+                    role: "SUPER_ADMIN",
+                },
+            });
+        } else {
+            await prisma.user.create({
+                data: {
+                    email: adminEmail,
+                    password: hashedPassword,
+                    role: "SUPER_ADMIN",
+                },
+            });
+        }
     }
 
     async login(payload: any) {
-        const { email, password, companyName, userId } = payload;
+        const { email, password } = payload;
 
-        let user = null;
+        const user = await prisma.user.findUnique({
+            where: { email },
+            include: { employee: true },
+        });
 
-        if (userId) {
-            user = await prisma.user.findUnique({
-                where: { id: userId },
-                include: { employee: true },
-            });
-            if (!user) {
-                throw new Error("Foydalanuvchi topilmadi");
-            }
-            const isPasswordValid = await comparePassword(password, user.password);
-            if (!isPasswordValid) {
-                throw new Error("Noto'g'ri parol kiritildi");
-            }
-        } else if (companyName) {
-            user = await prisma.user.findFirst({
-                where: { email, companyName },
-                include: { employee: true },
-            });
-            if (!user) {
-                throw new Error("Ushbu kompaniyada bunday foydalanuvchi topilmadi");
-            }
-            const isPasswordValid = await comparePassword(password, user.password);
-            if (!isPasswordValid) {
-                throw new Error("Noto'g'ri parol kiritildi");
-            }
-        } else {
-            const users = await prisma.user.findMany({
-                where: { email },
-                include: { employee: true },
-            });
+        if (!user) {
+            throw new Error("Email yoki parol noto'g'ri");
+        }
 
-            if (!users || users.length === 0) {
-                throw new Error("Email yoki parol noto'g'ri");
-            }
+        const isPasswordValid = await comparePassword(
+            password,
+            user.password,
+        );
 
-            const validUsers = [];
-            for (const u of users) {
-                const isValid = await comparePassword(password, u.password);
-                if (isValid) {
-                    validUsers.push(u);
-                }
-            }
-
-            if (validUsers.length === 0) {
-                throw new Error("Email yoki parol noto'g'ri");
-            }
-
-            if (validUsers.length > 1) {
-                return {
-                    requiresCompanySelection: true,
-                    companies: validUsers.map((u) => ({
-                        id: u.id,
-                        companyName: u.companyName || "Asosiy",
-                        role: u.role,
-                        name: `${u.employee?.firstName || ""} ${u.employee?.lastName || ""}`.trim() || u.email,
-                    })),
-                };
-            }
-
-            user = validUsers[0];
+        if (!isPasswordValid) {
+            throw new Error("Email yoki parol noto'g'ri");
         }
 
         const token = generateToken({
