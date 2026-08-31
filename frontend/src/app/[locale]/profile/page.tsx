@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import QuickActions from "@/src/components/dashboard/quick-actions";
+import CareerPathRequirements from "@/src/components/profile/CareerPathRequirements";
 import { fetchMyPendingTasks, fetchTargetReport, fetchCycles } from "@/src/services/feedback360-service";
 import { checkInKeyResult } from "@/src/services/okr-service";
 
@@ -131,34 +132,36 @@ export default function EmployeeProfilePage() {
     useEffect(() => {
         const loadFeedbackData = async () => {
             try {
-                if (!currentUser?.employee?.id) return;
-                const targetUserId = dashboardData?.user?.id || currentUser.id;
+                const targetEmployeeId = dashboardData?.user?.employee?.id || currentUser?.employee?.id;
+                const targetUserId = dashboardData?.user?.id || currentUser?.id;
+
+                if (targetUserId) {
+                    try {
+                        const tasks = await fetchMyPendingTasks(targetUserId);
+                        setPendingTasks(tasks || []);
+                    } catch (e) {}
+                }
+
                 try {
-                    const tasks = await fetchMyPendingTasks(targetUserId || undefined);
-                    setPendingTasks(tasks || []);
+                    const cyclesData = await fetchCycles();
+                    setCycles(cyclesData || []);
+
+                    let cycleId = selectedCycleId;
+                    if (!cycleId && cyclesData?.length > 0) {
+                        cycleId = cyclesData[0].id;
+                        setSelectedCycleId(cycleId);
+                    }
+
+                    if (targetEmployeeId) {
+                        const report = await fetchTargetReport(targetEmployeeId, cycleId || undefined);
+                        setFeedbackReport(report);
+                    }
                 } catch (e) {}
-
-                const cyclesData = await fetchCycles();
-                setCycles(cyclesData || []);
-
-                let cycleId = selectedCycleId;
-                if (!cycleId && cyclesData?.length > 0) {
-                    cycleId = cyclesData[0].id;
-                    setSelectedCycleId(cycleId);
-                }
-
-                const targetEmployeeId = dashboardData?.user?.employee?.id || currentUser.employee?.id;
-                if (targetEmployeeId && cycleId) {
-                    const report = await fetchTargetReport(targetEmployeeId, cycleId);
-                    console.log("Fetched report:", report);
-                    setFeedbackReport(report);
-                }
             } catch (err) {
-                console.error("Failed to load feedback data:", err);
             }
         };
 
-        if (!loading && currentUser) {
+        if (!loading && (dashboardData || currentUser)) {
             loadFeedbackData();
         }
     }, [loading, currentUser, dashboardData, selectedCycleId]);
@@ -173,6 +176,12 @@ export default function EmployeeProfilePage() {
 
     const roleData = dashboardData?.user?.role || currentUser.role;
     const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData;
+
+    const grade = dashboardData?.grade || dashboardData?.user?.employee?.grade || null;
+    const positionTitle = dashboardData?.position || dashboardData?.user?.employee?.position || null;
+    const departmentName = dashboardData?.user?.employee?.department || null;
+    const salary = dashboardData?.salary || dashboardData?.user?.employee?.salary || null;
+    const discAssessment = dashboardData?.discAssessment || null;
 
     const overallScore = feedbackReport?.competencies?.length > 0 
         ? (feedbackReport.competencies.reduce((acc: any, curr: any) => acc + curr.averageScore, 0) / feedbackReport.competencies.length).toFixed(1)
@@ -189,6 +198,15 @@ export default function EmployeeProfilePage() {
                 : "Belgilanmagan",
         },
         {
+            label: "360 BAHOLASH BALLI",
+            value: (overallScore !== null && overallScore !== undefined)
+                ? `${overallScore} / 5.0`
+                : (dashboardData?.feedback360Score !== null && dashboardData?.feedback360Score !== undefined
+                    ? `${dashboardData.feedback360Score} / 5.0`
+                    : "0.0 / 5.0"),
+            trend: (overallScore || dashboardData?.feedback360Score) ? "Hamkasblar bahosi" : "Hali baholanmagan",
+        },
+        {
             label: t("attendance"),
             value: dashboardData?.attendanceHours
                 ? `${dashboardData.attendanceHours}h`
@@ -196,9 +214,9 @@ export default function EmployeeProfilePage() {
             trend: t("thisWeek"),
         },
         {
-            label: "UMUMIY 360 BAHO",
-            value: overallScore ? `${overallScore} / 5` : "-",
-            trend: "Joriy sikl",
+            label: "JORIY GREYD VA MAOSH",
+            value: grade ? `Level ${grade.level} • ${grade.code}` : "Greydsiz",
+            trend: salary ? `${Number(salary).toLocaleString()} UZS` : (grade ? `${grade.minSalary.toLocaleString()} - ${grade.maxSalary.toLocaleString()} UZS` : "Belgilanmagan"),
         },
         {
             label: t("leaveBalance"),
@@ -222,7 +240,6 @@ export default function EmployeeProfilePage() {
         try {
             const formData = new FormData();
             if (checkInComment) formData.append("comment", checkInComment);
-            // checkInValue is used to store the File object here
             if (checkInValue && typeof checkInValue !== "number") {
                 formData.append("proofImage", checkInValue as any);
             }
@@ -251,11 +268,31 @@ export default function EmployeeProfilePage() {
                 <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight text-black">
                     {t("welcomeBack")} <br className="md:hidden" /> {firstName}
                 </h1>
-                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
-                    {roleName} • {t("gradeMiddle")}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-500">
+                    <span>{roleName}</span>
+                    {departmentName && (
+                        <>
+                            <span>•</span>
+                            <span className="text-gray-700">{departmentName}</span>
+                        </>
+                    )}
+                    {positionTitle && (
+                        <>
+                            <span>•</span>
+                            <span className="text-black font-extrabold">{positionTitle}</span>
+                        </>
+                    )}
+                    <span>•</span>
+                    <span className={`px-2.5 py-0.5 text-xs font-black uppercase tracking-wider border ${
+                        grade
+                            ? "bg-black text-white border-black"
+                            : "bg-gray-100 text-gray-600 border-gray-300"
+                    }`}>
+                        {grade ? `${grade.title} (Level ${grade.level})` : "DARAJA BELGILANMAGAN"}
+                    </span>
+                </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
                 {stats.map((stat, idx) => (
                     <div
                         key={idx}
@@ -276,6 +313,84 @@ export default function EmployeeProfilePage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-2 flex flex-col gap-12">
+                    <CareerPathRequirements
+                        careerPath={dashboardData?.careerPath || null}
+                        employeeId={dashboardData?.user?.employee?.id || currentUser?.employee?.id}
+                        employeeName={`${firstName} ${dashboardData?.user?.lastName || ""}`}
+                        onRefresh={() => setRefreshKey((k) => k + 1)}
+                    />
+
+                    <div className="flex flex-col gap-6">
+                        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+                            <h2 className="text-lg font-bold uppercase tracking-wider">
+                                {t("myFeedbackResults") || "360 Baho natijalari"}
+                            </h2>
+                            {cycles.length > 0 && (
+                                <select
+                                    value={selectedCycleId}
+                                    onChange={(e) => setSelectedCycleId(e.target.value)}
+                                    className="p-2 border border-gray-200 bg-gray-50 text-xs font-bold uppercase tracking-widest"
+                                >
+                                    {cycles.map(c => (
+                                        <option key={c.id} value={c.id}>{c.title}</option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+
+                        {!feedbackReport || !feedbackReport.competencies || feedbackReport.competencies.length === 0 ? (
+                            <p className="text-sm text-gray-500 font-medium">{t("noFeedbackResults") || "Hali baholanmagansiz yoki natijalar tayyor emas."}</p>
+                        ) : (
+                            <div className="flex flex-col gap-6">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 p-6 border border-gray-200 gap-4">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-sm font-bold uppercase tracking-widest text-gray-500">{t("totalRespondents") || "Jami baholovchilar soni"}</span>
+                                        <span className="text-2xl font-black">{feedbackReport.totalRespondents}</span>
+                                    </div>
+                                    {feedbackReport.lastEvaluatedAt && (
+                                        <div className="flex flex-col gap-1.5 sm:items-end">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Oxirgi baholangan sana</span>
+                                            <span className="text-xs font-bold text-gray-600 bg-white border border-gray-200 px-3 py-1.5 w-fit rounded-sm shadow-sm">
+                                                {new Date(feedbackReport.lastEvaluatedAt).toLocaleDateString("uz-UZ", { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="overflow-x-auto border border-gray-200">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-gray-50">
+                                            <tr className="border-b border-gray-200">
+                                                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-gray-500">{t("competency") || "Kompetensiya"}</th>
+                                                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-gray-500 text-right">{t("averageScore") || "O'rtacha ball"}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {feedbackReport.competencies.map((comp: any, idx: number) => (
+                                                <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                                                    <td className="px-4 py-4 text-sm font-bold text-black">{comp.competency}</td>
+                                                    <td className="px-4 py-4 text-sm font-black text-black text-right">{comp.averageScore} / 5</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {feedbackReport.anonymousComments?.length > 0 && (
+                                    <div className="mt-4 flex flex-col gap-3">
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-200 pb-2">{t("anonymousComments") || "Anonim izohlar"}</h3>
+                                        <div className="flex flex-col gap-2 mt-2">
+                                            {feedbackReport.anonymousComments.map((comment: string, idx: number) => (
+                                                <div key={idx} className="p-4 bg-gray-50 border border-gray-200 text-sm italic text-gray-700 font-medium relative">
+                                                    <span className="absolute -left-2 -top-2 text-3xl text-gray-300 font-serif">"</span>
+                                                    {comment}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                     <div className="flex flex-col gap-6">
                         <div className="flex items-center justify-between border-b border-gray-200 pb-4">
                             <h2 className="text-lg font-bold uppercase tracking-wider text-black">
@@ -529,81 +644,129 @@ export default function EmployeeProfilePage() {
                             </div>
                         </div>
                     )}
-                    {feedbackReport && (
-                        <div className="flex flex-col gap-6 mt-8">
-                            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-                                <h2 className="text-lg font-bold uppercase tracking-wider">
-                                    {t("myFeedbackResults") || "360 Baho natijalari"}
-                                </h2>
-                                {cycles.length > 0 && (
-                                    <select
-                                        value={selectedCycleId}
-                                        onChange={(e) => setSelectedCycleId(e.target.value)}
-                                        className="p-2 border border-gray-200 bg-gray-50 text-xs font-bold uppercase tracking-widest"
-                                    >
-                                        {cycles.map(c => (
-                                            <option key={c.id} value={c.id}>{c.title}</option>
-                                        ))}
-                                    </select>
+                </div>
+
+                <div className="flex flex-col gap-6">
+                    {grade && (
+                        <div className="border border-black bg-white p-5 flex flex-col gap-3 shadow-xs">
+                            <div className="flex items-center justify-between border-b border-black pb-2.5">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
+                                    Greyd va Daraja
+                                </span>
+                                <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-black text-white">
+                                    Level {grade.level}
+                                </span>
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-base font-black text-black">
+                                    {grade.title}
+                                </div>
+                                <div className="text-xs font-mono text-gray-500 font-semibold">
+                                    Kodi: {grade.code}
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 border border-gray-200 p-3 space-y-1 text-xs">
+                                <div className="text-gray-500 font-bold uppercase text-[10px]">
+                                    Maosh Diapazoni:
+                                </div>
+                                <div className="font-bold text-black text-sm">
+                                    {grade.minSalary.toLocaleString()} - {grade.maxSalary.toLocaleString()} UZS
+                                </div>
+                                {salary && (
+                                    <div className="text-emerald-700 font-bold pt-1 border-t border-gray-200 text-xs">
+                                        Belgilangan oylik: {salary.toLocaleString()} UZS
+                                    </div>
                                 )}
                             </div>
-
-                            {feedbackReport.competencies?.length === 0 ? (
-                                <p className="text-sm text-gray-500 font-medium">{t("noFeedbackResults") || "Hali baholanmagansiz yoki natijalar tayyor emas."}</p>
-                            ) : (
-                                <div className="flex flex-col gap-6">
-                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 p-6 border border-gray-200 gap-4">
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-sm font-bold uppercase tracking-widest text-gray-500">{t("totalRespondents") || "Jami baholovchilar soni"}</span>
-                                            <span className="text-2xl font-black">{feedbackReport.totalRespondents}</span>
-                                        </div>
-                                        {feedbackReport.lastEvaluatedAt && (
-                                            <div className="flex flex-col gap-1.5 sm:items-end">
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Oxirgi baholangan sana</span>
-                                                <span className="text-xs font-bold text-gray-600 bg-white border border-gray-200 px-3 py-1.5 w-fit rounded-sm shadow-sm">
-                                                    {new Date(feedbackReport.lastEvaluatedAt).toLocaleDateString("uz-UZ", { day: 'numeric', month: 'long', year: 'numeric' })}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="overflow-x-auto border border-gray-200">
-                                        <table className="w-full text-left border-collapse">
-                                            <thead className="bg-gray-50">
-                                                <tr className="border-b border-gray-200">
-                                                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-gray-500">{t("competency") || "Kompetensiya"}</th>
-                                                    <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-gray-500 text-right">{t("averageScore") || "O'rtacha ball"}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {feedbackReport.competencies.map((comp: any, idx: number) => (
-                                                    <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                                                        <td className="px-4 py-4 text-sm font-bold text-black">{comp.competency}</td>
-                                                        <td className="px-4 py-4 text-sm font-black text-black text-right">{comp.averageScore} / 5</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    {feedbackReport.anonymousComments?.length > 0 && (
-                                        <div className="mt-4 flex flex-col gap-3">
-                                            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-200 pb-2">{t("anonymousComments") || "Anonim izohlar"}</h3>
-                                            <div className="flex flex-col gap-2 mt-2">
-                                                {feedbackReport.anonymousComments.map((comment: string, idx: number) => (
-                                                    <div key={idx} className="p-4 bg-gray-50 border border-gray-200 text-sm italic text-gray-700 font-medium relative">
-                                                        <span className="absolute -left-2 -top-2 text-3xl text-gray-300 font-serif">"</span>
-                                                        {comment}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                            {grade.requirements && (
+                                <div className="text-xs text-gray-600">
+                                    <span className="font-bold text-black uppercase text-[10px] block mb-0.5">
+                                        Talablar:
+                                    </span>
+                                    <p className="line-clamp-3 text-gray-600 bg-gray-50 p-2 border border-gray-100">
+                                        {grade.requirements}
+                                    </p>
                                 </div>
                             )}
                         </div>
                     )}
-                </div>
 
-                <div className="flex flex-col gap-6">
+                    {discAssessment ? (
+                        <div className="border border-black bg-white p-5 flex flex-col gap-3 shadow-xs">
+                            <div className="flex items-center justify-between border-b border-black pb-2.5">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
+                                    DISC Shaxsiyat Turi
+                                </span>
+                                <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                                    discAssessment.primaryType === "D" ? "bg-red-600 text-white" :
+                                    discAssessment.primaryType === "I" ? "bg-amber-500 text-white" :
+                                    discAssessment.primaryType === "S" ? "bg-emerald-600 text-white" :
+                                    "bg-blue-600 text-white"
+                                }`}>
+                                    Tip: {discAssessment.primaryType} {discAssessment.secondaryType ? `+ ${discAssessment.secondaryType}` : ""}
+                                </span>
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-base font-black text-black">
+                                    {discAssessment.primaryType === "D" ? "Dominance (Yetakchi / Natija)" :
+                                     discAssessment.primaryType === "I" ? "Influence (Muloqotmand / Ilhom)" :
+                                     discAssessment.primaryType === "S" ? "Steadiness (Barqaror / Hamjihat)" :
+                                     "Conscientiousness (Aniqlik / Tahlil)"}
+                                </div>
+                                <div className="grid grid-cols-4 gap-1 text-[10px] text-center pt-2 font-bold">
+                                    <div className="bg-red-50 p-1 border border-red-100">
+                                        <span className="text-red-700 block font-black">D</span>
+                                        <span>{discAssessment.dScore}%</span>
+                                    </div>
+                                    <div className="bg-amber-50 p-1 border border-amber-100">
+                                        <span className="text-amber-700 block font-black">I</span>
+                                        <span>{discAssessment.iScore}%</span>
+                                    </div>
+                                    <div className="bg-emerald-50 p-1 border border-emerald-100">
+                                        <span className="text-emerald-700 block font-black">S</span>
+                                        <span>{discAssessment.sScore}%</span>
+                                    </div>
+                                    <div className="bg-blue-50 p-1 border border-blue-100">
+                                        <span className="text-blue-700 block font-black">C</span>
+                                        <span>{discAssessment.cScore}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    const locale = window.location.pathname.split("/")[1] || "uz";
+                                    router.push(`/${locale}/disc`);
+                                }}
+                                className="mt-1 w-full py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center"
+                            >
+                                To'liq DISC Tahlili →
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="border border-dashed border-black bg-neutral-50 p-5 flex flex-col gap-3">
+                            <div className="flex items-center justify-between border-b border-gray-300 pb-2">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
+                                    DISC Psixometrik Test
+                                </span>
+                                <span className="px-2 py-0.5 text-[9px] font-bold uppercase bg-amber-100 text-amber-800">
+                                    Topshirilmagan
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-600 leading-relaxed">
+                                O'z shaxsiy xarakteringiz, muloqot va yetakchilik uslubingizni aniqlash uchun testdan o'ting.
+                            </p>
+                            <button
+                                onClick={() => {
+                                    const locale = window.location.pathname.split("/")[1] || "uz";
+                                    router.push(`/${locale}/disc`);
+                                }}
+                                className="w-full py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center flex items-center justify-center gap-1.5"
+                            >
+                                DISC Testidan O'tish →
+                            </button>
+                        </div>
+                    )}
+
                     <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
                         {t("quickActions")}
                     </h2>

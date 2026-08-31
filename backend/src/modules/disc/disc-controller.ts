@@ -4,8 +4,29 @@ import { discService } from "./disc-service";
 export class DiscController {
     async createQuestion(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await discService.createQuestion(req.body);
+            const currentUser = (req as any).user;
+            const result = await discService.createQuestion(req.body, currentUser);
             res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateQuestion(req: Request, res: Response, next: NextFunction) {
+        try {
+            const currentUser = (req as any).user;
+            const result = await discService.updateQuestion(req.params.id, req.body, currentUser);
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteQuestion(req: Request, res: Response, next: NextFunction) {
+        try {
+            const currentUser = (req as any).user;
+            const result = await discService.deleteQuestion(req.params.id, currentUser);
+            res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
         }
@@ -13,7 +34,8 @@ export class DiscController {
 
     async getQuestions(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await discService.getQuestions();
+            const currentUser = (req as any).user;
+            const result = await discService.getQuestions(currentUser);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -50,7 +72,8 @@ export class DiscController {
     ) {
         try {
             const departmentId = req.query.departmentId as string | undefined;
-            const result = await discService.getTeamDiscAnalytics(departmentId);
+            const currentUser = (req as any).user;
+            const result = await discService.getTeamDiscAnalytics(departmentId, currentUser);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

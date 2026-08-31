@@ -149,6 +149,7 @@ model Employee {
   department          Department?             @relation(fields: [departmentId], references: [id])
   positionId          String?
   position            Position?               @relation(fields: [positionId], references: [id])
+  salary              Float?
   managerId           String?
   manager             Employee?               @relation("EmployeeManager", fields: [managerId], references: [id])
   subordinates        Employee[]              @relation("EmployeeManager")
@@ -804,12 +805,13 @@ enum DiscType {
 }
 
 model DiscQuestion {
-  id        String       @id @default(uuid())
-  text      String
-  order     Int          @default(1)
-  options   DiscOption[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id          String       @id @default(uuid())
+  text        String
+  order       Int          @default(1)
+  companyName String?
+  options     DiscOption[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model DiscOption {
@@ -920,19 +922,22 @@ enum PromotionStatus {
 }
 
 model JobGrade {
-  id              String      @id @default(uuid())
-  code            String      @unique // Masalan: "SE-G1", "SE-G2"
-  title           String      // Masalan: "Junior Software Engineer", "Middle Software Engineer"
-  level           Int         @default(1)
-  minSalary       Float
-  maxSalary       Float
-  requirements    String?     @db.Text
-  responsibilities String?    @db.Text
-  employees       Employee[]
-  promotionTarget PromotionRequest[] @relation("TargetGrade")
+  id               String             @id @default(uuid())
+  code             String
+  title            String
+  level            Int                @default(1)
+  minSalary        Float
+  maxSalary        Float
+  requirements     String?            @db.Text
+  responsibilities String?            @db.Text
+  companyName      String?
+  employees        Employee[]
+  promotionTarget  PromotionRequest[] @relation("TargetGrade")
   promotionCurrent PromotionRequest[] @relation("CurrentGrade")
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([code, companyName])
 }
 
 model PromotionRequest {
@@ -945,8 +950,9 @@ model PromotionRequest {
   targetGrade      JobGrade        @relation("TargetGrade", fields: [targetGradeId], references: [id])
   proposedSalary   Float
   reason           String          @db.Text
-  okrScore         Float?          // OKR bajarilish foizi
-  feedback360Score Float?          // 360-degree o'rtacha balli
+  okrScore         Float?
+  feedback360Score Float?
+  companyName      String?
   status           PromotionStatus @default(PENDING)
   managerApproval  Boolean         @default(false)
   hrApproval       Boolean         @default(false)

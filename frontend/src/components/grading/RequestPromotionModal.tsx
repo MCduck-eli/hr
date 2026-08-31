@@ -1,0 +1,250 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { JobGrade, EmployeeWithGrade } from "@/src/services/grading-service";
+
+interface RequestPromotionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (data: {
+        employeeId: string;
+        targetGradeId: string;
+        proposedSalary: number;
+        reason: string;
+    }) => Promise<void>;
+    employees: EmployeeWithGrade[];
+    grades: JobGrade[];
+    initialEmployeeId?: string;
+}
+
+export default function RequestPromotionModal({
+    isOpen,
+    onClose,
+    onSubmit,
+    employees,
+    grades,
+    initialEmployeeId,
+}: RequestPromotionModalProps) {
+    const [employeeId, setEmployeeId] = useState("");
+    const [targetGradeId, setTargetGradeId] = useState("");
+    const [proposedSalary, setProposedSalary] = useState<number>(0);
+    const [reason, setReason] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            const initialId = initialEmployeeId || (employees[0]?.id || "");
+            setEmployeeId(initialId);
+            const emp = employees.find((e) => e.id === initialId);
+            
+            const nextGrades = grades.filter((g) => {
+                if (!emp?.grade) return true;
+                return g.level > emp.grade.level;
+            });
+            const defaultTarget = nextGrades[0] || grades[0];
+            setTargetGradeId(defaultTarget?.id || "");
+            setProposedSalary(defaultTarget?.minSalary || 0);
+            setReason("");
+            setError(null);
+        }
+    }, [isOpen, initialEmployeeId, employees, grades]);
+
+    const selectedEmployee = employees.find((e) => e.id === employeeId);
+    const selectedTargetGrade = grades.find((g) => g.id === targetGradeId);
+
+    const handleGradeChange = (gradeId: string) => {
+        setTargetGradeId(gradeId);
+        const grade = grades.find((g) => g.id === gradeId);
+        if (grade) {
+            setProposedSalary(grade.minSalary);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+
+        if (!employeeId || !targetGradeId) {
+            setError("Xodim va maqsadli greydni tanlash shart.");
+            return;
+        }
+
+        if (!selectedTargetGrade) {
+            setError("Maqsadli greyd topilmadi.");
+            return;
+        }
+
+        if (
+            proposedSalary < selectedTargetGrade.minSalary ||
+            proposedSalary > selectedTargetGrade.maxSalary
+        ) {
+            setError(
+                `Taklif etilgan maosh tanlangan greyd doirasida bo'lishi lozim: ${selectedTargetGrade.minSalary.toLocaleString()} - ${selectedTargetGrade.maxSalary.toLocaleString()} UZS`,
+            );
+            return;
+        }
+
+        if (reason.trim().length < 5) {
+            setError("Iltimos, ko'tarilish sababi yoki asosini batafsilroq yozing.");
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            await onSubmit({
+                employeeId,
+                targetGradeId,
+                proposedSalary: Number(proposedSalary),
+                reason: reason.trim(),
+            });
+            onClose();
+        } catch (err: any) {
+            setError(err.message || "So'rovni yuborishda xatolik yuz berdi.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white border border-black max-w-xl w-full p-6 sm:p-8 shadow-2xl relative">
+                <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold uppercase tracking-tight text-black">
+                            Lavozimni Ko'tarish So'rovi
+                        </h2>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                            Xodimni yangi greydga o'tkazish va maoshini oshirish
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-black transition-colors p-1"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {error && (
+                    <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-xs font-semibold">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                            Xodimni Tanlang *
+                        </label>
+                        <select
+                            value={employeeId}
+                            onChange={(e) => setEmployeeId(e.target.value)}
+                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            required
+                        >
+                            <option value="">Xodimni tanlang...</option>
+                            {employees.map((emp) => (
+                                <option key={emp.id} value={emp.id}>
+                                    {emp.firstName} {emp.lastName} — {emp.position || "Xodim"} ({emp.grade ? emp.grade.title : "Greydsiz"})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {selectedEmployee && (
+                        <div className="bg-gray-50 border border-gray-200 p-3.5 text-xs flex justify-between items-center">
+                            <div>
+                                <span className="text-gray-500 block">Joriy Daraja:</span>
+                                <span className="font-bold text-black">
+                                    {selectedEmployee.grade ? `${selectedEmployee.grade.title} (L${selectedEmployee.grade.level})` : "Biriktirilmagan"}
+                                </span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-gray-500 block">Joriy Maosh:</span>
+                                <span className="font-bold text-black">
+                                    {selectedEmployee.salary ? `${selectedEmployee.salary.toLocaleString()} UZS` : "Belgilanmagan"}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                            Maqsadli Yangi Greyd *
+                        </label>
+                        <select
+                            value={targetGradeId}
+                            onChange={(e) => handleGradeChange(e.target.value)}
+                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            required
+                        >
+                            <option value="">Greydni tanlang...</option>
+                            {grades.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                    Level {g.level} | {g.title} ({g.code}) — {g.minSalary.toLocaleString()} - {g.maxSalary.toLocaleString()} UZS
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                            Yangi Taklif Etilayotgan Maosh (UZS) *
+                        </label>
+                        <input
+                            type="number"
+                            value={proposedSalary}
+                            onChange={(e) => setProposedSalary(Number(e.target.value))}
+                            step={100000}
+                            min={0}
+                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            required
+                        />
+                        {selectedTargetGrade && (
+                            <span className="text-[11px] text-gray-500 mt-1 block">
+                                Ruxsat etilgan oraliq: {selectedTargetGrade.minSalary.toLocaleString()} - {selectedTargetGrade.maxSalary.toLocaleString()} UZS
+                            </span>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                            Ko'tarilish Sababi va Asosi *
+                        </label>
+                        <textarea
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            rows={3}
+                            placeholder="Xodimning erishgan natijalari, yuksalgan mas'uliyati yoki malakasi haqida qisqacha ma'lumot..."
+                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            required
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isSubmitting}
+                            className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
+                        >
+                            Bekor qilish
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                        >
+                            {isSubmitting ? "Yuborilmoqda..." : "So'rovni Yuborish"}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}

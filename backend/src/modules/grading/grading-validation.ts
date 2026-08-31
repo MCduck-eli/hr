@@ -2,22 +2,35 @@ import { z } from "zod";
 
 export const createGradeSchema = z.object({
     body: z.object({
-        code: z.string().min(2),
-        title: z.string().min(3),
-        level: z.number().int().min(1),
-        minSalary: z.number().positive(),
-        maxSalary: z.number().positive(),
-        requirements: z.string().optional(),
-        responsibilities: z.string().optional(),
+        code: z.string().min(1),
+        title: z.string().min(1),
+        level: z.coerce.number().int().min(1),
+        minSalary: z.coerce.number().min(0),
+        maxSalary: z.coerce.number().min(0),
+        requirements: z.string().optional().nullable(),
+        responsibilities: z.string().optional().nullable(),
+        companyName: z.string().optional().nullable(),
+    }),
+});
+
+export const updateGradeSchema = z.object({
+    body: z.object({
+        code: z.string().min(1).optional(),
+        title: z.string().min(1).optional(),
+        level: z.coerce.number().int().min(1).optional(),
+        minSalary: z.coerce.number().min(0).optional(),
+        maxSalary: z.coerce.number().min(0).optional(),
+        requirements: z.string().optional().nullable(),
+        responsibilities: z.string().optional().nullable(),
     }),
 });
 
 export const requestPromotionSchema = z.object({
     body: z.object({
-        employeeId: z.string().uuid(),
-        targetGradeId: z.string().uuid(),
-        proposedSalary: z.number().positive(),
-        reason: z.string().min(10),
+        employeeId: z.string().min(1),
+        targetGradeId: z.string().min(1),
+        proposedSalary: z.coerce.number().min(0),
+        reason: z.string().min(1),
     }),
 });
 

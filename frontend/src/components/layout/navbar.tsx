@@ -22,7 +22,7 @@ export default function Navbar() {
         const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
         const originalAdminUser = localStorage.getItem("originalAdminUser");
-        
+
         if (originalAdminUser) {
             setHasOriginalAdmin(true);
         } else {
@@ -34,7 +34,7 @@ export default function Navbar() {
             try {
                 const user = JSON.parse(userStr);
                 setUserRole(user.role || "");
-            } catch (e) {}
+            } catch (e) { }
         }
     }, [pathname]);
 
@@ -54,7 +54,7 @@ export default function Navbar() {
                     router.push(`/${locale}/hr/dashboard`);
                     return;
                 }
-            } catch (e) {}
+            } catch (e) { }
             router.push(`/${locale}/dashboard`);
         }
     };
@@ -191,3 +191,4 @@ export default function Navbar() {
         </nav>
     );
 }
+

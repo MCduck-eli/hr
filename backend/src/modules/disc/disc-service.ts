@@ -5,16 +5,27 @@ export class DiscService {
     async createQuestion(payload: {
         text: string;
         order?: number;
+        companyName?: string | null;
         options: {
             text: string;
             discType: "D" | "I" | "S" | "C";
             score?: number;
         }[];
-    }) {
+    }, currentUser?: any) {
+        let resolvedCompany = payload.companyName || null;
+        if (!resolvedCompany && currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { companyName: true },
+            });
+            resolvedCompany = caller?.companyName || null;
+        }
+
         return prisma.discQuestion.create({
             data: {
                 text: payload.text,
                 order: payload.order ?? 1,
+                companyName: resolvedCompany,
                 options: {
                     create: payload.options,
                 },
@@ -23,7 +34,230 @@ export class DiscService {
         });
     }
 
-    async getQuestions() {
+    async updateQuestion(id: string, payload: {
+        text?: string;
+        order?: number;
+        options?: {
+            id?: string;
+            text: string;
+            discType: "D" | "I" | "S" | "C";
+            score?: number;
+        }[];
+    }, currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
+        const question = await prisma.discQuestion.findFirst({
+            where: {
+                id,
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
+        });
+        if (!question) throw new AppError("Savol topilmadi", 404);
+
+        if (payload.options && payload.options.length > 0) {
+            await prisma.discOption.deleteMany({ where: { questionId: id } });
+            return prisma.discQuestion.update({
+                where: { id },
+                data: {
+                    ...(payload.text ? { text: payload.text } : {}),
+                    ...(payload.order !== undefined ? { order: payload.order } : {}),
+                    options: {
+                        create: payload.options.map((o) => ({
+                            text: o.text,
+                            discType: o.discType,
+                            score: o.score ?? 1,
+                        })),
+                    },
+                },
+                include: { options: true },
+            });
+        }
+
+        return prisma.discQuestion.update({
+            where: { id },
+            data: {
+                ...(payload.text ? { text: payload.text } : {}),
+                ...(payload.order !== undefined ? { order: payload.order } : {}),
+            },
+            include: { options: true },
+        });
+    }
+
+    async deleteQuestion(id: string, currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
+        const question = await prisma.discQuestion.findFirst({
+            where: {
+                id,
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
+        });
+        if (!question) throw new AppError("Savol topilmadi", 404);
+
+        await prisma.discOption.deleteMany({ where: { questionId: id } });
+        return prisma.discQuestion.delete({ where: { id } });
+    }
+
+    async getQuestions(currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
+        if (companyFilter) {
+            const companyCount = await prisma.discQuestion.count({
+                where: { companyName: companyFilter },
+            });
+
+            if (companyCount === 0) {
+                const seedQuestions = [
+                    {
+                        text: "Yangi loyiha yoki kutilmagan murakkab muammoga duch kelganingizda, birinchi navbatda nima qilasiz?",
+                        order: 1,
+                        options: [
+                            { text: "Vaziyatni o'z qo'limga olaman, tezkor va qat'iy qarorlar qabul qilib harakatni boshlayman.", discType: "D" as const, score: 1 },
+                            { text: "Jamoani yig'ib, barchani ilhomlantiraman va yangi g'oyalarni muhokama qilaman.", discType: "I" as const, score: 1 },
+                            { text: "Vaziyatni bosiqlik bilan baholab, mavjud reja va jamoa a'zolariga yordam berishga kirishaman.", discType: "S" as const, score: 1 },
+                            { text: "Barcha faktlar, ma'lumotlar va xatarlarni chuqur tahlil qilib, aniq reja tuzaman.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Jamoaviy yig'ilishlarda o'zingizni qanday tutasiz?",
+                        order: 2,
+                        options: [
+                            { text: "Asosiy e'tiborni natijaga qarataman, ortiqcha gaplarsiz yakuniy qarorga kelishni talab qilaman.", discType: "D" as const, score: 1 },
+                            { text: "Faol fikr bildiraman, muhitni erkin va do'stona saqlashga harakat qilaman.", discType: "I" as const, score: 1 },
+                            { text: "Boshqalarni diqqat bilan tinglayman va umumiy kelishuvga (konsensusga) erishishni qo'llab-quvvatlayman.", discType: "S" as const, score: 1 },
+                            { text: "Mantiqiy savollar beraman, hisob-kitoblar va qoidalar to'g'riligini tekshiraman.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Siz uchun ish faoliyatingizdagi eng muhim omil nima?",
+                        order: 3,
+                        options: [
+                            { text: "Yuksak maqsadlarga erishish, g'alaba qozonish va mustaqil bo'lish.", discType: "D" as const, score: 1 },
+                            { text: "E'tirof etilish, odamlar bilan aloqada bo'lish va ijodiy erkinlik.", discType: "I" as const, score: 1 },
+                            { text: "Barqarorlik, jamoaviy ishonch va xavfsiz ish muhiti.", discType: "S" as const, score: 1 },
+                            { text: "Yuqori sifat, aniqlik, mukammallik va xatolarga yo'l qo'ymaslik.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Kutilmagan o'zgarishlar yoki stressli vaziyatda qanday munosabat bildirasiz?",
+                        order: 4,
+                        options: [
+                            { text: "Tezda moslashaman va vaziyatni boshqarishga kirishaman.", discType: "D" as const, score: 1 },
+                            { text: "Ijobiy (optimizm) kayfiyatni saqlayman va boshqalarga dalda beraman.", discType: "I" as const, score: 1 },
+                            { text: "Bir oz noqulaylik sezsam-da, tartib bilan jamoaga tayanch bo'lishga harakat qilaman.", discType: "S" as const, score: 1 },
+                            { text: "Yangi sharoitlarni diqqat bilan o'rganaman va o'zgarishlar mantig'ini tushunishga intilaman.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Boshqalar sizni ko'proq qanday inson deb bilishadi?",
+                        order: 5,
+                        options: [
+                            { text: "Qat'iyatli, to'g'riso'z va maqsadiga intiluvchan lider.", discType: "D" as const, score: 1 },
+                            { text: "Xushchaqchaq, muloqotga ochiq va ilhom beruvchi.", discType: "I" as const, score: 1 },
+                            { text: "Ishonchli, sadoqatli, samimiy va sabrli hamkasb.", discType: "S" as const, score: 1 },
+                            { text: "Tartibli, mas'uliyatli, har bir detalga e'tiborli mutaxassis.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Biror muhim vazifani bajarishda sizning ustuvorligingiz qanday?",
+                        order: 6,
+                        options: [
+                            { text: "Vazifani tez va belgilangan muddatdan oldin yakunlash.", discType: "D" as const, score: 1 },
+                            { text: "Jarayon qiziqarli va odamlarni jalb qiladigan bo'lishi.", discType: "I" as const, score: 1 },
+                            { text: "Jarayon silliq va bir maromda, asabiylashuvlarsiz o'tishi.", discType: "S" as const, score: 1 },
+                            { text: "Hamma narsa 100% to'g'ri, standartlarga mos va mukammal bajarilishi.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Hamkasblar o'rtasida ziddiyat (konflikt) paydo bo'lsa, nima qilasiz?",
+                        order: 7,
+                        options: [
+                            { text: "Muammoni ochiq yuzma-yuz muhokama qilib, zudlik bilan yechim topaman.", discType: "D" as const, score: 1 },
+                            { text: "Hazil va iliq munosabat bilan vaziyatni yumshatishga harakat qilaman.", discType: "I" as const, score: 1 },
+                            { text: "Ikkala tomonni tinglab, oradagi munosabatni saqlab qolishga ko'maklashaman.", discType: "S" as const, score: 1 },
+                            { text: "Faktlar va qoidalarga asoslanib, kim qayerda haq yoki nohaqligini aniqlayman.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Sizga qanday ish muhiti ko'proq yoqadi?",
+                        order: 8,
+                        options: [
+                            { text: "Tez sur'atlarda o'suvchi, raqobatbardosh va chaqiriqlarga boy.", discType: "D" as const, score: 1 },
+                            { text: "Ijtimoiy, ochiq, ko'p muloqot va tadbirlarga boy.", discType: "I" as const, score: 1 },
+                            { text: "Tinch, ahil, barqaror va o'zaro mehr-oqibatli.", discType: "S" as const, score: 1 },
+                            { text: "Strukturaviy, aniq qoidalarga ega, tahliliy va sokin.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Qaror qabul qilishda asosan nimaga tayanasiz?",
+                        order: 9,
+                        options: [
+                            { text: "Intuisiya, tezkor fikrlash va yakuniy samara.", discType: "D" as const, score: 1 },
+                            { text: "Tuyg'ular, odamlarning munosabati va umumiy kayfiyat.", discType: "I" as const, score: 1 },
+                            { text: "O'tmishdagi sinovdan o'tgan tajribalar va jamoa xavfsizligi.", discType: "S" as const, score: 1 },
+                            { text: "Statistika, qonun-qoidalar, tahliliy jadvallar va dalillar.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Sizni eng ko'p bezovta qiladigan holat nima?",
+                        order: 10,
+                        options: [
+                            { text: "Samarasizlik, sustkashlik va vaqtni behuda sarflash.", discType: "D" as const, score: 1 },
+                            { text: "E'tibordan chetda qolish, monotonlik va qattiq cheklovlar.", discType: "I" as const, score: 1 },
+                            { text: "To'satdan o'zgarishlar, noaniqlik va jamoadagi beqarorlik.", discType: "S" as const, score: 1 },
+                            { text: "Xatolar, tartibsizlik, yuzakilik va mantiqsizlik.", discType: "C" as const, score: 1 },
+                        ],
+                    },
+                ];
+
+                for (const q of seedQuestions) {
+                    await prisma.discQuestion.create({
+                        data: {
+                            text: q.text,
+                            order: q.order,
+                            companyName: companyFilter,
+                            options: {
+                                create: q.options,
+                            },
+                        },
+                    }).catch(() => {});
+                }
+            }
+
+            return prisma.discQuestion.findMany({
+                where: { companyName: companyFilter },
+                include: { options: true },
+                orderBy: { order: "asc" },
+            });
+        }
+
         return prisma.discQuestion.findMany({
             include: { options: true },
             orderBy: { order: "asc" },
@@ -139,8 +373,24 @@ export class DiscService {
         };
     }
 
-    async getTeamDiscAnalytics(departmentId?: string) {
-        const where: any = {};
+    async getTeamDiscAnalytics(departmentId?: string, currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
+        const where: any = {
+            user: {
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+                role: { notIn: ["SUPER_ADMIN"] },
+            },
+        };
         if (departmentId) where.departmentId = departmentId;
 
         const employees = await prisma.employee.findMany({

@@ -334,9 +334,9 @@ export class Feedback360Service {
 
     async getTargetReport(
         targetEmployeeId: string, 
-        cycleId: string,
-        requestUserId: string,
-        role: string
+        cycleId?: string,
+        requestUserId?: string,
+        role?: string
     ) {
         const target = await prisma.employee.findUnique({
             where: { id: targetEmployeeId },
@@ -345,16 +345,20 @@ export class Feedback360Service {
 
         if (!target) throw new AppError("Target employee not found", 404);
 
-        if (role === "EMPLOYEE" && target.userId !== requestUserId) {
+        if (role === "EMPLOYEE" && requestUserId && target.userId !== requestUserId) {
             throw new AppError("Unauthorized to view other employee's report", 403);
         }
 
+        const whereClause: any = {
+            targetId: targetEmployeeId,
+            isCompleted: true,
+        };
+        if (cycleId) {
+            whereClause.cycleId = cycleId;
+        }
+
         const assignments = await prisma.feedbackAssignment.findMany({
-            where: {
-                targetId: targetEmployeeId,
-                cycleId,
-                isCompleted: true,
-            },
+            where: whereClause,
             include: {
                 answers: {
                     include: { question: true },

@@ -20,6 +20,18 @@ discRouter.post(
     discController.createQuestion,
 );
 
+discRouter.put(
+    "/questions/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    discController.updateQuestion,
+);
+
+discRouter.delete(
+    "/questions/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    discController.deleteQuestion,
+);
+
 discRouter.post(
     "/submit",
     validate(submitAssessmentSchema),

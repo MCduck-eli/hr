@@ -11,6 +11,8 @@ export class DashboardService {
                 employee: {
                     include: {
                         department: true,
+                        position: true,
+                        grade: true,
                         statusConfig: true,
                         courseProgresses: {
                             include: { course: true },
@@ -58,6 +60,8 @@ export class DashboardService {
                         employee: {
                             include: {
                                 department: true,
+                                position: true,
+                                grade: true,
                                 statusConfig: true,
                                 courseProgresses: {
                                     include: { course: true },
@@ -122,6 +126,8 @@ export class DashboardService {
                     employee: {
                         include: {
                             department: true,
+                            position: true,
+                            grade: true,
                             statusConfig: true,
                             courseProgresses: {
                                 include: { course: true },
@@ -449,16 +455,138 @@ export class DashboardService {
             status: todayAtt?.status || null,
         };
 
+        const employeeGrade = employee.grade ? {
+            id: employee.grade.id,
+            code: employee.grade.code,
+            title: employee.grade.title,
+            level: employee.grade.level,
+            minSalary: employee.grade.minSalary,
+            maxSalary: employee.grade.maxSalary,
+            requirements: employee.grade.requirements,
+            responsibilities: employee.grade.responsibilities,
+        } : null;
+
+        const employeePosition = employee.position?.title || employee.position || null;
+        const employeeSalary = employee.salary || employee.grade?.minSalary || null;
+
+        const companyFilter = user.companyName || null;
+
+        const feedbackAssignments = await prisma.feedbackAssignment.findMany({
+            where: {
+                targetId: employee.id,
+                isCompleted: true,
+                ...(companyFilter ? { cycle: { companyName: companyFilter } } : {}),
+            },
+            include: { answers: true },
+        });
+
+        let totalFeedbackScore = 0;
+        let totalAnswers = 0;
+        feedbackAssignments.forEach((asg) => {
+            asg.answers.forEach((ans) => {
+                totalFeedbackScore += ans.score;
+                totalAnswers += 1;
+            });
+        });
+        const feedback360Score = totalAnswers > 0
+            ? Number((totalFeedbackScore / totalAnswers).toFixed(1))
+            : null;
+        let nextGrade = null;
+        if (employee.grade) {
+            nextGrade = await prisma.jobGrade.findFirst({
+                where: {
+                    level: { gt: employee.grade.level },
+                    ...(companyFilter ? { OR: [{ companyName: companyFilter }, { companyName: null }] } : {}),
+                },
+                orderBy: { level: "asc" },
+            });
+        } else {
+            nextGrade = await prisma.jobGrade.findFirst({
+                where: {
+                    ...(companyFilter ? { OR: [{ companyName: companyFilter }, { companyName: null }] } : {}),
+                },
+                orderBy: { level: "asc" },
+            });
+        }
+
+        const activePromotionRequest = await prisma.promotionRequest.findFirst({
+            where: {
+                employeeId: employee.id,
+                status: { in: ["PENDING", "APPROVED_BY_MANAGER"] },
+            },
+            include: {
+                targetGrade: true,
+                currentGrade: true,
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        const careerPath = {
+            currentGrade: employeeGrade,
+            nextGrade: nextGrade ? {
+                id: nextGrade.id,
+                code: nextGrade.code,
+                title: nextGrade.title,
+                level: nextGrade.level,
+                minSalary: nextGrade.minSalary,
+                maxSalary: nextGrade.maxSalary,
+                requirements: nextGrade.requirements,
+                responsibilities: nextGrade.responsibilities,
+            } : null,
+            activePromotionRequest: activePromotionRequest ? {
+                id: activePromotionRequest.id,
+                status: activePromotionRequest.status,
+                targetGradeTitle: activePromotionRequest.targetGrade?.title,
+                targetGradeLevel: activePromotionRequest.targetGrade?.level,
+                proposedSalary: activePromotionRequest.proposedSalary,
+                reason: activePromotionRequest.reason,
+                createdAt: activePromotionRequest.createdAt,
+            } : null,
+            okrTarget: 80,
+            currentOkr: okrProgress,
+            feedbackTarget: 4.0,
+            currentFeedback: feedback360Score,
+            isOkrMet: okrProgress >= 80,
+            isFeedbackMet: feedback360Score !== null && feedback360Score >= 4.0,
+            isReadyForPromotion: okrProgress >= 80 && (feedback360Score === null || feedback360Score >= 4.0),
+        };
+
+        const discAssessment = await prisma.discAssessment.findFirst({
+            where: { employeeId: employee.id },
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                primaryType: true,
+                secondaryType: true,
+                dScore: true,
+                iScore: true,
+                sScore: true,
+                cScore: true,
+                createdAt: true,
+            },
+        });
+
         return {
             user: {
                 firstName: employee.firstName,
                 lastName: employee.lastName,
                 role: user.role,
                 email: user.email,
+                companyName: user.companyName,
                 employee: {
                     id: employee.id,
+                    department: employee.department?.name || null,
+                    position: employeePosition,
+                    salary: employeeSalary,
+                    grade: employeeGrade,
                 },
             },
+            grade: employeeGrade,
+            position: employeePosition,
+            salary: employeeSalary,
+            careerPath,
+            discAssessment,
+            feedback360Score,
             okrProgress,
             minExpectedProgress,
             okrs,
