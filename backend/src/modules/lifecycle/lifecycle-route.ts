@@ -7,6 +7,8 @@ import {
     createTemplateSchema,
     updateChecklistStatusSchema,
     updateOffboardingTaskSchema,
+    createLifecycleEventSchema,
+    updateLifecycleEventSchema,
 } from "./lifecycle-validation";
 
 const lifecycleRouter = Router();
@@ -15,59 +17,91 @@ lifecycleRouter.use(authenticate);
 
 lifecycleRouter.get(
     "/templates",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     lifecycleController.getTemplates,
 );
 
 lifecycleRouter.post(
     "/templates",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     validate(createTemplateSchema),
     lifecycleController.createTemplate,
 );
 
+lifecycleRouter.put(
+    "/templates/:templateId",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.updateTemplate,
+);
+
+lifecycleRouter.delete(
+    "/templates/:templateId",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.deleteTemplate,
+);
+
 lifecycleRouter.post(
     "/employee/:employeeId/apply-template",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     validate(applyTemplateSchema),
     lifecycleController.applyTemplateToEmployee,
 );
 
 lifecycleRouter.patch(
     "/checklist/:checklistId/status",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     validate(updateChecklistStatusSchema),
     lifecycleController.updateChecklistStatus,
 );
 
 lifecycleRouter.get(
     "/employee/:employeeId/journey",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE"),
     lifecycleController.getEmployeeJourney,
 );
 
 lifecycleRouter.post(
+    "/employee/:employeeId/events",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    validate(createLifecycleEventSchema),
+    lifecycleController.createLifecycleEvent,
+);
+
+lifecycleRouter.put(
+    "/events/:eventId",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    validate(updateLifecycleEventSchema),
+    lifecycleController.updateLifecycleEvent,
+);
+
+lifecycleRouter.delete(
+    "/events/:eventId",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.deleteLifecycleEvent,
+);
+
+lifecycleRouter.post(
     "/employee/:employeeId/offboarding",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     lifecycleController.startOffboarding,
 );
 
 lifecycleRouter.get(
     "/employee/:employeeId/offboarding",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     lifecycleController.getOffboardingDetails,
 );
 
 lifecycleRouter.patch(
     "/offboarding/tasks/:taskId",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     validate(updateOffboardingTaskSchema),
     lifecycleController.updateOffboardingTask,
 );
 
 lifecycleRouter.get(
     "/employee/:employeeId/journey/export",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN", "DEPARTMENT_HEAD"),
     lifecycleController.exportEmployeeJourney,
 );
 

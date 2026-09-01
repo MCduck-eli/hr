@@ -4,7 +4,10 @@ import { departmentService } from "./department-service";
 export class DepartmentController {
     async create(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await departmentService.createDepartment(req.body);
+            const result = await departmentService.createDepartment(
+                req.body,
+                (req as any).user,
+            );
             res.status(201).json({
                 status: "success",
                 data: result,
@@ -16,7 +19,9 @@ export class DepartmentController {
 
     async getAll(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await departmentService.getAllDepartments();
+            const result = await departmentService.getAllDepartments(
+                (req as any).user,
+            );
             res.status(200).json({
                 status: "success",
                 data: result,
@@ -34,6 +39,7 @@ export class DepartmentController {
         try {
             const result = await departmentService.getDepartmentById(
                 req.params.id,
+                (req as any).user,
             );
             res.status(200).json({
                 status: "success",
@@ -50,7 +56,10 @@ export class DepartmentController {
         next: NextFunction,
     ) {
         try {
-            await departmentService.deleteDepartment(req.params.id);
+            await departmentService.deleteDepartment(
+                req.params.id,
+                (req as any).user,
+            );
             res.status(200).json({
                 status: "success",
                 message: "Department deleted successfully",

@@ -10,10 +10,14 @@ export const createCategorySchema = z.object({
 export const createCourseSchema = z.object({
     body: z.object({
         title: z.string().min(3),
-        description: z.string().optional(),
-        coverUrl: z.string().url().optional(),
-        isRequired: z.boolean().optional(),
-        categoryId: z.string().uuid().optional(),
+        description: z.string().optional().nullable(),
+        coverUrl: z.string().optional().nullable(),
+        videoUrl: z.string().optional().nullable(),
+        isRequired: z.boolean().optional().nullable(),
+        categoryId: z.string().uuid().optional().nullable(),
+        targetDepartmentId: z.string().uuid().optional().nullable(),
+        targetEmployeeId: z.string().uuid().optional().nullable(),
+        targetStatusConfigId: z.string().uuid().optional().nullable(),
     }),
 });
 

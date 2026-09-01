@@ -112,6 +112,7 @@ model User {
 model Department {
   id                  String               @id @default(uuid())
   name                String
+  companyName         String?
   parentId            String?
   parent              Department?          @relation("SubDepartments", fields: [parentId], references: [id])
   children            Department[]         @relation("SubDepartments")
@@ -121,16 +122,17 @@ model Department {
   onboardingTemplates OnboardingTemplate[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
-  objectives Objective[]
+  objectives          Objective[]
   targetedCourses     AcademyCourse[]      @relation("CourseTargetDepartment")
 }
 
 model Position {
-  id        String     @id @default(uuid())
-  title     String
-  employees Employee[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String     @id @default(uuid())
+  title       String
+  companyName String?
+  employees   Employee[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Employee {
@@ -182,19 +184,23 @@ model Employee {
 }
 
 model EmployeeStatusConfig {
-  id            String                 @id @default(uuid())
-  name          String
-  code          String                 @unique
-  color         String                 @default("#3b82f6")
-  durationDays  Int?
-  nextStatusId  String?
-  nextStatus    EmployeeStatusConfig?  @relation("StatusHierarchy", fields: [nextStatusId], references: [id])
-  prevStatuses  EmployeeStatusConfig[] @relation("StatusHierarchy")
-  isSystem      Boolean                @default(false)
+  id                  String                 @id @default(uuid())
+  name                String
+  code                String
+  color               String                 @default("#3b82f6")
+  durationDays        Int?
+  nextStatusId        String?
+  nextStatus          EmployeeStatusConfig?  @relation("StatusHierarchy", fields: [nextStatusId], references: [id])
+  prevStatuses        EmployeeStatusConfig[] @relation("StatusHierarchy")
+  isSystem            Boolean                @default(false)
+  companyName         String?
   employees           Employee[]
   onboardingTemplates OnboardingTemplate[]
+  targetedCourses     AcademyCourse[]        @relation("CourseTargetStatus")
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
+
+  @@unique([code, companyName])
 }
 
 model Attendance {
@@ -501,13 +507,15 @@ model AcademyCourse {
   resources    AcademyResource[]
   progress     CourseProgress[]
   certificates CourseCertificate[]
-  targetDepartmentId String?
-  targetDepartment   Department?       @relation("CourseTargetDepartment", fields: [targetDepartmentId], references: [id])
-  targetEmployeeId   String?
-  targetEmployee     Employee?         @relation("CourseTargetEmployee", fields: [targetEmployeeId], references: [id])
-  companyName  String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  targetDepartmentId   String?
+  targetDepartment     Department?           @relation("CourseTargetDepartment", fields: [targetDepartmentId], references: [id])
+  targetEmployeeId     String?
+  targetEmployee       Employee?             @relation("CourseTargetEmployee", fields: [targetEmployeeId], references: [id])
+  targetStatusConfigId String?
+  targetStatusConfig   EmployeeStatusConfig? @relation("CourseTargetStatus", fields: [targetStatusConfigId], references: [id])
+  companyName          String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 }
 
 model AcademyLesson {
@@ -665,6 +673,7 @@ model LifecycleTemplate {
   id          String                  @id @default(uuid())
   title       String
   description String?
+  companyName String?
   stage       LifecycleStage          @default(ONBOARDING)
   tasks       LifecycleTemplateTask[]
   createdAt   DateTime                @default(now())

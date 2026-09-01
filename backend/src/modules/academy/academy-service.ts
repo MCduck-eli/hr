@@ -19,8 +19,9 @@ export class AcademyService {
             videoUrl?: string;
             isRequired?: boolean;
             categoryId?: string;
-            targetDepartmentId?: string;
-            targetEmployeeId?: string;
+            targetDepartmentId?: string | null;
+            targetEmployeeId?: string | null;
+            targetStatusConfigId?: string | null;
         },
         currentUser?: any,
     ) {
@@ -37,8 +38,22 @@ export class AcademyService {
 
         const course = await prisma.academyCourse.create({
             data: {
-                ...payload,
+                title: payload.title,
+                description: payload.description,
+                coverUrl: payload.coverUrl,
+                videoUrl: payload.videoUrl,
+                isRequired: payload.isRequired || false,
+                categoryId: payload.categoryId || null,
+                targetDepartmentId: payload.targetDepartmentId || null,
+                targetEmployeeId: payload.targetEmployeeId || null,
+                targetStatusConfigId: payload.targetStatusConfigId || null,
                 companyName,
+            },
+            include: {
+                category: true,
+                targetDepartment: true,
+                targetEmployee: true,
+                targetStatusConfig: true,
             },
         });
 
@@ -127,11 +142,33 @@ export class AcademyService {
         if (employee && role !== "HR_ADMIN" && role !== "SUPER_ADMIN" && role !== "DIRECTOR") {
             const orConditions: any[] = [
                 { targetEmployeeId: employee.id },
-                { AND: [{ targetEmployeeId: null }, { targetDepartmentId: null }] }
+                {
+                    AND: [
+                        { targetEmployeeId: null },
+                        { targetDepartmentId: null },
+                        { targetStatusConfigId: null },
+                    ],
+                },
             ];
 
             if (employee.departmentId) {
-                orConditions.push({ targetDepartmentId: employee.departmentId });
+                orConditions.push({
+                    targetDepartmentId: employee.departmentId,
+                    targetStatusConfigId: null,
+                });
+            }
+
+            if (employee.statusConfigId) {
+                orConditions.push({
+                    targetStatusConfigId: employee.statusConfigId,
+                    targetDepartmentId: null,
+                });
+                if (employee.departmentId) {
+                    orConditions.push({
+                        targetDepartmentId: employee.departmentId,
+                        targetStatusConfigId: employee.statusConfigId,
+                    });
+                }
             }
 
             where.OR = orConditions;
@@ -141,6 +178,9 @@ export class AcademyService {
             where,
             include: {
                 category: true,
+                targetDepartment: true,
+                targetEmployee: true,
+                targetStatusConfig: true,
                 _count: {
                     select: { lessons: true, quizzes: true, resources: true },
                 },
@@ -352,9 +392,11 @@ export class AcademyService {
             videoUrl?: string;
             isRequired?: boolean;
             categoryId?: string;
-            targetDepartmentId?: string;
-            targetEmployeeId?: string;
+            targetDepartmentId?: string | null;
+            targetEmployeeId?: string | null;
+            targetStatusConfigId?: string | null;
         },
+        currentUser?: any,
     ) {
         const course = await prisma.academyCourse.findUnique({
             where: { id: courseId },
@@ -364,9 +406,21 @@ export class AcademyService {
             throw new AppError("Course not found", 404);
         }
 
+        if (currentUser && currentUser.role !== "SUPER_ADMIN" && currentUser.companyName) {
+            if (course.companyName && course.companyName !== currentUser.companyName) {
+                throw new AppError("Unauthorized - Course belongs to another company", 403);
+            }
+        }
+
         return prisma.academyCourse.update({
             where: { id: courseId },
             data: payload,
+            include: {
+                category: true,
+                targetDepartment: true,
+                targetEmployee: true,
+                targetStatusConfig: true,
+            },
         });
     }
 

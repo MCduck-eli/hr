@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import StatusBadge from "./status-badge";
+import EmployeeJourneyTimeline from "@/src/components/lifecycle/EmployeeJourneyTimeline";
 
 interface EmployeeDetailsTableProps {
     users: any[];
@@ -17,6 +19,7 @@ export default function EmployeeDetailsTable({
 }: EmployeeDetailsTableProps) {
     const t = useTranslations("HREmployees");
     const router = useRouter();
+    const [selectedEjmEmployee, setSelectedEjmEmployee] = useState<any>(null);
 
     const handleLoginAs = (u: any) => {
         const currentUser = localStorage.getItem("user");
@@ -132,6 +135,12 @@ export default function EmployeeDetailsTable({
                                                 {t("loginAs") || "Kirish"}
                                             </button>
                                             <button
+                                                onClick={() => setSelectedEjmEmployee(u)}
+                                                className="px-2 py-1 bg-white border border-purple-300 text-purple-700 hover:bg-purple-700 hover:text-white text-[10px] font-bold uppercase tracking-wider rounded-sm transition-colors"
+                                            >
+                                                EJM
+                                            </button>
+                                            <button
                                                 onClick={() => {
                                                     const locale = window.location.pathname.split("/")[1] || "uz";
                                                     router.push(`/${locale}/profile?userId=${u.id}`);
@@ -164,6 +173,35 @@ export default function EmployeeDetailsTable({
                     </tbody>
                 </table>
             </div>
+
+            {selectedEjmEmployee && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white border-2 border-black w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-black pb-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                                    Xodim:
+                                </span>
+                                <span className="text-base font-black text-black uppercase">
+                                    {selectedEjmEmployee.employee?.firstName} {selectedEjmEmployee.employee?.lastName}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setSelectedEjmEmployee(null)}
+                                className="px-3 py-1 bg-black text-white text-xs font-bold uppercase hover:bg-gray-800"
+                            >
+                                Yopish ✕
+                            </button>
+                        </div>
+
+                        <EmployeeJourneyTimeline
+                            employeeId={selectedEjmEmployee.employee?.id || selectedEjmEmployee.id}
+                            employeeName={`${selectedEjmEmployee.employee?.firstName || ""} ${selectedEjmEmployee.employee?.lastName || selectedEjmEmployee.email}`.trim()}
+                            canManage={true}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

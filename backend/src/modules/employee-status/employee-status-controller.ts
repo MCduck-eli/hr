@@ -4,7 +4,9 @@ import { employeeStatusService } from "./employee-status-service";
 export class EmployeeStatusController {
     async getAllStatuses(req: Request, res: Response, next: NextFunction) {
         try {
-            const data = await employeeStatusService.getAllStatuses();
+            const data = await employeeStatusService.getAllStatuses(
+                (req as any).user,
+            );
             res.status(200).json({ status: "success", data });
         } catch (error) {
             next(error);
@@ -13,7 +15,10 @@ export class EmployeeStatusController {
 
     async createStatus(req: Request, res: Response, next: NextFunction) {
         try {
-            const data = await employeeStatusService.createStatus(req.body);
+            const data = await employeeStatusService.createStatus(
+                req.body,
+                (req as any).user,
+            );
             res.status(201).json({ status: "success", data });
         } catch (error) {
             next(error);
@@ -25,6 +30,7 @@ export class EmployeeStatusController {
             const data = await employeeStatusService.updateStatus(
                 req.params.id,
                 req.body,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data });
         } catch (error) {
@@ -36,6 +42,7 @@ export class EmployeeStatusController {
         try {
             const data = await employeeStatusService.deleteStatus(
                 req.params.id,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data });
         } catch (error) {

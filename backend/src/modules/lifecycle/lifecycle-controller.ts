@@ -4,7 +4,10 @@ import { lifecycleService } from "./lifecycle-service";
 export class LifecycleController {
     async createTemplate(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await lifecycleService.createTemplate(req.body);
+            const result = await lifecycleService.createTemplate(
+                req.body,
+                (req as any).user,
+            );
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -13,7 +16,42 @@ export class LifecycleController {
 
     async getTemplates(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await lifecycleService.getTemplates();
+            const result = await lifecycleService.getTemplates(
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateTemplate(
+        req: Request<{ templateId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await lifecycleService.updateTemplate(
+                req.params.templateId,
+                req.body,
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteTemplate(
+        req: Request<{ templateId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await lifecycleService.deleteTemplate(
+                req.params.templateId,
+                (req as any).user,
+            );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -61,6 +99,7 @@ export class LifecycleController {
             const startDate = req.query.startDate as string | undefined;
             const endDate = req.query.endDate as string | undefined;
             const eventType = req.query.eventType as string | undefined;
+            const currentUser = (req as any).user;
 
             const result = await lifecycleService.getEmployeeJourney(
                 req.params.employeeId,
@@ -69,6 +108,60 @@ export class LifecycleController {
                     endDate,
                     eventType,
                 },
+                currentUser,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async createLifecycleEvent(
+        req: Request<{ employeeId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const currentUser = (req as any).user;
+            const result = await lifecycleService.createLifecycleEvent(
+                req.params.employeeId,
+                req.body,
+                currentUser,
+            );
+            res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateLifecycleEvent(
+        req: Request<{ eventId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const currentUser = (req as any).user;
+            const result = await lifecycleService.updateLifecycleEvent(
+                req.params.eventId,
+                req.body,
+                currentUser,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteLifecycleEvent(
+        req: Request<{ eventId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const currentUser = (req as any).user;
+            const result = await lifecycleService.deleteLifecycleEvent(
+                req.params.eventId,
+                currentUser,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -142,7 +235,7 @@ export class LifecycleController {
                 "Content-Disposition",
                 `attachment; filename="${filename}"`,
             );
-            res.status(200).send("\uFEFF" + csvContent); // BOM for Excel encoding
+            res.status(200).send("\uFEFF" + csvContent);
         } catch (error) {
             next(error);
         }

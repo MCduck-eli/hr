@@ -12,13 +12,18 @@ const getHeaders = () => {
 };
 
 export const fetchDepartments = async () => {
-    const res = await fetch(`${API_URL}/departments`, {
-        headers: getHeaders(),
-    });
-    if (!res.ok) {
-        throw new Error("Failed to fetch departments");
+    try {
+        const res = await fetch(`${API_URL}/departments`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) {
+            return [];
+        }
+        const json = await res.json();
+        return Array.isArray(json) ? json : json.data || [];
+    } catch {
+        return [];
     }
-    return res.json().then(data => data.data);
 };
 
 export const createDepartment = async (payload: { name: string; parentId?: string }) => {
@@ -31,7 +36,8 @@ export const createDepartment = async (payload: { name: string; parentId?: strin
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || "Failed to create department");
     }
-    return res.json().then(data => data.data);
+    const json = await res.json();
+    return json.data || json;
 };
 
 export const deleteDepartment = async (id: string) => {
@@ -43,5 +49,6 @@ export const deleteDepartment = async (id: string) => {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || "Failed to delete department");
     }
-    return res.json().then(data => data.data);
+    const json = await res.json();
+    return json.data || json;
 };

@@ -39,6 +39,7 @@ export class AcademyController {
                     req.body.isRequired === true,
                 targetDepartmentId: req.body.targetDepartmentId || null,
                 targetEmployeeId: req.body.targetEmployeeId || null,
+                targetStatusConfigId: req.body.targetStatusConfigId || null,
                 coverUrl,
                 videoUrl,
             };
@@ -235,10 +236,14 @@ export class AcademyController {
             if (updateData.targetEmployeeId === "") {
                 updateData.targetEmployeeId = null;
             }
+            if (updateData.targetStatusConfigId === "") {
+                updateData.targetStatusConfigId = null;
+            }
 
             const result = await academyService.updateCourse(
                 req.params.courseId,
                 updateData,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {

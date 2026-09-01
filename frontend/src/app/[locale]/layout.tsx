@@ -48,8 +48,6 @@ export default async function RootLayout({
                         <main className="w-full max-w-[1400px] mx-auto flex-1 min-h-[calc(100vh-300px)]">
                             {children}
                         </main>
-
-                        {/* <Footer /> */}
                     </AppProvider>
                 </NextIntlClientProvider>
             </body>

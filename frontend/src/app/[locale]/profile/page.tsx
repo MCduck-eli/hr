@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import QuickActions from "@/src/components/dashboard/quick-actions";
 import CareerPathRequirements from "@/src/components/profile/CareerPathRequirements";
+import EmployeeJourneyTimeline from "@/src/components/lifecycle/EmployeeJourneyTimeline";
 import { fetchMyPendingTasks, fetchTargetReport, fetchCycles } from "@/src/services/feedback360-service";
 import { checkInKeyResult } from "@/src/services/okr-service";
 
@@ -390,6 +391,13 @@ export default function EmployeeProfilePage() {
                             </div>
                         )}
                     </div>
+
+                    {(dashboardData?.user?.employee?.id || currentUser?.employee?.id) && (
+                        <EmployeeJourneyTimeline
+                            employeeId={dashboardData?.user?.employee?.id || currentUser?.employee?.id}
+                            employeeName={`${firstName} ${dashboardData?.user?.lastName || ""}`}
+                        />
+                    )}
 
                     <div className="flex flex-col gap-6">
                         <div className="flex items-center justify-between border-b border-gray-200 pb-4">

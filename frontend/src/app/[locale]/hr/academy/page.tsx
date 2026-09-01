@@ -21,18 +21,17 @@ export default function HRAcademyManagementPage() {
     const [targetDepartmentId, setTargetDepartmentId] = useState<string>("");
     const [targetEmployeeId, setTargetEmployeeId] = useState<string>("");
 
-    
     const fetchDropdownData = async () => {
         try {
             const token = localStorage.getItem("token");
             const API_URL = process.env.NEXT_PUBLIC_API_URL;
             const headers = { Authorization: `Bearer ${token}` };
-            
+
             const [deptRes, empRes] = await Promise.all([
                 fetch(`${API_URL}/departments`, { headers }),
-                fetch(`${API_URL}/users`, { headers })
+                fetch(`${API_URL}/users`, { headers }),
             ]);
-            
+
             if (deptRes.ok) {
                 const data = await deptRes.json();
                 setDepartments(data.data || data || []);
@@ -67,7 +66,7 @@ export default function HRAcademyManagementPage() {
             console.error(e);
         }
     };
-    
+
     const fetchCourses = async () => {
         try {
             const token = localStorage.getItem("token");
@@ -192,8 +191,8 @@ export default function HRAcademyManagementPage() {
 
     return (
         <div className="flex flex-col gap-8 max-w-4xl mx-auto p-8">
-            <button 
-                onClick={() => router.back()} 
+            <button
+                onClick={() => router.back()}
                 className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit"
             >
                 &larr; {t("goBack") || "Orqaga"}
@@ -244,37 +243,44 @@ export default function HRAcademyManagementPage() {
                         />
                     </div>
 
-                    
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold uppercase text-gray-600">Bo'lim (Department)</label>
-                        <select 
-                            className="p-2 border text-sm bg-white" 
-                            value={targetDepartmentId} 
-                            onChange={e => {
+                        <label className="text-xs font-bold uppercase text-gray-600">
+                            Bo'lim (Department)
+                        </label>
+                        <select
+                            className="p-2 border text-sm bg-white"
+                            value={targetDepartmentId}
+                            onChange={(e) => {
                                 setTargetDepartmentId(e.target.value);
-                                if (e.target.value) setTargetEmployeeId(""); // Mutual exclusion
+                                if (e.target.value) setTargetEmployeeId("");
                             }}
                         >
                             <option value="">-- Barcha bo'limlar --</option>
-                            {departments.map(d => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
+                            {departments.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                    {d.name}
+                                </option>
                             ))}
                         </select>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold uppercase text-gray-600">Xodim (Employee)</label>
-                        <select 
-                            className="p-2 border text-sm bg-white" 
-                            value={targetEmployeeId} 
-                            onChange={e => {
+                        <label className="text-xs font-bold uppercase text-gray-600">
+                            Xodim (Employee)
+                        </label>
+                        <select
+                            className="p-2 border text-sm bg-white"
+                            value={targetEmployeeId}
+                            onChange={(e) => {
                                 setTargetEmployeeId(e.target.value);
-                                if (e.target.value) setTargetDepartmentId(""); // Mutual exclusion
+                                if (e.target.value) setTargetDepartmentId("");
                             }}
                         >
                             <option value="">-- Barcha xodimlar --</option>
-                            {employees.map(u => (
-                                <option key={u.employee.id} value={u.employee.id}>{u.employee.firstName} {u.employee.lastName} ({u.email})</option>
+                            {employees.map((u) => (
+                                <option key={u.employee.id} value={u.employee.id}>
+                                    {u.employee.firstName} {u.employee.lastName} ({u.email})
+                                </option>
                             ))}
                         </select>
                     </div>
@@ -352,6 +358,20 @@ export default function HRAcademyManagementPage() {
                                         <p className="text-xs text-gray-500">
                                             {course.description || t("noDesc")}
                                         </p>
+
+                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                            {course.targetDepartment && (
+                                                <span className="text-[10px] bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 font-bold uppercase rounded">
+                                                    📁 Bo'lim: {course.targetDepartment.name}
+                                                </span>
+                                            )}
+                                            {course.targetEmployee && (
+                                                <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 font-bold uppercase rounded">
+                                                    👤 Xodim: {course.targetEmployee.firstName} {course.targetEmployee.lastName}
+                                                </span>
+                                            )}
+                                        </div>
+
                                         {course.videoUrl && (
                                             <video
                                                 controls
