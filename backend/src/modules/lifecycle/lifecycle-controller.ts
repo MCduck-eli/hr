@@ -169,6 +169,21 @@ export class LifecycleController {
         }
     }
 
+    async getAllOffboarding(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await lifecycleService.getAllOffboardingRequests(
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async startOffboarding(
         req: Request<{ employeeId: string }>,
         res: Response,
@@ -178,12 +193,14 @@ export class LifecycleController {
             const result = await lifecycleService.startOffboarding(
                 req.params.employeeId,
                 req.body,
+                (req as any).user,
             );
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
         }
     }
+
     async getOffboardingDetails(
         req: Request<{ employeeId: string }>,
         res: Response,
@@ -192,6 +209,7 @@ export class LifecycleController {
         try {
             const result = await lifecycleService.getOffboardingDetails(
                 req.params.employeeId,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -208,6 +226,91 @@ export class LifecycleController {
             const result = await lifecycleService.updateOffboardingTask(
                 req.params.taskId,
                 req.body.isCompleted,
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async editOffboardingTask(
+        req: Request<{ taskId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await lifecycleService.editOffboardingTask(
+                req.params.taskId,
+                req.body,
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async addOffboardingTask(
+        req: Request<{ offboardingId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await lifecycleService.addOffboardingTask(
+                req.params.offboardingId,
+                req.body,
+                (req as any).user,
+            );
+            res.status(201).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteOffboardingTask(
+        req: Request<{ taskId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await lifecycleService.deleteOffboardingTask(
+                req.params.taskId,
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async submitExitInterview(
+        req: Request<{ employeeId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await lifecycleService.submitExitInterview(
+                req.params.employeeId,
+                req.body,
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateOffboardingStatus(
+        req: Request<{ offboardingId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await lifecycleService.updateOffboardingStatus(
+                req.params.offboardingId,
+                req.body.status,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {

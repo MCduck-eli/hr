@@ -80,6 +80,12 @@ lifecycleRouter.delete(
     lifecycleController.deleteLifecycleEvent,
 );
 
+lifecycleRouter.get(
+    "/offboarding",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.getAllOffboarding,
+);
+
 lifecycleRouter.post(
     "/employee/:employeeId/offboarding",
     authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
@@ -88,15 +94,42 @@ lifecycleRouter.post(
 
 lifecycleRouter.get(
     "/employee/:employeeId/offboarding",
-    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     lifecycleController.getOffboardingDetails,
 );
 
 lifecycleRouter.patch(
     "/offboarding/tasks/:taskId",
     authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
-    validate(updateOffboardingTaskSchema),
     lifecycleController.updateOffboardingTask,
+);
+
+lifecycleRouter.put(
+    "/offboarding/tasks/:taskId",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.editOffboardingTask,
+);
+
+lifecycleRouter.post(
+    "/offboarding/:offboardingId/tasks",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.addOffboardingTask,
+);
+
+lifecycleRouter.delete(
+    "/offboarding/tasks/:taskId",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.deleteOffboardingTask,
+);
+
+lifecycleRouter.post(
+    "/employee/:employeeId/exit-interview",
+    lifecycleController.submitExitInterview,
+);
+
+lifecycleRouter.patch(
+    "/offboarding/:offboardingId/status",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.updateOffboardingStatus,
 );
 
 lifecycleRouter.get(

@@ -154,6 +154,22 @@ export default function HRAdminDashboard() {
                         </h2>
                     </div>
                 </Link>
+
+                <Link href={`/${locale}/hr/offboarding`}>
+                    <div className="bg-white p-8 border-2 border-red-200 hover:border-red-600 transition-colors cursor-pointer flex flex-col gap-4 h-full group">
+                        <div className="w-10 h-10 bg-red-50 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">🏁</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-red-600">
+                                Exit & Checklist
+                            </span>
+                            <h2 className="text-sm font-black uppercase tracking-wider text-black group-hover:text-red-700">
+                                Offboarding
+                            </h2>
+                        </div>
+                    </div>
+                </Link>
             </div>
 
             {isEjmModalOpen && (

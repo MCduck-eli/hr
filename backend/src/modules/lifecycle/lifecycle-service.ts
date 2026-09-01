@@ -761,97 +761,263 @@ export class LifecycleService {
         });
     }
 
+    async getAllOffboardingRequests(currentUser?: any) {
+        return prisma.offboardingRequest.findMany({
+            where: {
+                employee: {
+                    user: {
+                        ...(currentUser?.companyName ? { companyName: currentUser.companyName } : {}),
+                    },
+                },
+            },
+            include: {
+                employee: {
+                    include: {
+                        department: true,
+                        position: true,
+                        user: {
+                            select: { id: true, email: true, role: true, companyName: true },
+                        },
+                    },
+                },
+                tasks: {
+                    orderBy: { createdAt: "asc" },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+    }
+
     async startOffboarding(
-        employeeId: string,
+        employeeIdentifier: string,
         payload: {
             reason: string;
             lastWorkingDay: string;
             exitInterviewNotes?: string;
         },
+        currentUser?: any,
     ) {
-        const employee = await prisma.employee.findUnique({
-            where: { id: employeeId },
+        const employee = await prisma.employee.findFirst({
+            where: {
+                OR: [{ id: employeeIdentifier }, { userId: employeeIdentifier }],
+            },
+            include: { user: true },
         });
+
         if (!employee) {
-            throw new AppError("Employee not found", 404);
+            throw new AppError("Xodim topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            employee.user?.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            employee.user.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
         }
 
         const offboarding = await prisma.offboardingRequest.upsert({
-            where: { employeeId },
+            where: { employeeId: employee.id },
             update: {
                 reason: payload.reason,
                 lastWorkingDay: new Date(payload.lastWorkingDay),
-                exitInterviewNotes: payload.exitInterviewNotes,
+                exitInterviewNotes: payload.exitInterviewNotes || undefined,
+                status: "IN_PROGRESS",
             },
             create: {
-                employeeId,
+                employeeId: employee.id,
                 reason: payload.reason,
                 lastWorkingDay: new Date(payload.lastWorkingDay),
-                exitInterviewNotes: payload.exitInterviewNotes,
+                exitInterviewNotes: payload.exitInterviewNotes || undefined,
+                status: "IN_PROGRESS",
             },
         });
 
-        const defaultTasks = [
-            {
-                title: "IT tizimlaridan va email'dan ruxsatni bekor qilish",
-                category: "IT_ACCESS" as const,
-            },
-            {
-                title: "Korporativ noutbuk va aksessuarlarni qaytarib olish",
-                category: "ASSET_RETURN" as const,
-            },
-            {
-                title: "ID karta va bino ruxsatnomasini topshirish",
-                category: "ASSET_RETURN" as const,
-            },
-            {
-                title: "Yakuniy hisob-kitob va oylik maoshni to'lash",
-                category: "FINANCE" as const,
-            },
-            {
-                title: "Exit interview va hujjatlarni imzolash",
-                category: "HR_DOCUMENTS" as const,
-            },
-        ];
+        const existingTasksCount = await prisma.offboardingTaskItem.count({
+            where: { offboardingId: offboarding.id },
+        });
 
-        for (const task of defaultTasks) {
-            await prisma.offboardingTaskItem.create({
-                data: {
-                    offboardingId: offboarding.id,
-                    title: task.title,
-                    category: task.category,
-                },
-            });
+        if (existingTasksCount === 0) {
+            const tasksToCreate =
+                payload.customTasks && payload.customTasks.length > 0
+                    ? payload.customTasks
+                    : [
+                          {
+                              title: "IT tizimlaridan va korporativ pochtadan ruxsatni bekor qilish",
+                              category: "IT_ACCESS" as const,
+                          },
+                          {
+                              title: "Korporativ noutbuk, telefon va aksessuarlarni qaytarib olish",
+                              category: "ASSET_RETURN" as const,
+                          },
+                          {
+                              title: "ID karta, kalit va bino ruxsatnomalarini topshirish",
+                              category: "ASSET_RETURN" as const,
+                          },
+                          {
+                              title: "Yakuniy moliyaviy hisob-kitob va oylik maoshni to'lash",
+                              category: "FINANCE" as const,
+                          },
+                          {
+                              title: "Exit interview so'rovnomasini to'ldirish va hujjatlarni imzolash",
+                              category: "HR_DOCUMENTS" as const,
+                          },
+                      ];
+
+            for (const task of tasksToCreate) {
+                await prisma.offboardingTaskItem.create({
+                    data: {
+                        offboardingId: offboarding.id,
+                        title: task.title,
+                        category: (task.category as any) || "HR_DOCUMENTS",
+                    },
+                });
+            }
         }
+
+        await prisma.employeeLifecycleEvent.create({
+            data: {
+                employeeId: employee.id,
+                eventType: "OFFBOARDING_STARTED",
+                title: "Offboarding jarayoni boshlandi",
+                description: `Oxirgi ish kuni: ${new Date(payload.lastWorkingDay).toISOString().split("T")[0]}. Sababi: ${payload.reason}`,
+            },
+        });
 
         return prisma.offboardingRequest.findUnique({
             where: { id: offboarding.id },
-            include: { tasks: true },
+            include: {
+                employee: {
+                    include: { department: true, position: true, user: true },
+                },
+                tasks: { orderBy: { createdAt: "asc" } },
+            },
         });
     }
 
-    async getOffboardingDetails(employeeId: string) {
+    async getOffboardingDetails(employeeIdentifier: string, currentUser?: any) {
+        const employee = await prisma.employee.findFirst({
+            where: {
+                OR: [{ id: employeeIdentifier }, { userId: employeeIdentifier }],
+            },
+            include: { user: true },
+        });
+
+        if (!employee) {
+            throw new AppError("Xodim topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            employee.user?.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            employee.user.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
         const offboarding = await prisma.offboardingRequest.findUnique({
-            where: { employeeId },
+            where: { employeeId: employee.id },
             include: {
                 employee: {
-                    select: { id: true, firstName: true, lastName: true },
+                    include: { department: true, position: true, user: true },
                 },
                 tasks: { orderBy: { createdAt: "asc" } },
             },
         });
 
         if (!offboarding) {
-            throw new AppError(
-                "Offboarding request not found for this employee",
-                404,
-            );
+            return null;
         }
 
         return offboarding;
     }
 
-    async updateOffboardingTask(taskId: string, isCompleted: boolean) {
+    async editOffboardingTask(
+        taskId: string,
+        payload: { title?: string; category?: any; isCompleted?: boolean },
+        currentUser?: any,
+    ) {
+        const existing = await prisma.offboardingTaskItem.findUnique({
+            where: { id: taskId },
+            include: {
+                offboarding: {
+                    include: {
+                        employee: { include: { user: true } },
+                    },
+                },
+            },
+        });
+
+        if (!existing) {
+            throw new AppError("Topshiriq topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            existing.offboarding.employee.user?.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            existing.offboarding.employee.user.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        const updated = await prisma.offboardingTaskItem.update({
+            where: { id: taskId },
+            data: {
+                ...(payload.title ? { title: payload.title } : {}),
+                ...(payload.category ? { category: payload.category } : {}),
+                ...(typeof payload.isCompleted === "boolean"
+                    ? {
+                          isCompleted: payload.isCompleted,
+                          completedAt: payload.isCompleted ? new Date() : null,
+                      }
+                    : {}),
+            },
+        });
+
+        const allTasks = await prisma.offboardingTaskItem.findMany({
+            where: { offboardingId: existing.offboardingId },
+        });
+        const allCompleted = allTasks.every((t) => t.isCompleted);
+
+        await prisma.offboardingRequest.update({
+            where: { id: existing.offboardingId },
+            data: {
+                status: allCompleted ? "COMPLETED" : "IN_PROGRESS",
+                isAssetsReturned: allCompleted,
+            },
+        });
+
+        return updated;
+    }
+
+    async updateOffboardingTask(taskId: string, isCompleted: boolean, currentUser?: any) {
+        const existing = await prisma.offboardingTaskItem.findUnique({
+            where: { id: taskId },
+            include: {
+                offboarding: {
+                    include: {
+                        employee: { include: { user: true } },
+                    },
+                },
+            },
+        });
+
+        if (!existing) {
+            throw new AppError("Topshiriq topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            existing.offboarding.employee.user?.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            existing.offboarding.employee.user.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
         const task = await prisma.offboardingTaskItem.update({
             where: { id: taskId },
             data: {
@@ -874,8 +1040,179 @@ export class LifecycleService {
             },
         });
 
+        if (allCompleted) {
+            await prisma.employeeLifecycleEvent.create({
+                data: {
+                    employeeId: existing.offboarding.employeeId,
+                    eventType: "TERMINATED",
+                    title: "Offboarding muvaffaqiyatli yakunlandi",
+                    description: "Barcha aylanma varaqasi (Checklist) topshiriqlari va aktivlar to'liq topshirildi.",
+                },
+            });
+        }
+
         return task;
     }
+
+    async addOffboardingTask(
+        offboardingId: string,
+        payload: { title: string; category?: any },
+        currentUser?: any,
+    ) {
+        const offboarding = await prisma.offboardingRequest.findUnique({
+            where: { id: offboardingId },
+            include: { employee: { include: { user: true } } },
+        });
+
+        if (!offboarding) {
+            throw new AppError("Offboarding arizasi topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            offboarding.employee.user?.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            offboarding.employee.user.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        return prisma.offboardingTaskItem.create({
+            data: {
+                offboardingId,
+                title: payload.title,
+                category: payload.category || "HR_DOCUMENTS",
+            },
+        });
+    }
+
+    async deleteOffboardingTask(taskId: string, currentUser?: any) {
+        const task = await prisma.offboardingTaskItem.findUnique({
+            where: { id: taskId },
+            include: { offboarding: { include: { employee: { include: { user: true } } } } },
+        });
+
+        if (!task) {
+            throw new AppError("Topshiriq topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            task.offboarding.employee.user?.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            task.offboarding.employee.user.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        return prisma.offboardingTaskItem.delete({
+            where: { id: taskId },
+        });
+    }
+
+    async submitExitInterview(
+        employeeIdentifier: string,
+        payload: { exitInterviewNotes: string; reason?: string },
+        currentUser?: any,
+    ) {
+        const employee = await prisma.employee.findFirst({
+            where: {
+                OR: [{ id: employeeIdentifier }, { userId: employeeIdentifier }],
+            },
+            include: { user: true },
+        });
+
+        if (!employee) {
+            throw new AppError("Xodim topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            employee.user?.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            employee.user.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        const offboarding = await prisma.offboardingRequest.upsert({
+            where: { employeeId: employee.id },
+            update: {
+                exitInterviewNotes: payload.exitInterviewNotes,
+                ...(payload.reason ? { reason: payload.reason } : {}),
+            },
+            create: {
+                employeeId: employee.id,
+                reason: payload.reason || "Ishdan bo'shash",
+                lastWorkingDay: new Date(),
+                exitInterviewNotes: payload.exitInterviewNotes,
+                status: "IN_PROGRESS",
+            },
+            include: {
+                employee: { include: { department: true, position: true, user: true } },
+                tasks: true,
+            },
+        });
+
+        const exitTask = await prisma.offboardingTaskItem.findFirst({
+            where: {
+                offboardingId: offboarding.id,
+                category: "HR_DOCUMENTS",
+            },
+        });
+
+        if (exitTask) {
+            await prisma.offboardingTaskItem.update({
+                where: { id: exitTask.id },
+                data: { isCompleted: true, completedAt: new Date() },
+            });
+        }
+
+        await prisma.employeeLifecycleEvent.create({
+            data: {
+                employeeId: employee.id,
+                eventType: "EXIT_INTERVIEW_COMPLETED",
+                title: "Exit Interview topshirildi",
+                description: payload.exitInterviewNotes.slice(0, 200),
+            },
+        });
+
+        return offboarding;
+    }
+
+    async updateOffboardingStatus(
+        offboardingId: string,
+        status: any,
+        currentUser?: any,
+    ) {
+        const offboarding = await prisma.offboardingRequest.findUnique({
+            where: { id: offboardingId },
+            include: { employee: { include: { user: true } } },
+        });
+
+        if (!offboarding) {
+            throw new AppError("Offboarding topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            offboarding.employee.user?.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            offboarding.employee.user.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        return prisma.offboardingRequest.update({
+            where: { id: offboardingId },
+            data: {
+                status,
+                ...(status === "COMPLETED" ? { isAssetsReturned: true } : {}),
+            },
+            include: { tasks: true },
+        });
+    }
+
     async exportEmployeeJourneyCSV(
         employeeId: string,
         filters?: { startDate?: string; endDate?: string; eventType?: string },

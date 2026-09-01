@@ -8,6 +8,8 @@ import CareerPathRequirements from "@/src/components/profile/CareerPathRequireme
 import EmployeeJourneyTimeline from "@/src/components/lifecycle/EmployeeJourneyTimeline";
 import { fetchMyPendingTasks, fetchTargetReport, fetchCycles } from "@/src/services/feedback360-service";
 import { checkInKeyResult } from "@/src/services/okr-service";
+import { fetchOffboardingDetails } from "@/src/services/offboarding-service";
+import ExitInterviewModal from "@/src/components/offboarding/ExitInterviewModal";
 
 export default function EmployeeProfilePage() {
     const t = useTranslations("DashboardProfile");
@@ -28,6 +30,9 @@ export default function EmployeeProfilePage() {
     const [feedbackReport, setFeedbackReport] = useState<any>(null);
     const [cycles, setCycles] = useState<any[]>([]);
     const [selectedCycleId, setSelectedCycleId] = useState<string>("");
+
+    const [offboardingData, setOffboardingData] = useState<any>(null);
+    const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
     useEffect(() => {
         const userStr = localStorage.getItem("user");
@@ -158,6 +163,16 @@ export default function EmployeeProfilePage() {
                         setFeedbackReport(report);
                     }
                 } catch (e) {}
+
+                const empId = targetEmployeeId || targetUserId;
+                if (empId) {
+                    try {
+                        const off = await fetchOffboardingDetails(empId);
+                        setOffboardingData(off);
+                    } catch (e) {
+                        setOffboardingData(null);
+                    }
+                }
             } catch (err) {
             }
         };
@@ -775,6 +790,74 @@ export default function EmployeeProfilePage() {
                         </div>
                     )}
 
+                    {offboardingData && (
+                        <div className="border-2 border-red-300 bg-red-50/40 p-5 flex flex-col gap-3 shadow-xs">
+                            <div className="flex items-center justify-between border-b border-red-200 pb-2">
+                                <span className="text-[11px] font-black uppercase tracking-wider text-red-900 flex items-center gap-1.5">
+                                    <span>🏁</span> Offboarding & Aylanma Varaqasi
+                                </span>
+                                <span
+                                    className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs ${
+                                        offboardingData.status === "COMPLETED"
+                                            ? "bg-emerald-100 text-emerald-800"
+                                            : "bg-amber-100 text-amber-800"
+                                    }`}
+                                >
+                                    {offboardingData.status === "COMPLETED"
+                                        ? "✓ Yakunlangan"
+                                        : "⚡ Jarayonda"}
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1 text-xs">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase">Oxirgi ish kuni:</span>
+                                    <span className="font-bold text-black">
+                                        {offboardingData.lastWorkingDay
+                                            ? new Date(offboardingData.lastWorkingDay).toISOString().split("T")[0]
+                                            : "-"}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase">Topshiriqlar:</span>
+                                    <span className="font-bold text-black">
+                                        {offboardingData.tasks?.filter((t: any) => t.isCompleted).length || 0}/
+                                        {offboardingData.tasks?.length || 0} bajarildi
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
+                                {offboardingData.tasks?.map((t: any) => (
+                                    <div
+                                        key={t.id}
+                                        className="flex items-center gap-2 text-[11px] p-1.5 bg-white border border-red-100"
+                                    >
+                                        <span className={t.isCompleted ? "text-emerald-600 font-bold" : "text-gray-400"}>
+                                            {t.isCompleted ? "✓" : "○"}
+                                        </span>
+                                        <span className={t.isCompleted ? "line-through text-gray-400" : "font-medium text-gray-800"}>
+                                            {t.title}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {offboardingData.exitInterviewNotes ? (
+                                <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center gap-1.5">
+                                    <span>✓</span> Exit Interview topshirildi
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setIsExitModalOpen(true)}
+                                    className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-colors text-center shadow-xs"
+                                >
+                                    📝 Exit Interview So'rovnomasi →
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
                         {t("quickActions")}
                     </h2>
@@ -783,6 +866,15 @@ export default function EmployeeProfilePage() {
                     />
                 </div>
             </div>
+
+            {offboardingData && (
+                <ExitInterviewModal
+                    isOpen={isExitModalOpen}
+                    onClose={() => setIsExitModalOpen(false)}
+                    employeeId={offboardingData.employeeId}
+                    onSuccess={() => setRefreshKey((k) => k + 1)}
+                />
+            )}
         </div>
     );
 }
