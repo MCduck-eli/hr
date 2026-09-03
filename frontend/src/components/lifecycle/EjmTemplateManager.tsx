@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
     LifecycleTemplate,
     fetchLifecycleTemplates,
@@ -23,93 +24,6 @@ interface RoadmapStageItem {
     transitionValue?: string;
 }
 
-const DEFAULT_STAGES: RoadmapStageItem[] = [
-    {
-        id: "st_1",
-        step: "01",
-        title: "Nomzodlik & Tanlov",
-        desc: "Rezyume saralash, texnik test va intervyu bosqichlari",
-        stage: "PRE_HIRE",
-        icon: "📝",
-        departmentId: "ALL",
-        color: "border-sky-500 bg-sky-50 text-sky-900",
-        transitionCondition: "HIRED_OFFER",
-        transitionValue: "Offer qabul qilganda",
-    },
-    {
-        id: "st_2",
-        step: "02",
-        title: "Ishga Qabul & Hujjatlar",
-        desc: "Mehnat shartnomasi, xodim profili yaratilishi va tizim ruxsatnomalari",
-        stage: "HIRED",
-        icon: "🚀",
-        departmentId: "ALL",
-        color: "border-emerald-500 bg-emerald-50 text-emerald-900",
-        transitionCondition: "DOCS_SIGNED",
-        transitionValue: "Profil va shartnoma tasdiqlanganda",
-    },
-    {
-        id: "st_3",
-        step: "03",
-        title: "Moslashuv (Onboarding)",
-        desc: "1-oylik moslashuv dasturi, mentor biriktirilishi va ichki tartib-qoidalar",
-        stage: "ONBOARDING",
-        icon: "📚",
-        departmentId: "ALL",
-        color: "border-blue-500 bg-blue-50 text-blue-900",
-        transitionCondition: "COURSES_100",
-        transitionValue: "Kurslar va topshiriqlar 100%",
-    },
-    {
-        id: "st_4",
-        step: "04",
-        title: "Sinov Muddati (Probation)",
-        desc: "3-oylik sinov muddati, oraliq review va yakuniy baholash",
-        stage: "PROBATION",
-        icon: "🛡️",
-        departmentId: "ALL",
-        color: "border-teal-500 bg-teal-50 text-teal-900",
-        transitionCondition: "DAYS_PASSED",
-        transitionValue: "30-90 kun / Review tasdiqlanganda",
-    },
-    {
-        id: "st_5",
-        step: "05",
-        title: "Asosiy Ish Faoliyati & OKR",
-        desc: "Kvartallik OKR maqsadlari, DISC shaxsiyat tahlili va barqaror KPI",
-        stage: "REGULAR_WORK",
-        icon: "⭐",
-        departmentId: "ALL",
-        color: "border-violet-500 bg-violet-50 text-violet-900",
-        transitionCondition: "OKR_COMPLETED",
-        transitionValue: "OKR / DISC topshirilganda",
-    },
-    {
-        id: "st_6",
-        step: "06",
-        title: "Rivojlanish & Greyd O'sishi",
-        desc: "360 darajali baholash, Akademiya kurslari va yangi greydga ko'tarilish",
-        stage: "PROMOTION",
-        icon: "👑",
-        departmentId: "ALL",
-        color: "border-purple-500 bg-purple-50 text-purple-900",
-        transitionCondition: "GRADE_PROMOTED",
-        transitionValue: "Yangi greyd / Sertifikat olinganda",
-    },
-    {
-        id: "st_7",
-        step: "07",
-        title: "Offboarding & Yakun",
-        desc: "Hisob-kitob, barcha aktivlarni qaytarish va exit interview",
-        stage: "OFFBOARDING",
-        icon: "🏁",
-        departmentId: "ALL",
-        color: "border-red-500 bg-red-50 text-red-900",
-        transitionCondition: "OFFBOARDING_DONE",
-        transitionValue: "Aktivlar topshirilganda",
-    },
-];
-
 interface TransitionConditionItem {
     id: string;
     code: string;
@@ -117,18 +31,107 @@ interface TransitionConditionItem {
     defaultPlaceholder?: string;
 }
 
-const DEFAULT_TRANSITION_CONDITIONS: TransitionConditionItem[] = [
-    { id: "c_1", code: "COURSES_100", label: "📘 Kurslarni 100% yakunlash", defaultPlaceholder: "100%" },
-    { id: "c_2", code: "TASKS_100", label: "📋 Moslashuv topshiriqlarini 100% bajarish", defaultPlaceholder: "100%" },
-    { id: "c_3", code: "DAYS_PASSED", label: "⏳ Belgilangan muddat (kunlar) o'tganda", defaultPlaceholder: "30 kun" },
-    { id: "c_4", code: "OKR_COMPLETED", label: "🎯 OKR / KPI maqsadlari topshirilganda", defaultPlaceholder: "70% KPI" },
-    { id: "c_5", code: "DISC_COMPLETED", label: "🧠 DISC shaxsiyat testi topshirilganda", defaultPlaceholder: "DISC topshirildi" },
-    { id: "c_6", code: "FEEDBACK_360", label: "🔄 360 baholash yakunlanganda", defaultPlaceholder: "360 yakunlandi" },
-    { id: "c_7", code: "GRADE_PROMOTED", label: "👑 Yangi greyd / Karyera o'sishida", defaultPlaceholder: "Yangi greyd" },
-    { id: "c_8", code: "OFFBOARDING_DONE", label: "🏁 Offboarding yakunlanganda", defaultPlaceholder: "Exit interview" },
-];
-
 export default function EjmTemplateManager() {
+    const t = useTranslations("EjmManager");
+
+    const defaultStages: RoadmapStageItem[] = [
+        {
+            id: "st_1",
+            step: "01",
+            title: t("defaultStages.st_1_title"),
+            desc: t("defaultStages.st_1_desc"),
+            stage: "PRE_HIRE",
+            icon: "📝",
+            departmentId: "ALL",
+            color: "border-sky-500 bg-sky-50 text-sky-900",
+            transitionCondition: "HIRED_OFFER",
+            transitionValue: t("defaultStages.st_1_trans"),
+        },
+        {
+            id: "st_2",
+            step: "02",
+            title: t("defaultStages.st_2_title"),
+            desc: t("defaultStages.st_2_desc"),
+            stage: "HIRED",
+            icon: "🚀",
+            departmentId: "ALL",
+            color: "border-emerald-500 bg-emerald-50 text-emerald-900",
+            transitionCondition: "DOCS_SIGNED",
+            transitionValue: t("defaultStages.st_2_trans"),
+        },
+        {
+            id: "st_3",
+            step: "03",
+            title: t("defaultStages.st_3_title"),
+            desc: t("defaultStages.st_3_desc"),
+            stage: "ONBOARDING",
+            icon: "📚",
+            departmentId: "ALL",
+            color: "border-blue-500 bg-blue-50 text-blue-900",
+            transitionCondition: "COURSES_100",
+            transitionValue: t("defaultStages.st_3_trans"),
+        },
+        {
+            id: "st_4",
+            step: "04",
+            title: t("defaultStages.st_4_title"),
+            desc: t("defaultStages.st_4_desc"),
+            stage: "PROBATION",
+            icon: "🛡️",
+            departmentId: "ALL",
+            color: "border-teal-500 bg-teal-50 text-teal-900",
+            transitionCondition: "DAYS_PASSED",
+            transitionValue: t("defaultStages.st_4_trans"),
+        },
+        {
+            id: "st_5",
+            step: "05",
+            title: t("defaultStages.st_5_title"),
+            desc: t("defaultStages.st_5_desc"),
+            stage: "REGULAR_WORK",
+            icon: "⭐",
+            departmentId: "ALL",
+            color: "border-violet-500 bg-violet-50 text-violet-900",
+            transitionCondition: "OKR_COMPLETED",
+            transitionValue: t("defaultStages.st_5_trans"),
+        },
+        {
+            id: "st_6",
+            step: "06",
+            title: t("defaultStages.st_6_title"),
+            desc: t("defaultStages.st_6_desc"),
+            stage: "PROMOTION",
+            icon: "👑",
+            departmentId: "ALL",
+            color: "border-purple-500 bg-purple-50 text-purple-900",
+            transitionCondition: "GRADE_PROMOTED",
+            transitionValue: t("defaultStages.st_6_trans"),
+        },
+        {
+            id: "st_7",
+            step: "07",
+            title: t("defaultStages.st_7_title"),
+            desc: t("defaultStages.st_7_desc"),
+            stage: "OFFBOARDING",
+            icon: "🏁",
+            departmentId: "ALL",
+            color: "border-red-500 bg-red-50 text-red-900",
+            transitionCondition: "OFFBOARDING_DONE",
+            transitionValue: t("defaultStages.st_7_trans"),
+        },
+    ];
+
+    const defaultConditions: TransitionConditionItem[] = [
+        { id: "c_1", code: "COURSES_100", label: t("defaultConditions.c_1"), defaultPlaceholder: "100%" },
+        { id: "c_2", code: "TASKS_100", label: t("defaultConditions.c_2"), defaultPlaceholder: "100%" },
+        { id: "c_3", code: "DAYS_PASSED", label: t("defaultConditions.c_3"), defaultPlaceholder: "30 kun" },
+        { id: "c_4", code: "OKR_COMPLETED", label: t("defaultConditions.c_4"), defaultPlaceholder: "70% KPI" },
+        { id: "c_5", code: "DISC_COMPLETED", label: t("defaultConditions.c_5"), defaultPlaceholder: "DISC" },
+        { id: "c_6", code: "FEEDBACK_360", label: t("defaultConditions.c_6"), defaultPlaceholder: "360" },
+        { id: "c_7", code: "GRADE_PROMOTED", label: t("defaultConditions.c_7"), defaultPlaceholder: "L2" },
+        { id: "c_8", code: "OFFBOARDING_DONE", label: t("defaultConditions.c_8"), defaultPlaceholder: "Exit interview" },
+    ];
+
     const [departments, setDepartments] = useState<any[]>([]);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("ALL");
     const [roadmapStages, setRoadmapStages] = useState<RoadmapStageItem[]>([]);
@@ -201,7 +204,7 @@ export default function EjmTemplateManager() {
             if (savedStages && Array.isArray(savedStages) && savedStages.length > 0) {
                 setRoadmapStages(savedStages);
             } else {
-                setRoadmapStages(DEFAULT_STAGES);
+                setRoadmapStages(defaultStages);
             }
 
             const condStorageKey = `ejm_transition_conditions_${getCompanyKey()}`;
@@ -214,10 +217,10 @@ export default function EjmTemplateManager() {
             if (savedConditions && Array.isArray(savedConditions) && savedConditions.length > 0) {
                 setTransitionConditions(savedConditions);
             } else {
-                setTransitionConditions(DEFAULT_TRANSITION_CONDITIONS);
+                setTransitionConditions(defaultConditions);
             }
         } catch (err: any) {
-            setError(err.message || "Ma'lumotlarni yuklashda xatolik yuz berdi");
+            setError(err.message || "Error");
         } finally {
             setLoading(false);
         }
@@ -270,7 +273,7 @@ export default function EjmTemplateManager() {
 
     const handleDeleteCondition = (id: string) => {
         if (transitionConditions.length <= 1) {
-            alert("Kamida bitta mezon qolishi kerak.");
+            alert("Min 1 required");
             return;
         }
         const updated = transitionConditions.filter((c) => c.id !== id);
@@ -288,7 +291,7 @@ export default function EjmTemplateManager() {
         setStageType("REGULAR_WORK");
         setStageDept(selectedDepartmentId);
         setStageCondition(transitionConditions[0]?.code || "COURSES_100");
-        setStageConditionValue("100% Kurslar / Topshiriqlar");
+        setStageConditionValue("100%");
         setIsManagingConditions(false);
         setIsStageModalOpen(true);
     };
@@ -308,7 +311,6 @@ export default function EjmTemplateManager() {
     const handleSaveStage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!stageTitle.trim()) {
-            alert("Iltimos, bosqich nomini kiriting.");
             return;
         }
 
@@ -339,7 +341,6 @@ export default function EjmTemplateManager() {
                     : s
             );
             saveStagesToStorage(updated);
-            setSuccessMessage("Bosqich muvaffaqiyatli tahrirlandi.");
         } else {
             const currentDeptStages = roadmapStages.filter((s) => s.departmentId === stageDept || (!s.departmentId && stageDept === "ALL"));
             const nextStepNum = String(currentDeptStages.length + 1).padStart(2, "0");
@@ -358,26 +359,20 @@ export default function EjmTemplateManager() {
             };
             const updated = [...roadmapStages, newStage];
             saveStagesToStorage(updated);
-            setSuccessMessage("Yangi EJM bosqichi qo'shildi.");
         }
 
         setIsStageModalOpen(false);
-        setTimeout(() => setSuccessMessage(null), 4000);
     };
 
     const handleDeleteStage = (stageId: string) => {
-        if (!window.confirm("Haqiqatan ham ushbu bosqichni EJM xaritasidan o'chirmoqchimisiz?")) return;
+        if (!window.confirm("Delete?")) return;
         const updated = roadmapStages.filter((s) => s.id !== stageId);
         saveStagesToStorage(updated);
-        setSuccessMessage("Bosqich o'chirildi.");
-        setTimeout(() => setSuccessMessage(null), 4000);
     };
 
     const handleResetStagesToDefault = () => {
-        if (!window.confirm("Barcha bosqichlarni standart 7 ta bosqichga qaytarmoqchimisiz?")) return;
-        saveStagesToStorage(DEFAULT_STAGES);
-        setSuccessMessage("Standart bosqichlar tiklandi.");
-        setTimeout(() => setSuccessMessage(null), 4000);
+        if (!window.confirm("Reset?")) return;
+        saveStagesToStorage(defaultStages);
     };
 
     const handleOpenCreateTemplateModal = () => {
@@ -424,7 +419,6 @@ export default function EjmTemplateManager() {
     const handleSaveTemplate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formTitle.trim()) {
-            alert("Iltimos, shablon nomini kiriting.");
             return;
         }
 
@@ -447,33 +441,28 @@ export default function EjmTemplateManager() {
 
             if (editingTemplate) {
                 await updateLifecycleTemplate(editingTemplate.id, payload);
-                setSuccessMessage("EJM shabloni muvaffaqiyatli yangilandi.");
             } else {
                 await createLifecycleTemplate(payload);
-                setSuccessMessage("Yangi EJM shabloni yaratildi.");
             }
 
             setIsTemplateModalOpen(false);
             const data = await fetchLifecycleTemplates();
             setTemplates(data || []);
-            setTimeout(() => setSuccessMessage(null), 4000);
         } catch (err: any) {
-            alert(err.message || "Saqlashda xatolik yuz berdi");
+            alert(err.message || "Error");
         } finally {
             setSaving(false);
         }
     };
 
     const handleDeleteTemplate = async (templateId: string) => {
-        if (!window.confirm("Haqiqatan ham ushbu EJM shablonini o'chirmoqchimisiz?")) return;
+        if (!window.confirm("Delete?")) return;
         try {
             await deleteLifecycleTemplate(templateId);
-            setSuccessMessage("Shablon o'chirildi.");
             const data = await fetchLifecycleTemplates();
             setTemplates(data || []);
-            setTimeout(() => setSuccessMessage(null), 4000);
         } catch (err: any) {
-            alert(err.message || "O'chirishda xatolik yuz berdi");
+            alert(err.message || "Error");
         }
     };
 
@@ -491,10 +480,10 @@ export default function EjmTemplateManager() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-black pb-4">
                 <div className="flex flex-col gap-1">
                     <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                        HR Admin Boshqaruvi
+                        {t("badge")}
                     </span>
                     <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-black">
-                        Xodimlarning EJM Xaritasi & Bosqichlar Rejasi
+                        {t("title")}
                     </h2>
                 </div>
 
@@ -504,7 +493,7 @@ export default function EjmTemplateManager() {
                         className="px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center gap-2 shadow-xs"
                     >
                         <span>+</span>
-                        <span>Yangi Bosqich Qo'shish</span>
+                        <span>{t("addStage")}</span>
                     </button>
 
                     <button
@@ -512,7 +501,7 @@ export default function EjmTemplateManager() {
                         className="px-4 py-2 bg-purple-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-800 transition-colors flex items-center gap-2 shadow-xs"
                     >
                         <span>+</span>
-                        <span>Yangi EJM Shabloni</span>
+                        <span>{t("newTemplate")}</span>
                     </button>
                 </div>
             </div>
@@ -533,10 +522,10 @@ export default function EjmTemplateManager() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-3">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-black uppercase tracking-wider text-black">
-                            Bo'limlar Bo'yicha EJM Rejalari:
+                            {t("plansByDept")}
                         </span>
                         <span className="text-[11px] font-bold px-2 py-0.5 bg-black text-white uppercase rounded-xs">
-                            {selectedDepartmentId === "ALL" ? "Barcha Xodimlar (Umumiy)" : selectedDeptObj?.name || "Bo'lim"}
+                            {selectedDepartmentId === "ALL" ? t("allEmployees") : selectedDeptObj?.name || "Department"}
                         </span>
                     </div>
 
@@ -544,7 +533,7 @@ export default function EjmTemplateManager() {
                         onClick={handleResetStagesToDefault}
                         className="text-[10px] font-bold text-gray-500 hover:text-black uppercase tracking-wider underline"
                     >
-                        Standart Rejani Tiklash
+                        {t("resetDefault")}
                     </button>
                 </div>
 
@@ -557,7 +546,7 @@ export default function EjmTemplateManager() {
                                 : "bg-white text-black border border-gray-300 hover:border-black"
                         }`}
                     >
-                        🏢 Barcha Xodimlar (Umumiy)
+                        🏢 {t("allEmployees")}
                     </button>
 
                     {departments.map((dept) => (
@@ -582,11 +571,11 @@ export default function EjmTemplateManager() {
                     <div className="flex items-center gap-2">
                         <h3 className="text-sm font-black uppercase tracking-wider text-black">
                             {selectedDepartmentId === "ALL"
-                                ? "Umumiy Xodimlar Uchun EJM Bosqichlar Ketma-ketligi"
-                                : `"${selectedDeptObj?.name || "Bo'lim"}" Uchun Maxsus EJM Bosqichlari`}
+                                ? t("generalStagesSequence")
+                                : t("deptStagesSequence", { dept: selectedDeptObj?.name || "Department" })}
                         </h3>
                         <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 border border-purple-200">
-                            {visibleStages.length} ta bosqich
+                            {t("stageCount", { count: visibleStages.length })}
                         </span>
                     </div>
                 </div>
@@ -595,13 +584,13 @@ export default function EjmTemplateManager() {
                     <div className="p-8 text-center border border-dashed border-gray-300 flex flex-col items-center justify-center gap-3">
                         <span className="text-2xl">📁</span>
                         <p className="text-xs font-bold uppercase text-gray-500">
-                            "{selectedDeptObj?.name || "Bo'lim"}" uchun alohida EJM bosqichlari kiritilmagan.
+                            {t("noStagesForDept", { dept: selectedDeptObj?.name || "Department" })}
                         </p>
                         <button
                             onClick={handleOpenCreateStageModal}
                             className="px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-gray-800"
                         >
-                            + Shu Bo'lim Uchun Bosqich Qo'shish
+                            {t("addStageForDept")}
                         </button>
                     </div>
                 ) : (
@@ -614,7 +603,7 @@ export default function EjmTemplateManager() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-xs font-black px-2 py-0.5 bg-black text-white rounded-xs">
-                                            Bosqich {st.step || String(idx + 1).padStart(2, "0")}
+                                            {t("stage")} {st.step || String(idx + 1).padStart(2, "0")}
                                         </span>
                                         <span className="text-base">{st.icon}</span>
                                     </div>
@@ -624,13 +613,13 @@ export default function EjmTemplateManager() {
                                             onClick={() => handleOpenEditStageModal(st)}
                                             className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-white text-black border border-gray-300 hover:bg-black hover:text-white transition-colors"
                                         >
-                                            Edit
+                                            {t("edit")}
                                         </button>
                                         <button
                                             onClick={() => handleDeleteStage(st.id)}
                                             className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-white text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition-colors"
                                         >
-                                            ✕
+                                            {t("delete")}
                                         </button>
                                     </div>
                                 </div>
@@ -646,16 +635,16 @@ export default function EjmTemplateManager() {
 
                                 {st.transitionValue && (
                                     <div className="text-[9px] font-bold text-purple-800 bg-purple-100/80 border border-purple-200 px-2 py-1 rounded-xs flex items-center justify-between">
-                                        <span>⚡ O'tish mezoni:</span>
+                                        <span>{t("transitionCriterion")}</span>
                                         <span className="font-extrabold">{st.transitionValue}</span>
                                     </div>
                                 )}
 
                                 <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-gray-600 border-t border-gray-300/40 pt-2">
-                                    <span>Tizim: {st.stage}</span>
+                                    <span>{t("systemPrefix")} {st.stage}</span>
                                     {st.departmentId && st.departmentId !== "ALL" && (
                                         <span className="px-1.5 py-0.5 bg-purple-200 text-purple-900 rounded-xs font-bold truncate max-w-[120px]">
-                                            {departments.find((d) => d.id === st.departmentId)?.name || "Bo'lim"}
+                                            {departments.find((d) => d.id === st.departmentId)?.name || "Department"}
                                         </span>
                                     )}
                                 </div>
@@ -668,17 +657,17 @@ export default function EjmTemplateManager() {
             <div className="flex flex-col gap-4 border-t border-gray-200 pt-6">
                 <div className="flex items-center justify-between">
                     <h3 className="text-sm font-black uppercase tracking-wider text-black">
-                        Bo'limlar & Lavozimlar Uchun Maxsus EJM Shablonlari ({templates.length})
+                        {t("specialTemplatesTitle", { count: templates.length })}
                     </h3>
                 </div>
 
                 {loading ? (
                     <div className="p-8 text-center border border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-400 animate-pulse">
-                        EJM shablonlari yuklanmoqda...
+                        {t("loadingTemplates")}
                     </div>
                 ) : templates.length === 0 ? (
                     <div className="p-8 text-center border border-dashed border-gray-300 text-xs font-bold uppercase tracking-wider text-gray-400">
-                        Hozircha maxsus shablonlar yaratilmagan. Yuqoridagi "+ Yangi EJM Shabloni" tugmasi orqali yangi shablon qo'shishingiz mumkin.
+                        {t("noTemplates")}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -697,13 +686,13 @@ export default function EjmTemplateManager() {
                                                 onClick={() => handleOpenEditTemplateModal(tpl)}
                                                 className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-gray-100 hover:bg-black hover:text-white border border-gray-300 transition-colors"
                                             >
-                                                Tahrirlash
+                                                {t("editTemplate")}
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteTemplate(tpl.id)}
                                                 className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 hover:bg-red-600 hover:text-white border border-red-200 transition-colors"
                                             >
-                                                O'chirish
+                                                {t("deleteTemplate")}
                                             </button>
                                         </div>
                                     </div>
@@ -722,17 +711,17 @@ export default function EjmTemplateManager() {
                                 {tpl.tasks && tpl.tasks.length > 0 && (
                                     <div className="border-t border-gray-100 pt-3 flex flex-col gap-1.5">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                            Rejalashtirilgan topshiriqlar ({tpl.tasks.length}):
+                                            {t("plannedTasks", { count: tpl.tasks.length })}
                                         </span>
                                         <div className="flex flex-col gap-1">
-                                            {tpl.tasks.map((t, tIdx) => (
+                                            {tpl.tasks.map((tsk, tIdx) => (
                                                 <div
-                                                    key={t.id || tIdx}
+                                                    key={tsk.id || tIdx}
                                                     className="flex items-center justify-between text-xs font-medium text-gray-700 bg-gray-50 p-1.5 border border-gray-200"
                                                 >
-                                                    <span>• {t.title}</span>
+                                                    <span>• {tsk.title}</span>
                                                     <span className="text-[10px] font-bold font-mono text-gray-500">
-                                                        +{t.dueDays} kun
+                                                        {t("daysSuffix", { days: tsk.dueDays })}
                                                     </span>
                                                 </div>
                                             ))}
@@ -750,7 +739,7 @@ export default function EjmTemplateManager() {
                     <div className="bg-white border-2 border-black w-full max-w-lg p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex items-center justify-between border-b border-black pb-3">
                             <h3 className="text-base font-black uppercase tracking-tight text-black">
-                                {editingStage ? "EJM Bosqichini Tahrirlash" : "Yangi EJM Bosqichi Qo'shish"}
+                                {editingStage ? t("stageModalEditTitle") : t("stageModalAddTitle")}
                             </h3>
                             <button
                                 onClick={() => setIsStageModalOpen(false)}
@@ -763,14 +752,14 @@ export default function EjmTemplateManager() {
                         <form onSubmit={handleSaveStage} className="flex flex-col gap-4">
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    Tegishli Bo'lim *
+                                    {t("relatedDept")}
                                 </label>
                                 <select
                                     value={stageDept}
                                     onChange={(e) => setStageDept(e.target.value)}
                                     className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-black"
                                 >
-                                    <option value="ALL">🏢 Barcha Bo'limlar & Xodimlar uchun (Umumiy)</option>
+                                    <option value="ALL">🏢 {t("allEmployees")}</option>
                                     {departments.map((d) => (
                                         <option key={d.id} value={d.id}>
                                             📁 {d.name}
@@ -781,12 +770,12 @@ export default function EjmTemplateManager() {
 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    Bosqich Nomi *
+                                    {t("stageName")}
                                 </label>
                                 <input
                                     type="text"
                                     required
-                                    placeholder="Masalan: 6-oylik ekspertiza va oraliq baholash"
+                                    placeholder={t("stageNamePlaceholder")}
                                     value={stageTitle}
                                     onChange={(e) => setStageTitle(e.target.value)}
                                     className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
@@ -796,26 +785,26 @@ export default function EjmTemplateManager() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                        Tizim Bosqichi Turi
+                                        {t("systemStageType")}
                                     </label>
                                     <select
                                         value={stageType}
                                         onChange={(e) => setStageType(e.target.value)}
                                         className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-black"
                                     >
-                                        <option value="PRE_HIRE">📝 PRE_HIRE (Nomzodlik)</option>
-                                        <option value="HIRED">🚀 HIRED (Ishga qabul)</option>
-                                        <option value="ONBOARDING">📚 ONBOARDING (Moslashuv)</option>
-                                        <option value="PROBATION">🛡️ PROBATION (Sinov muddati)</option>
-                                        <option value="REGULAR_WORK">⭐ REGULAR_WORK (Asosiy faoliyat)</option>
-                                        <option value="PROMOTION">👑 PROMOTION (Greyd & O'sish)</option>
-                                        <option value="OFFBOARDING">🏁 OFFBOARDING (Yakun)</option>
+                                        <option value="PRE_HIRE">📝 PRE_HIRE</option>
+                                        <option value="HIRED">🚀 HIRED</option>
+                                        <option value="ONBOARDING">📚 ONBOARDING</option>
+                                        <option value="PROBATION">🛡️ PROBATION</option>
+                                        <option value="REGULAR_WORK">⭐ REGULAR_WORK</option>
+                                        <option value="PROMOTION">👑 PROMOTION</option>
+                                        <option value="OFFBOARDING">🏁 OFFBOARDING</option>
                                     </select>
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                        Ikonka (Emoji)
+                                        {t("iconEmoji")}
                                     </label>
                                     <input
                                         type="text"
@@ -830,10 +819,10 @@ export default function EjmTemplateManager() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <label className="text-xs font-black uppercase tracking-wider text-purple-950">
-                                            ⚡ Keyingi Bosqichga Avtomatik O'tish Mezoni
+                                            {t("autoTransitionCriterion")}
                                         </label>
                                         <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">
-                                            Avtomatlashtirish
+                                            {t("automationBadge")}
                                         </span>
                                     </div>
                                     <button
@@ -841,7 +830,7 @@ export default function EjmTemplateManager() {
                                         onClick={() => setIsManagingConditions(!isManagingConditions)}
                                         className="text-[10px] font-black uppercase tracking-wider text-purple-700 hover:text-black underline cursor-pointer"
                                     >
-                                        {isManagingConditions ? "✕ Yopish" : "⚙️ Mezonlarni Boshqarish"}
+                                        {isManagingConditions ? t("closeManaging") : t("manageCriteria")}
                                     </button>
                                 </div>
 
@@ -849,10 +838,10 @@ export default function EjmTemplateManager() {
                                     <div className="flex flex-col gap-2.5 bg-white p-3 border border-purple-200 shadow-xs">
                                         <div className="flex items-center justify-between border-b border-gray-200 pb-1.5">
                                             <span className="text-[11px] font-black uppercase tracking-wider text-black">
-                                                Mezon Kategoriyalarini Tahrirlash & Qo'shish
+                                                {t("criteriaCategoriesTitle")}
                                             </span>
                                             <span className="text-[9px] font-bold text-gray-500">
-                                                (Faqat joriy kompaniya uchun)
+                                                {t("companyOnly")}
                                             </span>
                                         </div>
 
@@ -876,7 +865,7 @@ export default function EjmTemplateManager() {
                                                                 onClick={() => handleSaveEditCondition(cond.id)}
                                                                 className="px-2 py-0.5 bg-black text-white text-[10px] font-bold uppercase"
                                                             >
-                                                                Saqlash
+                                                                {t("save")}
                                                             </button>
                                                             <button
                                                                 type="button"
@@ -886,7 +875,7 @@ export default function EjmTemplateManager() {
                                                                 }}
                                                                 className="px-1.5 py-0.5 text-[10px] text-gray-600 hover:text-black font-bold"
                                                             >
-                                                                Bekor
+                                                                {t("cancel")}
                                                             </button>
                                                         </div>
                                                     ) : (
@@ -903,14 +892,14 @@ export default function EjmTemplateManager() {
                                                                     }}
                                                                     className="px-1.5 py-0.5 text-[9px] font-bold bg-white text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white"
                                                                 >
-                                                                    Tahrirlash
+                                                                    {t("edit")}
                                                                 </button>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleDeleteCondition(cond.id)}
                                                                     className="px-1.5 py-0.5 text-[9px] font-bold bg-white text-red-600 border border-red-200 hover:bg-red-600 hover:text-white"
                                                                 >
-                                                                    ✕
+                                                                    {t("delete")}
                                                                 </button>
                                                             </div>
                                                         </>
@@ -922,7 +911,7 @@ export default function EjmTemplateManager() {
                                         <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
                                             <input
                                                 type="text"
-                                                placeholder="+ Yangi mezon nomi (masalan: 🎯 KPI 80% dan oshganda)..."
+                                                placeholder={t("newCriterionPlaceholder")}
                                                 value={newConditionLabel}
                                                 onChange={(e) => setNewConditionLabel(e.target.value)}
                                                 className="flex-1 p-1.5 bg-gray-50 border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
@@ -932,14 +921,14 @@ export default function EjmTemplateManager() {
                                                 onClick={handleAddCondition}
                                                 className="px-3 py-1.5 bg-purple-700 text-white text-xs font-black uppercase tracking-wider hover:bg-purple-800 shrink-0"
                                             >
-                                                + Qo'shish
+                                                {t("addBtn")}
                                             </button>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                                         <div className="flex flex-col gap-1">
-                                            <label className="text-[11px] font-bold uppercase text-gray-700">O'tish Sharti</label>
+                                            <label className="text-[11px] font-bold uppercase text-gray-700">{t("transitionCondition")}</label>
                                             <select
                                                 value={stageCondition}
                                                 onChange={(e) => {
@@ -959,10 +948,10 @@ export default function EjmTemplateManager() {
                                             </select>
                                         </div>
                                         <div className="flex flex-col gap-1">
-                                            <label className="text-[11px] font-bold uppercase text-gray-700">Mezon Qiymati / Talabi</label>
+                                            <label className="text-[11px] font-bold uppercase text-gray-700">{t("criterionValue")}</label>
                                             <input
                                                 type="text"
-                                                placeholder="Masalan: 100% yoki 30 kun"
+                                                placeholder={t("criterionValuePlaceholder")}
                                                 value={stageConditionValue}
                                                 onChange={(e) => setStageConditionValue(e.target.value)}
                                                 className="p-2 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
@@ -974,11 +963,11 @@ export default function EjmTemplateManager() {
 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    Tavsif & Kutilayotgan natijalar
+                                    {t("descAndResults")}
                                 </label>
                                 <textarea
                                     rows={2}
-                                    placeholder="Ushbu bosqichda xodim qanday vazifalarni bajarishi va qanday natijaga erishishi kerak..."
+                                    placeholder={t("descPlaceholder")}
                                     value={stageDesc}
                                     onChange={(e) => setStageDesc(e.target.value)}
                                     className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black resize-none"
@@ -991,13 +980,13 @@ export default function EjmTemplateManager() {
                                     onClick={() => setIsStageModalOpen(false)}
                                     className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
                                 >
-                                    Bekor Qilish
+                                    {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
                                     className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
                                 >
-                                    Saqlash
+                                    {t("save")}
                                 </button>
                             </div>
                         </form>
@@ -1010,7 +999,7 @@ export default function EjmTemplateManager() {
                     <div className="bg-white border-2 border-black w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex items-center justify-between border-b border-black pb-3">
                             <h3 className="text-base font-black uppercase tracking-tight text-black">
-                                {editingTemplate ? "EJM Shablonini Tahrirlash" : "Yangi EJM Shabloni Yaratish"}
+                                {editingTemplate ? t("templateModalEditTitle") : t("templateModalAddTitle")}
                             </h3>
                             <button
                                 onClick={() => setIsTemplateModalOpen(false)}
@@ -1023,12 +1012,12 @@ export default function EjmTemplateManager() {
                         <form onSubmit={handleSaveTemplate} className="flex flex-col gap-4">
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    Shablon Nomi *
+                                    {t("templateName")}
                                 </label>
                                 <input
                                     type="text"
                                     required
-                                    placeholder="Masalan: Onboarding va Karyera rejasi"
+                                    placeholder={t("templateNamePlaceholder")}
                                     value={formTitle}
                                     onChange={(e) => setFormTitle(e.target.value)}
                                     className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
@@ -1037,29 +1026,29 @@ export default function EjmTemplateManager() {
 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    Bosqich Turi (Lifecycle Stage)
+                                    {t("lifecycleStage")}
                                 </label>
                                 <select
                                     value={formStage}
                                     onChange={(e) => setFormStage(e.target.value)}
                                     className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-black"
                                 >
-                                    <option value="PRE_HIRE">📝 PRE_HIRE (Nomzodlik & Tanlov)</option>
-                                    <option value="ONBOARDING">📚 ONBOARDING (Moslashuv dasturi)</option>
-                                    <option value="PROBATION">🛡️ PROBATION (Sinov muddati)</option>
-                                    <option value="REGULAR_WORK">⭐ REGULAR_WORK (Asosiy faoliyat & OKR)</option>
-                                    <option value="PROMOTION">👑 PROMOTION (Greyd oshirish & Karyera)</option>
-                                    <option value="OFFBOARDING">🏁 OFFBOARDING (Mehnat yakuni)</option>
+                                    <option value="PRE_HIRE">📝 PRE_HIRE</option>
+                                    <option value="ONBOARDING">📚 ONBOARDING</option>
+                                    <option value="PROBATION">🛡️ PROBATION</option>
+                                    <option value="REGULAR_WORK">⭐ REGULAR_WORK</option>
+                                    <option value="PROMOTION">👑 PROMOTION</option>
+                                    <option value="OFFBOARDING">🏁 OFFBOARDING</option>
                                 </select>
                             </div>
 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    Tavsif
+                                    {t("desc")}
                                 </label>
                                 <textarea
                                     rows={2}
-                                    placeholder="Ushbu shablon qaysi xodimlar yoki bo'limlarga mo'ljallangan..."
+                                    placeholder={t("templateDescPlaceholder")}
                                     value={formDescription}
                                     onChange={(e) => setFormDescription(e.target.value)}
                                     className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black resize-none"
@@ -1069,14 +1058,14 @@ export default function EjmTemplateManager() {
                             <div className="flex flex-col gap-2 border-t border-gray-200 pt-3">
                                 <div className="flex items-center justify-between">
                                     <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                        Bosqich Topshiriqlari & Qadamlari
+                                        {t("stageTasksAndSteps")}
                                     </label>
                                     <button
                                         type="button"
                                         onClick={handleAddTaskRow}
                                         className="text-[11px] font-bold text-blue-600 hover:text-black uppercase tracking-wider"
                                     >
-                                        + Qadam Qo'shish
+                                        {t("addStep")}
                                     </button>
                                 </div>
 
@@ -1089,7 +1078,7 @@ export default function EjmTemplateManager() {
                                             <input
                                                 type="text"
                                                 required
-                                                placeholder="Topshiriq nomi..."
+                                                placeholder={t("taskNamePlaceholder")}
                                                 value={task.title}
                                                 onChange={(e) => handleTaskChange(tIdx, "title", e.target.value)}
                                                 className="flex-1 p-1.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
@@ -1102,7 +1091,7 @@ export default function EjmTemplateManager() {
                                                     onChange={(e) => handleTaskChange(tIdx, "dueDays", parseInt(e.target.value) || 1)}
                                                     className="w-16 p-1.5 bg-white border border-gray-300 text-xs font-bold text-center text-black focus:outline-none focus:border-black"
                                                 />
-                                                <span className="text-[10px] font-bold text-gray-500 uppercase">kun</span>
+                                                <span className="text-[10px] font-bold text-gray-500 uppercase">{t("day")}</span>
                                             </div>
                                             {tasks.length > 1 && (
                                                 <button
@@ -1124,14 +1113,14 @@ export default function EjmTemplateManager() {
                                     onClick={() => setIsTemplateModalOpen(false)}
                                     className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
                                 >
-                                    Bekor Qilish
+                                    {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saving}
                                     className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
                                 >
-                                    {saving ? "Saqlanmoqda..." : "Saqlash"}
+                                    {saving ? t("saving") : t("save")}
                                 </button>
                             </div>
                         </form>

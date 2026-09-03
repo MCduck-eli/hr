@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { JobGrade } from "@/src/services/grading-service";
 
 interface LevelItem {
@@ -18,15 +19,6 @@ interface CreateGradeModalProps {
     companyName?: string | null;
 }
 
-const DEFAULT_LEVELS: LevelItem[] = [
-    { value: 1, label: "Junior / Boshlang'ich" },
-    { value: 2, label: "Middle / O'rta" },
-    { value: 3, label: "Senior / Katta" },
-    { value: 4, label: "Lead / Yetakchi" },
-    { value: 5, label: "Principal / Rahbariyat" },
-    { value: 6, label: "Executive / Yuqori boshqaruv" },
-];
-
 export default function CreateGradeModal({
     isOpen,
     onClose,
@@ -35,6 +27,17 @@ export default function CreateGradeModal({
     existingGrades = [],
     companyName,
 }: CreateGradeModalProps) {
+    const t = useTranslations("Grading");
+
+    const defaultLevelsList: LevelItem[] = [
+        { value: 1, label: t("defaultLevels.1") },
+        { value: 2, label: t("defaultLevels.2") },
+        { value: 3, label: t("defaultLevels.3") },
+        { value: 4, label: t("defaultLevels.4") },
+        { value: 5, label: t("defaultLevels.5") },
+        { value: 6, label: t("defaultLevels.6") },
+    ];
+
     const [code, setCode] = useState("");
     const [title, setTitle] = useState("");
     const [level, setLevel] = useState<number>(1);
@@ -45,7 +48,7 @@ export default function CreateGradeModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const [levelsList, setLevelsList] = useState<LevelItem[]>(DEFAULT_LEVELS);
+    const [levelsList, setLevelsList] = useState<LevelItem[]>(defaultLevelsList);
     const [isManagingLevels, setIsManagingLevels] = useState(false);
     const [editingLevelValue, setEditingLevelValue] = useState<number | null>(null);
     const [newLevelNum, setNewLevelNum] = useState<number>(7);
@@ -58,7 +61,7 @@ export default function CreateGradeModal({
     useEffect(() => {
         if (!isOpen) return;
 
-        let loadedLevels: LevelItem[] = [...DEFAULT_LEVELS];
+        let loadedLevels: LevelItem[] = [...defaultLevelsList];
         try {
             const saved = localStorage.getItem(companyStorageKey);
             if (saved) {
@@ -74,7 +77,7 @@ export default function CreateGradeModal({
             if (!loadedLevels.some((l) => l.value === g.level)) {
                 loadedLevels.push({
                     value: g.level,
-                    label: `Level ${g.level} - Maxsus daraja`,
+                    label: `Level ${g.level}`,
                     isCustom: true,
                 });
             }
@@ -127,12 +130,10 @@ export default function CreateGradeModal({
         setLevelManagerError(null);
 
         if (!newLevelNum || newLevelNum < 1) {
-            setLevelManagerError("Level raqami 1 yoki undan katta bo'lishi kerak.");
             return;
         }
 
         if (!newLevelName.trim()) {
-            setLevelManagerError("Level nomini kiriting.");
             return;
         }
 
@@ -155,7 +156,6 @@ export default function CreateGradeModal({
             setNewLevelNum(maxLvl + 1);
         } else {
             if (levelsList.some((l) => l.value === Number(newLevelNum))) {
-                setLevelManagerError(`Level ${newLevelNum} allaqachon mavjud. Uni tahrirlashingiz mumkin.`);
                 return;
             }
 
@@ -184,7 +184,7 @@ export default function CreateGradeModal({
     const handleDeleteLevel = (levelVal: number) => {
         const hasGrades = existingGrades.some((g) => g.level === levelVal);
         if (hasGrades) {
-            if (!confirm(`Level ${levelVal} ga biriktirilgan greydlar mavjud. Baribir o'chirishni xohlaysizmi?`)) {
+            if (!confirm(`Level ${levelVal}`)) {
                 return;
             }
         }
@@ -205,17 +205,14 @@ export default function CreateGradeModal({
         setError(null);
 
         if (!code.trim() || !title.trim()) {
-            setError("Greyd kodi va nomi to'ldirilishi shart.");
             return;
         }
 
         if (level < 1) {
-            setError("Daraja (Level) 1 yoki undan yuqori bo'lishi kerak.");
             return;
         }
 
         if (minSalary > maxSalary) {
-            setError("Minimal maosh maksimal maoshdan katta bo'lishi mumkin emas.");
             return;
         }
 
@@ -232,7 +229,7 @@ export default function CreateGradeModal({
             });
             onClose();
         } catch (err: any) {
-            setError(err.message || "Greydni saqlashda xatolik yuz berdi.");
+            setError(err.message || "Error");
         } finally {
             setIsSubmitting(false);
         }
@@ -244,11 +241,8 @@ export default function CreateGradeModal({
                 <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
                     <div>
                         <h2 className="text-xl font-bold uppercase tracking-tight text-black">
-                            {editingGrade ? "Greydni Tahrirlash" : "Yangi Greyd Yaratish"}
+                            {editingGrade ? t("editGradeTitle") : t("createGradeTitle")}
                         </h2>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                            Lavozim darajasi, talablar va maosh chegaralarini belgilang
-                        </p>
                     </div>
                     <button
                         onClick={onClose}
@@ -270,13 +264,13 @@ export default function CreateGradeModal({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                                Greyd Kodi *
+                                {t("gradeCode")} *
                             </label>
                             <input
                                 type="text"
                                 value={code}
                                 onChange={(e) => setCode(e.target.value)}
-                                placeholder="Masalan: G-1, SE-JUNIOR, M-1"
+                                placeholder={t("gradeCodePlaceholder")}
                                 className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
                                 required
                             />
@@ -285,7 +279,7 @@ export default function CreateGradeModal({
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
                                 <label className="block text-xs font-bold uppercase tracking-wider text-black">
-                                    Daraja (Level) *
+                                    {t("gradeLevel")} *
                                 </label>
                                 <button
                                     type="button"
@@ -296,7 +290,7 @@ export default function CreateGradeModal({
                                     className="text-[11px] font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-1"
                                 >
                                     <span>⚙️</span>
-                                    {isManagingLevels ? "Yopish" : "Darajalarni sozlash"}
+                                    {isManagingLevels ? t("cancel") : t("manageLevels")}
                                 </button>
                             </div>
 
@@ -318,10 +312,7 @@ export default function CreateGradeModal({
                         <div className="border border-blue-300 bg-blue-50/50 p-4 space-y-4">
                             <div className="flex items-center justify-between border-b border-blue-200 pb-2">
                                 <span className="text-xs font-bold uppercase tracking-wider text-blue-900">
-                                    Darajalarni (Level) Qo'shish, Tahrirlash va O'chirish
-                                </span>
-                                <span className="text-[10px] text-blue-700 font-medium">
-                                    Faqat ushbu kompaniya uchun amal qiladi
+                                    {t("manageLevels")}
                                 </span>
                             </div>
 
@@ -353,14 +344,14 @@ export default function CreateGradeModal({
                                                 onClick={() => handleStartEditLevel(lvl)}
                                                 className="text-blue-600 hover:text-blue-800 font-bold px-2 py-0.5 text-[11px] border border-blue-200 hover:bg-blue-50"
                                             >
-                                                Tahrirlash
+                                                {t("edit")}
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => handleDeleteLevel(lvl.value)}
                                                 className="text-red-600 hover:text-red-800 font-bold px-2 py-0.5 text-[11px] border border-red-200 hover:bg-red-50"
                                             >
-                                                O'chirish
+                                                {t("delete")}
                                             </button>
                                         </div>
                                     </div>
@@ -368,13 +359,10 @@ export default function CreateGradeModal({
                             </div>
 
                             <div className="bg-white border border-blue-200 p-3 space-y-3">
-                                <div className="text-xs font-bold text-black uppercase tracking-wider">
-                                    {editingLevelValue !== null ? `Level ${editingLevelValue} ni tahrirlash` : "+ Yangi Daraja (Level) qo'shish"}
-                                </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                     <div>
                                         <label className="block text-[10px] font-bold uppercase text-gray-600 mb-1">
-                                            Level Raqami *
+                                            Level *
                                         </label>
                                         <input
                                             type="number"
@@ -389,14 +377,14 @@ export default function CreateGradeModal({
                                     </div>
                                     <div className="sm:col-span-2">
                                         <label className="block text-[10px] font-bold uppercase text-gray-600 mb-1">
-                                            Level Nomi va Tavsifi *
+                                            Title *
                                         </label>
                                         <input
                                             type="text"
                                             value={newLevelName}
                                             onChange={(e) => setNewLevelName(e.target.value)}
                                             className="w-full border border-gray-300 p-2 text-xs focus:border-black focus:outline-none"
-                                            placeholder="Masalan: Staff Engineer, Bo'lim Boshlig'i, Direktor"
+                                            placeholder="Level name"
                                             required
                                         />
                                     </div>
@@ -413,7 +401,7 @@ export default function CreateGradeModal({
                                             }}
                                             className="px-3 py-1.5 border border-gray-300 text-xs font-bold uppercase"
                                         >
-                                            Bekor qilish
+                                            {t("cancel")}
                                         </button>
                                     )}
                                     <button
@@ -421,7 +409,7 @@ export default function CreateGradeModal({
                                         onClick={handleAddOrUpdateLevel}
                                         className="px-4 py-1.5 bg-blue-700 text-white text-xs font-bold uppercase hover:bg-blue-800"
                                     >
-                                        {editingLevelValue !== null ? "Yangilash" : "Darajani Qo'shish"}
+                                        {t("save")}
                                     </button>
                                 </div>
                             </div>
@@ -430,13 +418,13 @@ export default function CreateGradeModal({
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                            Greyd Nomi (Lavozim darajasi) *
+                            {t("gradeTitle")} *
                         </label>
                         <input
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Masalan: Junior Software Engineer, Senior Marketing Specialist"
+                            placeholder={t("gradeTitlePlaceholder")}
                             className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
                             required
                         />
@@ -445,7 +433,7 @@ export default function CreateGradeModal({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                                Min Maosh (UZS) *
+                                {t("minSalary")} *
                             </label>
                             <input
                                 type="number"
@@ -463,7 +451,7 @@ export default function CreateGradeModal({
 
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                                Max Maosh (UZS) *
+                                {t("maxSalary")} *
                             </label>
                             <input
                                 type="number"
@@ -482,26 +470,26 @@ export default function CreateGradeModal({
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                            Malakaviy Talablar (Ko'nikmalar, Tajriba)
+                            {t("requirements")}
                         </label>
                         <textarea
                             value={requirements}
                             onChange={(e) => setRequirements(e.target.value)}
                             rows={3}
-                            placeholder="Ushbu daraja uchun kerakli bilim, staj va kompetensiyalar..."
+                            placeholder={t("requirementsPlaceholder")}
                             className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
                         />
                     </div>
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                            Mas'uliyat va Vazifalar
+                            {t("responsibilities")}
                         </label>
                         <textarea
                             value={responsibilities}
                             onChange={(e) => setResponsibilities(e.target.value)}
                             rows={3}
-                            placeholder="Bu darajadagi xodimdan kutiladigan asosiy vazifalar..."
+                            placeholder={t("responsibilitiesPlaceholder")}
                             className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
                         />
                     </div>
@@ -513,14 +501,14 @@ export default function CreateGradeModal({
                             disabled={isSubmitting}
                             className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
                         >
-                            Bekor qilish
+                            {t("cancel")}
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
                             className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
                         >
-                            {isSubmitting ? "Saqlanmoqda..." : editingGrade ? "Yangilash" : "Yaratish"}
+                            {isSubmitting ? t("saving") : t("save")}
                         </button>
                     </div>
                 </form>

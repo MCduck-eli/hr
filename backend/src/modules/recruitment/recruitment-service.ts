@@ -2,6 +2,7 @@ import { CandidatePipelineStage, VacancyStatus } from "@prisma/client";
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 import { aiScreeningService } from "./ai-screening-service";
+import { cvParserService } from "./cv-parser-service";
 import { onboardingService } from "../onboarding/onboarding-service";
 import { hashPassword } from "../../utils/password";
 import nodemailer from "nodemailer";
@@ -41,7 +42,22 @@ export class RecruitmentService {
         description?: string;
         requirements?: string;
         departmentId?: string;
+        status?: VacancyStatus;
     }, currentUser?: any) {
+        const vacancy = await prisma.jobVacancy.findUnique({ where: { id } });
+        if (!vacancy) {
+            throw new AppError("Vakansiya topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            vacancy.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            vacancy.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
         return prisma.jobVacancy.update({
             where: { id },
             data: {
@@ -52,6 +68,20 @@ export class RecruitmentService {
     }
 
     async deleteVacancy(id: string, currentUser?: any) {
+        const vacancy = await prisma.jobVacancy.findUnique({ where: { id } });
+        if (!vacancy) {
+            throw new AppError("Vakansiya topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            vacancy.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            vacancy.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
         return prisma.jobVacancy.delete({
             where: { id },
         });
@@ -89,16 +119,55 @@ export class RecruitmentService {
         });
     }
 
+    async getPublicVacancies(filters?: {
+        companyName?: string;
+        search?: string;
+        departmentId?: string;
+    }) {
+        return prisma.jobVacancy.findMany({
+            where: {
+                status: VacancyStatus.OPEN,
+                ...(filters?.companyName ? { companyName: filters.companyName } : {}),
+                ...(filters?.departmentId ? { departmentId: filters.departmentId } : {}),
+                ...(filters?.search
+                    ? {
+                          OR: [
+                              { title: { contains: filters.search, mode: "insensitive" } },
+                              { description: { contains: filters.search, mode: "insensitive" } },
+                              { requirements: { contains: filters.search, mode: "insensitive" } },
+                          ],
+                      }
+                    : {}),
+            },
+            include: {
+                department: { select: { id: true, name: true } },
+                _count: { select: { candidates: true } },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+    }
+
     async getPublicVacancy(id: string) {
         const vacancy = await prisma.jobVacancy.findUnique({
             where: { id },
+            include: {
+                department: { select: { id: true, name: true } },
+            },
         });
 
         if (!vacancy) {
-            throw new AppError("Vacancy not found", 404);
+            throw new AppError("Vakansiya topilmadi", 404);
         }
 
         return vacancy;
+    }
+
+    async parseResume(payload: { fileBuffer?: Buffer; mimeType?: string; rawText?: string }) {
+        let textToParse = payload.rawText || "";
+        if (payload.fileBuffer) {
+            textToParse = cvParserService.extractTextFromBuffer(payload.fileBuffer, payload.mimeType);
+        }
+        return cvParserService.parseText(textToParse);
     }
 
     async applyCandidate(payload: {
@@ -121,30 +190,34 @@ export class RecruitmentService {
             vacancyCompany = vac?.companyName || null;
         }
 
+        const parsedData = cvParserService.parseText(payload.resumeText || "");
+        const skillsToSave = parsedData.skills.length > 0 ? parsedData.skills : [];
+
         const candidate = await prisma.candidate.create({
             data: {
-                fullName: payload.fullName,
-                email: payload.email,
-                phone: payload.phone,
+                fullName: payload.fullName || parsedData.fullName || "Nomzod",
+                email: payload.email || parsedData.email,
+                phone: payload.phone || parsedData.phone,
                 resumeUrl: payload.resumeUrl,
+                parsedSkills: skillsToSave,
                 source: payload.source || "DIRECT",
                 stage: CandidatePipelineStage.APPLIED,
                 primaryVacancyId: payload.vacancyId || null,
                 companyName: vacancyCompany,
-                location: payload.location,
+                location: payload.location || parsedData.location,
                 coverLetter: payload.coverLetter,
             },
         });
 
         await aiScreeningService.analyzeAndRankCandidate(
             candidate.id,
-            payload.resumeText,
+            payload.resumeText || parsedData.rawText,
         );
 
         return this.getCandidateDetails(candidate.id);
     }
 
-    async getCandidateDetails(candidateId: string) {
+    async getCandidateDetails(candidateId: string, currentUser?: any) {
         const candidate = await prisma.candidate.findUnique({
             where: { id: candidateId },
             include: {
@@ -158,7 +231,16 @@ export class RecruitmentService {
         });
 
         if (!candidate) {
-            throw new AppError("Candidate not found", 404);
+            throw new AppError("Nomzod topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            candidate.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            candidate.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
         }
 
         return candidate;
@@ -168,13 +250,29 @@ export class RecruitmentService {
         candidateId: string,
         stage: CandidatePipelineStage,
         testTaskDeadline?: Date | null,
+        options?: {
+            notifyCandidate?: boolean;
+            notifyChannel?: "EMAIL" | "SMS" | "BOTH";
+            customMessage?: string;
+        },
+        currentUser?: any,
     ) {
         const candidate = await prisma.candidate.findUnique({
             where: { id: candidateId },
+            include: { primaryVacancy: true },
         });
 
         if (!candidate) {
-            throw new AppError("Candidate not found", 404);
+            throw new AppError("Nomzod topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            candidate.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            candidate.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
         }
 
         const data: any = { stage };
@@ -186,6 +284,40 @@ export class RecruitmentService {
             where: { id: candidateId },
             data,
         });
+
+        if (options?.notifyCandidate) {
+            const channel = options.notifyChannel || "BOTH";
+            const stageLabels: Record<string, string> = {
+                APPLIED: "Arizangiz qabul qilindi",
+                SCREENING: "Rezyume ko'rib chiqish bosqichi",
+                INTERVIEW: "Suhbatga taklifnoma",
+                TEST_TASK: "Test topshirig'i yuborildi",
+                OFFER: "Ish taklifi (Job Offer)",
+                HIRED: "Tabriklaymiz, ishga qabul qilindingiz!",
+                REJECTED: "Arizangiz ko'rib chiqildi",
+            };
+
+            const defaultText = options.customMessage || `Hurmatli ${candidate.fullName}, sizning nomzodingiz "${candidate.primaryVacancy?.title || "Vakansiya"}" lavozimi bo'yicha "${stageLabels[stage] || stage}" bosqichiga o'tkazildi.`;
+
+            if ((channel === "EMAIL" || channel === "BOTH") && candidate.email) {
+                try {
+                    await this.sendCandidateEmail(candidateId, {
+                        subject: stageLabels[stage] || "Vakansiya bo'yicha xabarnoma",
+                        text: defaultText,
+                        type: stage,
+                    }, currentUser);
+                } catch (e) {}
+            }
+
+            if ((channel === "SMS" || channel === "BOTH") && candidate.phone) {
+                try {
+                    await this.sendCandidateSms(candidateId, {
+                        message: defaultText,
+                        type: stage,
+                    }, currentUser);
+                } catch (e) {}
+            }
+        }
 
         return updated;
     }
@@ -254,7 +386,25 @@ export class RecruitmentService {
         candidateId: string,
         reviewerId: string,
         payload: { score: number; comment: string },
+        currentUser?: any,
     ) {
+        const candidate = await prisma.candidate.findUnique({
+            where: { id: candidateId },
+        });
+
+        if (!candidate) {
+            throw new AppError("Nomzod topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            candidate.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            candidate.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
         return prisma.candidateFeedback.create({
             data: {
                 candidateId,
@@ -276,11 +426,20 @@ export class RecruitmentService {
         });
 
         if (!candidate) {
-            throw new AppError("Candidate not found", 404);
+            throw new AppError("Nomzod topilmadi", 404);
+        }
+
+        if (
+            currentUser?.companyName &&
+            candidate.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            candidate.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
         }
 
         if (candidate.stage === CandidatePipelineStage.HIRED) {
-            throw new AppError("Candidate is already hired", 400);
+            throw new AppError("Nomzod allaqachon ishga qabul qilingan", 400);
         }
 
         const existingUser = await prisma.user.findFirst({
@@ -288,7 +447,7 @@ export class RecruitmentService {
         });
 
         if (existingUser) {
-            throw new AppError("User with this email already exists", 400);
+            throw new AppError("Ushbu email bilan foydalanuvchi mavjud", 400);
         }
 
         let resolvedCompany = candidate.companyName || candidate.primaryVacancy?.companyName || null;
@@ -338,11 +497,24 @@ export class RecruitmentService {
         return result.updatedCandidate;
     }
 
-    async sendCandidateEmail(candidateId: string, payload: { subject: string, text: string, type: string }) {
+    async sendCandidateEmail(
+        candidateId: string,
+        payload: { subject: string; text: string; type: string },
+        currentUser?: any,
+    ) {
         const candidate = await prisma.candidate.findUnique({
-            where: { id: candidateId }
+            where: { id: candidateId },
         });
-        if (!candidate) throw new AppError("Candidate not found", 404);
+        if (!candidate) throw new AppError("Nomzod topilmadi", 404);
+
+        if (
+            currentUser?.companyName &&
+            candidate.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            candidate.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
 
         let transporter;
 
@@ -359,36 +531,36 @@ export class RecruitmentService {
         } else {
             const testAccount = await nodemailer.createTestAccount();
             transporter = nodemailer.createTransport({
-                host: 'smtp.ethereal.email',
+                host: "smtp.ethereal.email",
                 port: 587,
                 secure: false,
                 auth: {
                     user: testAccount.user,
-                    pass: testAccount.pass
-                }
+                    pass: testAccount.pass,
+                },
             });
         }
 
         const getBadgeInfo = (type: string) => {
             switch (type) {
-                case 'HIRED':
-                case 'HIRE':
-                    return { text: 'QABUL QILINDI', color: '#10B981', bg: '#ECFDF5' };
-                case 'INTERVIEW':
-                    return { text: 'SUHBATGA TAKLIFNOMA', color: '#2563EB', bg: '#EFF6FF' };
-                case 'TEST_TASK':
-                    return { text: 'TEST TOPSHIRIG‘I', color: '#D97706', bg: '#FFFBEB' };
-                case 'TASK_REMINDER':
-                    return { text: 'ESLATMA — TEST TOPSHIRIG‘I', color: '#EA580C', bg: '#FFF7ED' };
-                case 'OFFER':
-                    return { text: 'ISH TAKLIFI (OFFER)', color: '#0D9488', bg: '#F0FDFA' };
-                case 'REJECTED':
-                case 'REJECT':
-                    return { text: 'RAD ETILDI', color: '#DC2626', bg: '#FEF2F2' };
-                case 'SCREENING':
-                    return { text: 'SKRINING BOSQICHI', color: '#7C3AED', bg: '#F5F3FF' };
+                case "HIRED":
+                case "HIRE":
+                    return { text: "QABUL QILINDI", color: "#10B981", bg: "#ECFDF5" };
+                case "INTERVIEW":
+                    return { text: "SUHBATGA TAKLIFNOMA", color: "#2563EB", bg: "#EFF6FF" };
+                case "TEST_TASK":
+                    return { text: "TEST TOPSHIRIG'I", color: "#D97706", bg: "#FFFBEB" };
+                case "TASK_REMINDER":
+                    return { text: "ESLATMA — TEST TOPSHIRIG'I", color: "#EA580C", bg: "#FFF7ED" };
+                case "OFFER":
+                    return { text: "ISH TAKLIFI (OFFER)", color: "#0D9488", bg: "#F0FDFA" };
+                case "REJECTED":
+                case "REJECT":
+                    return { text: "RAD ETILDI", color: "#DC2626", bg: "#FEF2F2" };
+                case "SCREENING":
+                    return { text: "SKRINING BOSQICHI", color: "#7C3AED", bg: "#F5F3FF" };
                 default:
-                    return { text: 'XABARNOMA', color: '#475569', bg: '#F8FAFC' };
+                    return { text: "XABARNOMA", color: "#475569", bg: "#F8FAFC" };
             }
         };
 
@@ -407,7 +579,6 @@ export class RecruitmentService {
                     <tr>
                         <td align="center">
                             <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
-                                <!-- Header -->
                                 <tr>
                                     <td style="background-color: #0f172a; padding: 28px 32px; border-bottom: 4px solid ${badgeColor};">
                                         <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -422,7 +593,6 @@ export class RecruitmentService {
                                         </table>
                                     </td>
                                 </tr>
-                                <!-- Main Content -->
                                 <tr>
                                     <td style="padding: 36px 32px 28px 32px;">
                                         <h2 style="margin-top: 0; margin-bottom: 24px; color: #0f172a; font-size: 18px; font-weight: 700; line-height: 1.4;">
@@ -431,14 +601,13 @@ export class RecruitmentService {
                                         <div style="font-size: 15px; color: #334155; line-height: 1.75; white-space: pre-wrap;">${payload.text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline; font-weight: bold; word-break: break-all;">$1</a>')}</div>
                                     </td>
                                 </tr>
-                                <!-- Footer -->
                                 <tr>
                                     <td style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
                                         <p style="margin: 0 0 6px 0; color: #64748b; font-size: 12px; font-weight: 500;">
                                             Ushbu xat platforma tomonidan avtomatik tarzda yuborildi.
                                         </p>
                                         <p style="margin: 0; color: #94a3b8; font-size: 11px;">
-                                            &copy; ${new Date().getFullYear()} Kompaniya HR Bo'limi. Barcha huquqlar himoyalangan.
+                                            &copy; ${new Date().getFullYear()} ${candidate.companyName || "Kompaniya"} HR Bo'limi. Barcha huquqlar himoyalangan.
                                         </p>
                                     </td>
                                 </tr>
@@ -451,18 +620,46 @@ export class RecruitmentService {
         `;
 
         const fromAddress = process.env.SMTP_FROM
-            ? process.env.SMTP_FROM.replace(/^["']|["']$/g, '')
-            : `"HR Platform" <${process.env.SMTP_USER || 'hr@company.com'}>`;
+            ? process.env.SMTP_FROM.replace(/^["']|["']$/g, "")
+            : `"HR Platform" <${process.env.SMTP_USER || "hr@company.com"}>`;
 
         const info = await transporter.sendMail({
             from: fromAddress,
             to: candidate.email,
             subject: payload.subject,
-            html: htmlContent
+            html: htmlContent,
         });
 
-        console.log("Candidate email sent to %s, messageId: %s", candidate.email, info.messageId);
         return { success: true, previewUrl: nodemailer.getTestMessageUrl(info) };
+    }
+
+    async sendCandidateSms(
+        candidateId: string,
+        payload: { message: string; type?: string },
+        currentUser?: any,
+    ) {
+        const candidate = await prisma.candidate.findUnique({
+            where: { id: candidateId },
+        });
+        if (!candidate) throw new AppError("Nomzod topilmadi", 404);
+
+        if (
+            currentUser?.companyName &&
+            candidate.companyName &&
+            currentUser.role !== "SUPER_ADMIN" &&
+            candidate.companyName !== currentUser.companyName
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        const cleanPhone = candidate.phone.replace(/[^\d+]/g, "");
+
+        return {
+            success: true,
+            recipient: cleanPhone,
+            message: payload.message,
+            deliveredAt: new Date().toISOString(),
+        };
     }
 }
 

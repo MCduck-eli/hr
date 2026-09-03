@@ -54,7 +54,7 @@ export default function HRAdminDashboard() {
                         className="px-4 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center gap-2 shadow-xs"
                     >
                         <span>🗺️</span>
-                        <span>EJM Xaritasi & Bosqichlar Rejasi</span>
+                        <span>{t("ejmMap")}</span>
                     </button>
                     <HRAttendanceWidget />
                 </div>
@@ -84,7 +84,7 @@ export default function HRAdminDashboard() {
                             Roadmap
                         </span>
                         <h2 className="text-sm font-black uppercase tracking-wider text-black group-hover:text-purple-700">
-                            EJM Bosqichlar Rejasi
+                            {t("ejmRoadmap")}
                         </h2>
                     </div>
                 </div>
@@ -162,10 +162,26 @@ export default function HRAdminDashboard() {
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black uppercase tracking-widest text-red-600">
-                                Exit & Checklist
+                                {t("offboardingSubtitle")}
                             </span>
                             <h2 className="text-sm font-black uppercase tracking-wider text-black group-hover:text-red-700">
-                                Offboarding
+                                {t("offboardingTitle")}
+                            </h2>
+                        </div>
+                    </div>
+                </Link>
+
+                <Link href={`/${locale}/hr/payroll`}>
+                    <div className="bg-white p-8 border-2 border-emerald-300 hover:border-emerald-600 transition-colors cursor-pointer flex flex-col gap-4 h-full group">
+                        <div className="w-10 h-10 bg-emerald-50 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">💰</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                                {t("payrollSubtitle")}
+                            </span>
+                            <h2 className="text-sm font-black uppercase tracking-wider text-black group-hover:text-emerald-700">
+                                {t("payrollTitle")}
                             </h2>
                         </div>
                     </div>
@@ -177,13 +193,13 @@ export default function HRAdminDashboard() {
                     <div className="bg-white border-2 border-black w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
                         <div className="flex items-center justify-between border-b border-black pb-3">
                             <h2 className="text-base font-black uppercase tracking-tight text-black">
-                                EJM Bosqichlar Rejasi & Shablonlar Boshqaruvi
+                                {t("ejmModalTitle")}
                             </h2>
                             <button
                                 onClick={() => setIsEjmModalOpen(false)}
                                 className="px-3 py-1 bg-black text-white text-xs font-bold uppercase hover:bg-gray-800"
                             >
-                                Yopish ✕
+                                {t("close")}
                             </button>
                         </div>
 

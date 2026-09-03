@@ -48,6 +48,8 @@ const taskStorage = multer.diskStorage({
 
 const uploadTask = multer({ storage: taskStorage });
 
+const memoryUpload = multer({ storage: multer.memoryStorage() });
+
 const recruitmentRouter = Router();
 
 recruitmentRouter.post(
@@ -55,6 +57,11 @@ recruitmentRouter.post(
     upload.single("resume"),
     validate(applyCandidateSchema),
     recruitmentController.applyCandidate,
+);
+
+recruitmentRouter.get(
+    "/public/vacancies",
+    recruitmentController.getPublicVacancies,
 );
 
 recruitmentRouter.get(
@@ -71,6 +78,12 @@ recruitmentRouter.post(
     "/public/candidates/:candidateId/submit-task",
     uploadTask.single("file"),
     recruitmentController.submitPublicCandidateTask,
+);
+
+recruitmentRouter.post(
+    "/parse-cv",
+    memoryUpload.single("file"),
+    recruitmentController.parseResume,
 );
 
 recruitmentRouter.get(
@@ -142,6 +155,12 @@ recruitmentRouter.post(
     authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
     validate(sendCandidateEmailSchema),
     recruitmentController.sendEmail,
+);
+
+recruitmentRouter.post(
+    "/candidates/:candidateId/sms",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
+    recruitmentController.sendSms,
 );
 
 recruitmentRouter.post(

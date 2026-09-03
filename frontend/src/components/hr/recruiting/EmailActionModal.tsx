@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { sendCandidateEmail, uploadTaskFile } from "../../../services/recruiting-service";
+import { sendCandidateEmail, sendCandidateSms, uploadTaskFile } from "../../../services/recruiting-service";
 
 interface EmailActionModalProps {
     candidate: any;
@@ -25,7 +25,6 @@ export default function EmailActionModal({
 }: EmailActionModalProps) {
     const t = useTranslations("Recruiting");
 
-    // Detect initial language from URL or fallback to "uz"
     const [emailLang, setEmailLang] = useState<EmailLang>(() => {
         if (typeof window !== "undefined") {
             const loc = window.location.pathname.split("/")[1];
@@ -34,6 +33,7 @@ export default function EmailActionModal({
         return "uz";
     });
 
+    const [notifyChannel, setNotifyChannel] = useState<"EMAIL" | "SMS" | "BOTH">("EMAIL");
     const [company, setCompany] = useState(companyName || "");
     const [sender, setSender] = useState(() => {
         if (emailLang === "ru") return "HR Отдел";
@@ -46,7 +46,6 @@ export default function EmailActionModal({
     const [loading, setLoading] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-    // Test task specific state
     const [taskLink, setTaskLink] = useState("");
     const [taskDeadline, setTaskDeadline] = useState(() => {
         if (emailLang === "ru") return "в течение 3 дней";
@@ -91,7 +90,6 @@ export default function EmailActionModal({
 
         const submissionUrl = getSubmissionUrl();
 
-        // 1. O'ZBEKCHA TEMPLATES
         if (lang === "uz") {
             switch (type) {
                 case "HIRE":
@@ -154,7 +152,6 @@ export default function EmailActionModal({
             }
         }
 
-        // 2. RUSSIAN TEMPLATES
         if (lang === "ru") {
             switch (type) {
                 case "HIRE":
@@ -217,7 +214,6 @@ export default function EmailActionModal({
             }
         }
 
-        // 3. ENGLISH TEMPLATES
         switch (type) {
             case "HIRE":
             case "HIRED":
@@ -293,7 +289,6 @@ export default function EmailActionModal({
         setText(body);
     }, [generateEmailContent]);
 
-    // Initialize/sync on open or parameter changes
     useEffect(() => {
         applyTemplate(emailLang, company, sender, taskLink, uploadedFile, taskDeadline, taskNote);
     }, [emailLang, company, sender, applyTemplate]);
@@ -383,13 +378,22 @@ export default function EmailActionModal({
     const handleSend = async () => {
         setLoading(true);
         try {
-            const res = await sendCandidateEmail(candidate.id, {
-                subject,
-                text,
-                type
-            });
+            let res: any = {};
+            if (notifyChannel === "EMAIL" || notifyChannel === "BOTH") {
+                res = await sendCandidateEmail(candidate.id, {
+                    subject,
+                    text,
+                    type,
+                });
+            }
+            if (notifyChannel === "SMS" || notifyChannel === "BOTH") {
+                await sendCandidateSms(candidate.id, {
+                    message: `${subject}: ${text.slice(0, 180)}`,
+                    type,
+                });
+            }
             const meta = type === "TEST_TASK" ? { testTaskDeadline: calculateDeadlineDate(taskDeadline) } : undefined;
-            if (res.previewUrl) {
+            if (res && res.previewUrl) {
                 setPreviewUrl(res.previewUrl);
             } else {
                 onSuccess(meta);
@@ -404,14 +408,21 @@ export default function EmailActionModal({
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
             <div className="bg-white border border-gray-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl">
-                {/* Header */}
                 <div className="p-6 border-b border-gray-200 flex justify-between items-start sticky top-0 bg-white z-10">
                     <div>
                         <h2 className="text-xl font-black uppercase tracking-tight text-black mb-1">
                             {getModalTitle(type)}
                         </h2>
-                        <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                            {t("emailModal.recipient")}: <span className="text-black font-extrabold">{candidate.fullName}</span> ({candidate.email})
+                        <div className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                            <span>{t("emailModal.recipient")}: <span className="text-black font-extrabold">{candidate.fullName}</span></span>
+                            <span>•</span>
+                            <span className="text-gray-700">{candidate.email}</span>
+                            {candidate.phone && (
+                                <>
+                                    <span>•</span>
+                                    <span className="text-gray-700">{candidate.phone}</span>
+                                </>
+                            )}
                         </div>
                     </div>
                     {!previewUrl && (
@@ -453,8 +464,48 @@ export default function EmailActionModal({
                         </div>
                     ) : (
                         <>
-                            {/* Language and Company Customization Section */}
                             <div className="p-4 bg-slate-50 border border-slate-200 rounded flex flex-col gap-4">
+                                <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">
+                                        Xabarnoma Kanali (Channel):
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setNotifyChannel("EMAIL")}
+                                            className={`py-2 px-3 text-xs font-bold uppercase tracking-wider rounded border transition-all ${
+                                                notifyChannel === "EMAIL"
+                                                    ? "bg-black text-white border-black shadow-sm"
+                                                    : "bg-white text-gray-700 border-gray-300 hover:border-black"
+                                            }`}
+                                        >
+                                            📧 Faqat Email
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setNotifyChannel("SMS")}
+                                            className={`py-2 px-3 text-xs font-bold uppercase tracking-wider rounded border transition-all ${
+                                                notifyChannel === "SMS"
+                                                    ? "bg-black text-white border-black shadow-sm"
+                                                    : "bg-white text-gray-700 border-gray-300 hover:border-black"
+                                            }`}
+                                        >
+                                            📱 Faqat SMS
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setNotifyChannel("BOTH")}
+                                            className={`py-2 px-3 text-xs font-bold uppercase tracking-wider rounded border transition-all ${
+                                                notifyChannel === "BOTH"
+                                                    ? "bg-black text-white border-black shadow-sm"
+                                                    : "bg-white text-gray-700 border-gray-300 hover:border-black"
+                                            }`}
+                                        >
+                                            ⚡ Email + SMS
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">
                                         {t("emailModal.emailLanguage")}:
@@ -625,7 +676,6 @@ export default function EmailActionModal({
                                 </div>
                             )}
 
-                            {/* Subject and Message Editor */}
                             <div>
                                 <div className="flex items-center justify-between mb-2">
                                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest">

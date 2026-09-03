@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import GradingManager from "@/src/components/grading/GradingManager";
 
 export default function GradingPage() {
+    const t = useTranslations("Grading");
     const router = useRouter();
     const params = useParams();
     const locale = (params?.locale as string) || "uz";
@@ -23,7 +25,7 @@ export default function GradingPage() {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#f8f8f8]">
                 <div className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                    Yuklanmoqda...
+                    {t("loading")}
                 </div>
             </div>
         );
@@ -36,15 +38,15 @@ export default function GradingPage() {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <div className="flex items-center gap-2 text-xs font-mono text-gray-500 uppercase tracking-widest mb-1.5">
-                                <span>HR Platformasi</span>
+                                <span>{t("breadcrumbParent")}</span>
                                 <span>/</span>
-                                <span className="text-black font-bold">Greyding Tizimi</span>
+                                <span className="text-black font-bold">{t("breadcrumbCurrent")}</span>
                             </div>
                             <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-black">
-                                Greyding va Karyera Boshqaruvi
+                                {t("pageTitle")}
                             </h1>
                             <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-2xl">
-                                Xodimlarning lavozim darajalari (Junior, Middle, Senior, Lead), maosh diapazonlari va lavozim ko'tarilishi (Promotion) tizimi
+                                {t("pageSubtitle")}
                             </p>
                         </div>
                     </div>

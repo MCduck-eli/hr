@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
     JobGrade,
     EmployeeWithGrade,
@@ -21,6 +22,7 @@ import RequestPromotionModal from "./RequestPromotionModal";
 import CareerHistoryModal from "./CareerHistoryModal";
 
 export default function GradingManager() {
+    const t = useTranslations("Grading");
     const [grades, setGrades] = useState<JobGrade[]>([]);
     const [employees, setEmployees] = useState<EmployeeWithGrade[]>([]);
     const [promotions, setPromotions] = useState<PromotionRequest[]>([]);
@@ -70,7 +72,7 @@ export default function GradingManager() {
             setEmployees(employeesData);
             setPromotions(promotionsData);
         } catch (err: any) {
-            showBanner("error", err.message || "Ma'lumotlarni yuklashda xatolik");
+            showBanner("error", err.message || "Error");
         } finally {
             setLoading(false);
         }
@@ -86,23 +88,22 @@ export default function GradingManager() {
     const handleSaveGrade = async (gradeData: any) => {
         if (editingGrade) {
             await updateGrade(editingGrade.id, gradeData);
-            showBanner("success", "Greyd muvaffaqiyatli yangilandi");
+            showBanner("success", t("editGradeTitle"));
         } else {
             await createGrade(gradeData);
-            showBanner("success", "Yangi greyd muvaffaqiyatli yaratildi");
+            showBanner("success", t("createGradeTitle"));
         }
         await loadAllData();
     };
 
     const handleDeleteGrade = async (gradeId: string) => {
-        if (!confirm("Haqiqatan ham ushbu greydni o'chirmoqchimisiz?")) return;
+        if (!confirm(t("deleteConfirm"))) return;
         try {
             setActionLoading(gradeId);
             await deleteGrade(gradeId);
-            showBanner("success", "Greyd o'chirildi");
             await loadAllData();
         } catch (err: any) {
-            showBanner("error", err.message || "O'chirishda xatolik yuz berdi");
+            showBanner("error", err.message || "Error");
         } finally {
             setActionLoading(null);
         }
@@ -110,13 +111,11 @@ export default function GradingManager() {
 
     const handleAssignGrade = async (employeeId: string, gradeId: string) => {
         await assignGradeToEmployee(employeeId, gradeId);
-        showBanner("success", "Xodimga greyd muvaffaqiyatli biriktirildi");
         await loadAllData();
     };
 
     const handleCreatePromotion = async (data: any) => {
         await createPromotionRequest(data);
-        showBanner("success", "Ko'tarilish so'rovi yuborildi");
         await loadAllData();
     };
 
@@ -124,10 +123,9 @@ export default function GradingManager() {
         try {
             setActionLoading(requestId);
             await processPromotionApproval(requestId, action);
-            showBanner("success", action === "APPROVE" ? "So'rov tasdiqlandi va xodim lavozimi oshirildi" : "So'rov rad etildi");
             await loadAllData();
         } catch (err: any) {
-            showBanner("error", err.message || "Amalni bajarishda xatolik");
+            showBanner("error", err.message || "Error");
         } finally {
             setActionLoading(null);
         }
@@ -195,13 +193,13 @@ export default function GradingManager() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "PENDING":
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">Kutilmoqda</span>;
+                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">{t("statusPending")}</span>;
             case "APPROVED_BY_MANAGER":
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">Menejer tasdiqladi</span>;
+                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">{t("statusApprovedManager")}</span>;
             case "APPROVED_BY_HR":
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">Tasdiqlandi</span>;
+                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">{t("statusApprovedHr")}</span>;
             case "REJECTED":
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200">Rad etildi</span>;
+                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200">{t("statusRejected")}</span>;
             default:
                 return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">{status}</span>;
         }
@@ -241,20 +239,20 @@ export default function GradingManager() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white border border-black p-5 shadow-xs">
                     <div className="flex items-center justify-between text-gray-500 mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider">Jami Greydlar</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider">{t("totalGrades")}</span>
                         <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                     </div>
-                    <div className="text-3xl font-black text-black tracking-tight">{grades.length} ta</div>
+                    <div className="text-3xl font-black text-black tracking-tight">{grades.length}</div>
                     <div className="text-xs text-gray-500 mt-1">
-                        {Array.from(new Set(grades.map((g) => g.level))).length} ta daraja toifasi
+                        {t("levelCategoriesCount", { count: Array.from(new Set(grades.map((g) => g.level))).length })}
                     </div>
                 </div>
 
                 <div className="bg-white border border-black p-5 shadow-xs">
                     <div className="flex items-center justify-between text-gray-500 mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider">Greydlangan Xodimlar</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider">{t("gradedEmployees")}</span>
                         <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
@@ -263,13 +261,13 @@ export default function GradingManager() {
                         {assignedEmployeesCount} / {employees.length}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                        {employees.length > 0 ? Math.round((assignedEmployeesCount / employees.length) * 100) : 0}% xodimlar qamrovi
+                        {t("employeeCoverage", { percent: employees.length > 0 ? Math.round((assignedEmployeesCount / employees.length) * 100) : 0 })}
                     </div>
                 </div>
 
                 <div className="bg-white border border-black p-5 shadow-xs">
                     <div className="flex items-center justify-between text-gray-500 mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider">O'rtacha Maosh Diapazoni</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider">{t("avgSalaryRange")}</span>
                         <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -277,12 +275,12 @@ export default function GradingManager() {
                     <div className="text-lg font-black text-black tracking-tight mt-1">
                         {avgMinSalary.toLocaleString()} - {avgMaxSalary.toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">UZS oralig'ida</div>
+                    <div className="text-xs text-gray-500 mt-1">{t("salaryRangeUnit")}</div>
                 </div>
 
                 <div className="bg-white border border-black p-5 shadow-xs">
                     <div className="flex items-center justify-between text-gray-500 mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider">Ko'tarilish So'rovlari</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider">{t("promotionRequests")}</span>
                         <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                         </svg>
@@ -291,12 +289,12 @@ export default function GradingManager() {
                         <span>{pendingPromotionsCount}</span>
                         {pendingPromotionsCount > 0 && (
                             <span className="text-xs font-bold px-2 py-0.5 bg-amber-100 text-amber-800 uppercase tracking-wider">
-                                Ko'rib chiqishda
+                                {t("inReview")}
                             </span>
                         )}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                        Jami {promotions.length} ta so'rov berilgan
+                        {t("totalRequestsCount", { count: promotions.length })}
                     </div>
                 </div>
             </div>
@@ -311,7 +309,7 @@ export default function GradingManager() {
                                 : "bg-white text-black border-gray-300 hover:bg-gray-100"
                         }`}
                     >
-                        Greydlar Matritsasi ({grades.length})
+                        {t("gradesMatrix")} ({grades.length})
                     </button>
                     <button
                         onClick={() => setActiveTab("employees")}
@@ -321,7 +319,7 @@ export default function GradingManager() {
                                 : "bg-white text-black border-gray-300 hover:bg-gray-100"
                         }`}
                     >
-                        Xodimlar Taxtasi ({employees.length})
+                        {t("employeesBoard")} ({employees.length})
                     </button>
                     <button
                         onClick={() => setActiveTab("promotions")}
@@ -331,7 +329,7 @@ export default function GradingManager() {
                                 : "bg-white text-black border-gray-300 hover:bg-gray-100"
                         }`}
                     >
-                        Ko'tarilish So'rovlari ({promotions.length})
+                        {t("promotionRequests")} ({promotions.length})
                         {pendingPromotionsCount > 0 && (
                             <span className="ml-1.5 px-1.5 py-0.2 text-[10px] bg-red-600 text-white rounded-full">
                                 {pendingPromotionsCount}
@@ -352,7 +350,7 @@ export default function GradingManager() {
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            Yangi Greyd
+                            {t("newGrade")}
                         </button>
                     )}
                     <button
@@ -365,14 +363,14 @@ export default function GradingManager() {
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                         </svg>
-                        Ko'tarish So'rovi
+                        {t("requestPromotion")}
                     </button>
                 </div>
             </div>
 
             {loading ? (
                 <div className="py-20 text-center text-xs font-bold uppercase tracking-wider text-gray-500">
-                    Greyding ma'lumotlari yuklanmoqda...
+                    {t("loading")}
                 </div>
             ) : activeTab === "matrix" ? (
                 <div className="space-y-6">
@@ -381,7 +379,7 @@ export default function GradingManager() {
                             <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                             </svg>
-                            Hozircha greydlar yaratilmagan. Yuqoridagi "Yangi Greyd" tugmasi orqali lavozim darajalarini belgilang.
+                            {t("noGrades")}
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -408,7 +406,7 @@ export default function GradingManager() {
 
                                             <div className="bg-gray-50 border border-gray-200 p-3 mb-4 space-y-1.5">
                                                 <div className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
-                                                    Maosh Diapazoni:
+                                                    {t("salaryRange")}
                                                 </div>
                                                 <div className="text-sm font-black text-black">
                                                     {grade.minSalary.toLocaleString()} — {grade.maxSalary.toLocaleString()} UZS
@@ -421,7 +419,7 @@ export default function GradingManager() {
                                             {grade.requirements && (
                                                 <div className="mb-3">
                                                     <div className="text-[11px] font-bold uppercase tracking-wider text-gray-700 mb-1">
-                                                        Talablar:
+                                                        {t("requirements")}
                                                     </div>
                                                     <p className="text-xs text-gray-600 line-clamp-3 bg-gray-50/50 p-2 border border-gray-100">
                                                         {grade.requirements}
@@ -432,7 +430,7 @@ export default function GradingManager() {
                                             {grade.responsibilities && (
                                                 <div className="mb-3">
                                                     <div className="text-[11px] font-bold uppercase tracking-wider text-gray-700 mb-1">
-                                                        Mas'uliyatlar:
+                                                        {t("responsibilities")}
                                                     </div>
                                                     <p className="text-xs text-gray-600 line-clamp-3 bg-gray-50/50 p-2 border border-gray-100">
                                                         {grade.responsibilities}
@@ -444,7 +442,7 @@ export default function GradingManager() {
                                         <div className="pt-4 border-t border-gray-200 mt-4 flex items-center justify-between">
                                             <div className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
                                                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                                <span>{count} nafar xodim</span>
+                                                <span>{t("employeesCount", { count })}</span>
                                             </div>
 
                                             {isHrOrDirector && (
@@ -455,7 +453,7 @@ export default function GradingManager() {
                                                             setIsCreateModalOpen(true);
                                                         }}
                                                         className="p-1.5 text-gray-500 hover:text-black hover:bg-gray-100 transition-colors"
-                                                        title="Tahrirlash"
+                                                        title={t("edit")}
                                                     >
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -465,7 +463,7 @@ export default function GradingManager() {
                                                         onClick={() => handleDeleteGrade(grade.id)}
                                                         disabled={actionLoading === grade.id || count > 0}
                                                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
-                                                        title={count > 0 ? "Xodimlar biriktirilgan greydni o'chirib bo'lmaydi" : "O'chirish"}
+                                                        title={t("delete")}
                                                     >
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -488,7 +486,7 @@ export default function GradingManager() {
                                 type="text"
                                 value={employeeSearch}
                                 onChange={(e) => setEmployeeSearch(e.target.value)}
-                                placeholder="Xodim ismi, lavozimi yoki bo'limi bo'yicha qidirish..."
+                                placeholder={t("searchPlaceholder")}
                                 className="w-full border border-gray-300 pl-9 pr-3.5 py-2 text-xs focus:border-black focus:outline-none bg-[#fcfcfc]"
                             />
                             <svg className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -502,7 +500,7 @@ export default function GradingManager() {
                                 onChange={(e) => setDepartmentFilter(e.target.value)}
                                 className="border border-gray-300 px-3 py-2 text-xs focus:border-black focus:outline-none bg-[#fcfcfc]"
                             >
-                                <option value="ALL">Barcha Bo'limlar</option>
+                                <option value="ALL">{t("allDepartments")}</option>
                                 {departmentsList.map((d) => (
                                     <option key={d} value={d!}>{d}</option>
                                 ))}
@@ -513,7 +511,7 @@ export default function GradingManager() {
                                 onChange={(e) => setGradeLevelFilter(e.target.value)}
                                 className="border border-gray-300 px-3 py-2 text-xs focus:border-black focus:outline-none bg-[#fcfcfc]"
                             >
-                                <option value="ALL">Barcha Darajalar</option>
+                                <option value="ALL">{t("allLevels")}</option>
                                 {Array.from(new Set(grades.map((g) => g.level)))
                                     .sort((a, b) => a - b)
                                     .map((lvl) => (
@@ -521,7 +519,7 @@ export default function GradingManager() {
                                             Level {lvl}
                                         </option>
                                     ))}
-                                <option value="NONE">Greydsiz Xodimlar</option>
+                                <option value="NONE">{t("unassigned")}</option>
                             </select>
                         </div>
                     </div>
@@ -530,19 +528,19 @@ export default function GradingManager() {
                         <table className="w-full text-left text-xs border-collapse">
                             <thead>
                                 <tr className="border-b border-black bg-gray-50 text-black uppercase tracking-wider font-bold text-[11px]">
-                                    <th className="p-3.5">Xodim</th>
-                                    <th className="p-3.5">Bo'lim</th>
-                                    <th className="p-3.5">Lavozim</th>
-                                    <th className="p-3.5">Joriy Greyd</th>
-                                    <th className="p-3.5">Belgilangan Maosh</th>
-                                    <th className="p-3.5 text-right">Amallar</th>
+                                    <th className="p-3.5">{t("employee")}</th>
+                                    <th className="p-3.5">{t("department")}</th>
+                                    <th className="p-3.5">{t("position")}</th>
+                                    <th className="p-3.5">{t("currentGrade")}</th>
+                                    <th className="p-3.5">{t("currentSalary")}</th>
+                                    <th className="p-3.5 text-right">{t("actions")}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                                 {filteredEmployees.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="p-8 text-center text-gray-500">
-                                            Qidiruvga mos keladigan xodim topilmadi.
+                                            {t("noEmployeesFound")}
                                         </td>
                                     </tr>
                                 ) : (
@@ -567,10 +565,10 @@ export default function GradingManager() {
                                                     <div className="text-[11px] font-normal text-gray-500">{emp.user?.email}</div>
                                                 </td>
                                                 <td className="p-3.5 text-gray-700">
-                                                    {emp.department?.name || <span className="text-gray-400">Belgilanmagan</span>}
+                                                    {emp.department?.name || <span className="text-gray-400">-</span>}
                                                 </td>
                                                 <td className="p-3.5 text-gray-700 font-medium">
-                                                    {emp.position || <span className="text-gray-400">Belgilanmagan</span>}
+                                                    {emp.position || <span className="text-gray-400">-</span>}
                                                 </td>
                                                 <td className="p-3.5">
                                                     {grade ? (
@@ -582,7 +580,7 @@ export default function GradingManager() {
                                                         </div>
                                                     ) : (
                                                         <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-gray-100 text-gray-500 border border-gray-200">
-                                                            Greydsiz
+                                                            {t("unassigned")}
                                                         </span>
                                                     )}
                                                 </td>
@@ -593,7 +591,7 @@ export default function GradingManager() {
                                                             {salaryStatus}
                                                         </div>
                                                     ) : (
-                                                        <span className="text-gray-400 font-sans">Belgilanmagan</span>
+                                                        <span className="text-gray-400 font-sans">-</span>
                                                     )}
                                                 </td>
                                                 <td className="p-3.5 text-right">
@@ -606,7 +604,7 @@ export default function GradingManager() {
                                                                 }}
                                                                 className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider border border-black hover:bg-black hover:text-white transition-colors"
                                                             >
-                                                                Greydlash
+                                                                {emp.grade ? t("changeGrade") : t("assignGrade")}
                                                             </button>
                                                         )}
                                                         <button
@@ -615,7 +613,7 @@ export default function GradingManager() {
                                                                 setIsHistoryModalOpen(true);
                                                             }}
                                                             className="p-1 text-gray-500 hover:text-black hover:bg-gray-100 transition-colors"
-                                                            title="Karyera Tarixi"
+                                                            title={t("history")}
                                                         >
                                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -627,7 +625,7 @@ export default function GradingManager() {
                                                                 setIsPromotionModalOpen(true);
                                                             }}
                                                             className="p-1 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                                                            title="Lavozimni ko'tarish"
+                                                            title={t("requestPromotion")}
                                                         >
                                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -647,7 +645,7 @@ export default function GradingManager() {
                 <div className="space-y-4">
                     <div className="bg-white border border-black p-4 flex flex-wrap gap-2 items-center justify-between">
                         <div className="text-xs font-bold uppercase tracking-wider text-black">
-                            Ko'tarilish va Daraja O'zgarishi So'rovlari
+                            {t("promotionRequests")}
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -657,7 +655,7 @@ export default function GradingManager() {
                                     promotionStatusFilter === "ALL" ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
                                 }`}
                             >
-                                Barchasi ({promotions.length})
+                                {t("allStatuses")} ({promotions.length})
                             </button>
                             <button
                                 onClick={() => setPromotionStatusFilter("PENDING")}
@@ -665,7 +663,7 @@ export default function GradingManager() {
                                     promotionStatusFilter === "PENDING" ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
                                 }`}
                             >
-                                Kutilmoqda ({promotions.filter((p) => p.status === "PENDING").length})
+                                {t("statusPending")} ({promotions.filter((p) => p.status === "PENDING").length})
                             </button>
                             <button
                                 onClick={() => setPromotionStatusFilter("APPROVED_BY_HR")}
@@ -673,7 +671,7 @@ export default function GradingManager() {
                                     promotionStatusFilter === "APPROVED_BY_HR" ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
                                 }`}
                             >
-                                Tasdiqlangan ({promotions.filter((p) => p.status === "APPROVED_BY_HR").length})
+                                {t("statusApprovedHr")} ({promotions.filter((p) => p.status === "APPROVED_BY_HR").length})
                             </button>
                             <button
                                 onClick={() => setPromotionStatusFilter("REJECTED")}
@@ -681,7 +679,7 @@ export default function GradingManager() {
                                     promotionStatusFilter === "REJECTED" ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
                                 }`}
                             >
-                                Rad etilgan ({promotions.filter((p) => p.status === "REJECTED").length})
+                                {t("statusRejected")} ({promotions.filter((p) => p.status === "REJECTED").length})
                             </button>
                         </div>
                     </div>
@@ -691,7 +689,7 @@ export default function GradingManager() {
                             <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Ushbu toifada lavozim ko'tarish so'rovlari mavjud emas.
+                            {t("noPromotionsFound")}
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-4">
@@ -707,7 +705,7 @@ export default function GradingManager() {
                                                 {req.employee?.firstName} {req.employee?.lastName}
                                             </span>
                                             <span className="text-xs text-gray-500">
-                                                ({req.employee?.department?.name || "Bo'limsiz"} — {req.employee?.position || "Xodim"})
+                                                ({req.employee?.department?.name || "-"} — {req.employee?.position || "-"})
                                             </span>
                                             <span className="text-[10px] text-gray-400 font-mono ml-auto">
                                                 {new Date(req.createdAt).toLocaleDateString("uz-UZ")}
@@ -716,40 +714,40 @@ export default function GradingManager() {
 
                                         <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-3 border border-gray-200 text-xs">
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-gray-500">Hozirgi Greyd:</span>
+                                                <span className="text-gray-500">{t("currentGrade")}:</span>
                                                 <span className="font-semibold text-black">
-                                                    {req.currentGrade ? `${req.currentGrade.title} (L${req.currentGrade.level})` : "Greydsiz"}
+                                                    {req.currentGrade ? `${req.currentGrade.title} (L${req.currentGrade.level})` : t("unassigned")}
                                                 </span>
                                             </div>
                                             <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                                             </svg>
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-gray-500">Maqsadli Greyd:</span>
+                                                <span className="text-gray-500">{t("targetGrade")}:</span>
                                                 <span className="font-bold text-black">
                                                     {req.targetGrade?.title} (L{req.targetGrade?.level})
                                                 </span>
                                             </div>
                                             <div className="ml-auto font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 border border-emerald-200">
-                                                Yangi Maosh: {req.proposedSalary.toLocaleString()} UZS
+                                                {t("proposedSalary")}: {req.proposedSalary.toLocaleString()} UZS
                                             </div>
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-3 text-xs">
                                             {req.okrScore !== null && req.okrScore !== undefined && (
                                                 <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 font-semibold">
-                                                    OKR Natijasi: {req.okrScore}%
+                                                    OKR: {req.okrScore}%
                                                 </span>
                                             )}
                                             {req.feedback360Score !== null && req.feedback360Score !== undefined && (
                                                 <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 font-semibold">
-                                                    360 Baholash: {req.feedback360Score} / 5.0
+                                                    360: {req.feedback360Score} / 5.0
                                                 </span>
                                             )}
                                         </div>
 
                                         <p className="text-xs text-gray-600 bg-white border border-gray-200 p-2.5">
-                                            <span className="font-bold text-black">Asos:</span> {req.reason}
+                                            <span className="font-bold text-black">{t("reason")}:</span> {req.reason}
                                         </p>
                                     </div>
 
@@ -763,7 +761,7 @@ export default function GradingManager() {
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                 </svg>
-                                                Tasdiqlash
+                                                {t("approve")}
                                             </button>
                                             <button
                                                 onClick={() => handleProcessPromotion(req.id, "REJECT")}
@@ -773,7 +771,7 @@ export default function GradingManager() {
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
-                                                Rad etish
+                                                {t("reject")}
                                             </button>
                                         </div>
                                     )}

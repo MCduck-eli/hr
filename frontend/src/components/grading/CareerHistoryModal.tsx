@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { fetchCareerHistory, CareerHistoryItem, EmployeeWithGrade } from "@/src/services/grading-service";
 
 interface CareerHistoryModalProps {
@@ -14,6 +15,7 @@ export default function CareerHistoryModal({
     onClose,
     employee,
 }: CareerHistoryModalProps) {
+    const t = useTranslations("Grading");
     const [history, setHistory] = useState<CareerHistoryItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export default function CareerHistoryModal({
                     const data = await fetchCareerHistory(employee.id);
                     setHistory(data);
                 } catch (err: any) {
-                    setError(err.message || "Tarixni yuklashda xatolik yuz berdi");
+                    setError(err.message || "Error");
                 } finally {
                     setLoading(false);
                 }
@@ -44,10 +46,10 @@ export default function CareerHistoryModal({
                 <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
                     <div>
                         <h2 className="text-xl font-bold uppercase tracking-tight text-black">
-                            Karyera va Greyd Tarixi
+                            {t("careerHistoryTitle")}
                         </h2>
                         <p className="text-xs text-gray-500 mt-0.5">
-                            {employee.firstName} {employee.lastName} — {employee.department?.name || "Bo'limsiz"} ({employee.position || "Xodim"})
+                            {employee.firstName} {employee.lastName} — {employee.department?.name || "-"} ({employee.position || "-"})
                         </p>
                     </div>
                     <button
@@ -62,7 +64,7 @@ export default function CareerHistoryModal({
 
                 {loading ? (
                     <div className="py-12 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Tarix yuklanmoqda...
+                        {t("loadingHistory")}
                     </div>
                 ) : error ? (
                     <div className="py-6 text-center text-xs text-red-600 font-semibold bg-red-50 p-4 border border-red-200">
@@ -73,7 +75,7 @@ export default function CareerHistoryModal({
                         <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Ushbu xodim bo'yicha hali lavozim ko'tarilishi yoki greyd o'zgarishi qayd etilmagan.
+                        {t("noHistory")}
                     </div>
                 ) : (
                     <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
@@ -92,15 +94,15 @@ export default function CareerHistoryModal({
                                     <div className="text-xs text-gray-600 space-y-1 mt-2">
                                         {item.oldGradeTitle && (
                                             <div>
-                                                <span className="text-gray-400">Oldingi daraja:</span> {item.oldGradeTitle}
+                                                <span className="text-gray-400">{t("currentGrade")}:</span> {item.oldGradeTitle}
                                             </div>
                                         )}
                                         <div className="font-semibold text-emerald-700">
-                                            Yangi maosh: {item.newSalary.toLocaleString()} UZS
+                                            {t("proposedSalary")}: {item.newSalary.toLocaleString()} UZS
                                         </div>
                                         {item.reason && (
                                             <div className="text-gray-700 pt-1.5 border-t border-gray-200 mt-2 text-[11px]">
-                                                <span className="font-bold">Asos:</span> {item.reason}
+                                                <span className="font-bold">{t("reason")}:</span> {item.reason}
                                             </div>
                                         )}
                                     </div>
@@ -116,7 +118,7 @@ export default function CareerHistoryModal({
                         onClick={onClose}
                         className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
                     >
-                        Yopish
+                        {t("cancel")}
                     </button>
                 </div>
             </div>

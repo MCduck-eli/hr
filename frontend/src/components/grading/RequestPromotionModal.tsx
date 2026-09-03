@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { JobGrade, EmployeeWithGrade } from "@/src/services/grading-service";
 
 interface RequestPromotionModalProps {
@@ -25,6 +26,7 @@ export default function RequestPromotionModal({
     grades,
     initialEmployeeId,
 }: RequestPromotionModalProps) {
+    const t = useTranslations("Grading");
     const [employeeId, setEmployeeId] = useState("");
     const [targetGradeId, setTargetGradeId] = useState("");
     const [proposedSalary, setProposedSalary] = useState<number>(0);
@@ -68,12 +70,10 @@ export default function RequestPromotionModal({
         setError(null);
 
         if (!employeeId || !targetGradeId) {
-            setError("Xodim va maqsadli greydni tanlash shart.");
             return;
         }
 
         if (!selectedTargetGrade) {
-            setError("Maqsadli greyd topilmadi.");
             return;
         }
 
@@ -82,13 +82,12 @@ export default function RequestPromotionModal({
             proposedSalary > selectedTargetGrade.maxSalary
         ) {
             setError(
-                `Taklif etilgan maosh tanlangan greyd doirasida bo'lishi lozim: ${selectedTargetGrade.minSalary.toLocaleString()} - ${selectedTargetGrade.maxSalary.toLocaleString()} UZS`,
+                `${t("salaryRange")} ${selectedTargetGrade.minSalary.toLocaleString()} - ${selectedTargetGrade.maxSalary.toLocaleString()} UZS`,
             );
             return;
         }
 
-        if (reason.trim().length < 5) {
-            setError("Iltimos, ko'tarilish sababi yoki asosini batafsilroq yozing.");
+        if (reason.trim().length < 3) {
             return;
         }
 
@@ -102,7 +101,7 @@ export default function RequestPromotionModal({
             });
             onClose();
         } catch (err: any) {
-            setError(err.message || "So'rovni yuborishda xatolik yuz berdi.");
+            setError(err.message || "Error");
         } finally {
             setIsSubmitting(false);
         }
@@ -114,11 +113,8 @@ export default function RequestPromotionModal({
                 <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
                     <div>
                         <h2 className="text-xl font-bold uppercase tracking-tight text-black">
-                            Lavozimni Ko'tarish So'rovi
+                            {t("promotionModalTitle")}
                         </h2>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                            Xodimni yangi greydga o'tkazish va maoshini oshirish
-                        </p>
                     </div>
                     <button
                         onClick={onClose}
@@ -139,7 +135,7 @@ export default function RequestPromotionModal({
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                            Xodimni Tanlang *
+                            {t("employee")} *
                         </label>
                         <select
                             value={employeeId}
@@ -147,10 +143,10 @@ export default function RequestPromotionModal({
                             className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
                             required
                         >
-                            <option value="">Xodimni tanlang...</option>
+                            <option value="">{t("selectEmployee")}</option>
                             {employees.map((emp) => (
                                 <option key={emp.id} value={emp.id}>
-                                    {emp.firstName} {emp.lastName} — {emp.position || "Xodim"} ({emp.grade ? emp.grade.title : "Greydsiz"})
+                                    {emp.firstName} {emp.lastName} — {emp.position || "-"} ({emp.grade ? emp.grade.title : t("unassigned")})
                                 </option>
                             ))}
                         </select>
@@ -159,15 +155,15 @@ export default function RequestPromotionModal({
                     {selectedEmployee && (
                         <div className="bg-gray-50 border border-gray-200 p-3.5 text-xs flex justify-between items-center">
                             <div>
-                                <span className="text-gray-500 block">Joriy Daraja:</span>
+                                <span className="text-gray-500 block">{t("currentGrade")}:</span>
                                 <span className="font-bold text-black">
-                                    {selectedEmployee.grade ? `${selectedEmployee.grade.title} (L${selectedEmployee.grade.level})` : "Biriktirilmagan"}
+                                    {selectedEmployee.grade ? `${selectedEmployee.grade.title} (L${selectedEmployee.grade.level})` : t("unassigned")}
                                 </span>
                             </div>
                             <div className="text-right">
-                                <span className="text-gray-500 block">Joriy Maosh:</span>
+                                <span className="text-gray-500 block">{t("currentSalary")}:</span>
                                 <span className="font-bold text-black">
-                                    {selectedEmployee.salary ? `${selectedEmployee.salary.toLocaleString()} UZS` : "Belgilanmagan"}
+                                    {selectedEmployee.salary ? `${selectedEmployee.salary.toLocaleString()} UZS` : "-"}
                                 </span>
                             </div>
                         </div>
@@ -175,7 +171,7 @@ export default function RequestPromotionModal({
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                            Maqsadli Yangi Greyd *
+                            {t("targetGrade")} *
                         </label>
                         <select
                             value={targetGradeId}
@@ -183,7 +179,7 @@ export default function RequestPromotionModal({
                             className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
                             required
                         >
-                            <option value="">Greydni tanlang...</option>
+                            <option value="">{t("selectGrade")}</option>
                             {grades.map((g) => (
                                 <option key={g.id} value={g.id}>
                                     Level {g.level} | {g.title} ({g.code}) — {g.minSalary.toLocaleString()} - {g.maxSalary.toLocaleString()} UZS
@@ -194,7 +190,7 @@ export default function RequestPromotionModal({
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                            Yangi Taklif Etilayotgan Maosh (UZS) *
+                            {t("proposedSalary")} (UZS) *
                         </label>
                         <input
                             type="number"
@@ -207,20 +203,20 @@ export default function RequestPromotionModal({
                         />
                         {selectedTargetGrade && (
                             <span className="text-[11px] text-gray-500 mt-1 block">
-                                Ruxsat etilgan oraliq: {selectedTargetGrade.minSalary.toLocaleString()} - {selectedTargetGrade.maxSalary.toLocaleString()} UZS
+                                {t("salaryRange")} {selectedTargetGrade.minSalary.toLocaleString()} - {selectedTargetGrade.maxSalary.toLocaleString()} UZS
                             </span>
                         )}
                     </div>
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                            Ko'tarilish Sababi va Asosi *
+                            {t("justification")} *
                         </label>
                         <textarea
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
                             rows={3}
-                            placeholder="Xodimning erishgan natijalari, yuksalgan mas'uliyati yoki malakasi haqida qisqacha ma'lumot..."
+                            placeholder={t("justificationPlaceholder")}
                             className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
                             required
                         />
@@ -233,14 +229,14 @@ export default function RequestPromotionModal({
                             disabled={isSubmitting}
                             className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
                         >
-                            Bekor qilish
+                            {t("cancel")}
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
                             className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
                         >
-                            {isSubmitting ? "Yuborilmoqda..." : "So'rovni Yuborish"}
+                            {isSubmitting ? t("saving") : t("submitRequest")}
                         </button>
                     </div>
                 </form>

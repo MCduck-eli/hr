@@ -39,6 +39,23 @@ export class RecruitmentController {
         }
     }
 
+    async getPublicVacancies(req: Request, res: Response, next: NextFunction) {
+        try {
+            const companyName = req.query.company as string | undefined;
+            const search = req.query.search as string | undefined;
+            const departmentId = req.query.departmentId as string | undefined;
+
+            const vacancies = await recruitmentService.getPublicVacancies({
+                companyName,
+                search,
+                departmentId,
+            });
+            res.status(200).json({ status: "success", data: vacancies });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async getPublicVacancy(req: Request, res: Response, next: NextFunction) {
         try {
             const vacancy = await recruitmentService.getPublicVacancy(req.params.id);
@@ -48,11 +65,39 @@ export class RecruitmentController {
         }
     }
 
+    async parseResume(req: Request, res: Response, next: NextFunction) {
+        try {
+            const fileBuffer = req.file ? req.file.buffer || (req.file as any).path : undefined;
+            const rawText = req.body.rawText || req.body.text;
+            const mimeType = req.file ? req.file.mimetype : undefined;
+
+            let bufferToPass: Buffer | undefined = undefined;
+            if (req.file) {
+                if (req.file.buffer) {
+                    bufferToPass = req.file.buffer;
+                } else if ((req.file as any).path) {
+                    const fs = await import("fs");
+                    bufferToPass = fs.readFileSync((req.file as any).path);
+                }
+            }
+
+            const parsed = await recruitmentService.parseResume({
+                fileBuffer: bufferToPass,
+                mimeType,
+                rawText,
+            });
+
+            res.status(200).json({ status: "success", data: parsed });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async applyCandidate(req: Request, res: Response, next: NextFunction) {
         try {
             const resumeUrl = req.file
                 ? `/uploads/resumes/${req.file.filename}`
-                : req.body.resumeUrl;
+                : req.body.resumeUrl || "";
 
             const candidate = await recruitmentService.applyCandidate({
                 ...req.body,
@@ -72,6 +117,7 @@ export class RecruitmentController {
         try {
             const result = await recruitmentService.getCandidateDetails(
                 req.params.candidateId,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -95,6 +141,12 @@ export class RecruitmentController {
                 req.params.candidateId,
                 req.body.stage as CandidatePipelineStage,
                 deadline,
+                {
+                    notifyCandidate: req.body.notifyCandidate,
+                    notifyChannel: req.body.notifyChannel,
+                    customMessage: req.body.customMessage,
+                },
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -152,12 +204,14 @@ export class RecruitmentController {
                 req.params.candidateId,
                 userId,
                 req.body,
+                (req as any).user,
             );
             res.status(201).json({ status: "success", data: result });
         } catch (error) {
             next(error);
         }
     }
+
     async hireCandidate(
         req: Request<{ candidateId: string }>,
         res: Response,
@@ -184,6 +238,24 @@ export class RecruitmentController {
             const result = await recruitmentService.sendCandidateEmail(
                 req.params.candidateId,
                 req.body,
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async sendSms(
+        req: Request<{ candidateId: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await recruitmentService.sendCandidateSms(
+                req.params.candidateId,
+                req.body,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {

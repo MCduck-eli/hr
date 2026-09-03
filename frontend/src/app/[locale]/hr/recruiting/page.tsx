@@ -1,21 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import RecruitingBoard from "@/src/components/hr/recruiting/recruiting-board";
-import { getVacancies, updateCandidateStage, hireCandidate, createVacancy, updateVacancy, deleteVacancy } from "@/src/services/recruiting-service";
+import CvParserModal from "@/src/components/hr/recruiting/CvParserModal";
+import { getVacancies, updateCandidateStage, hireCandidate, createVacancy, updateVacancy, deleteVacancy, applyForJob } from "@/src/services/recruiting-service";
 import { fetchDepartments } from "@/src/services/department-service";
 import { fetchAllUsers } from "@/src/services/user-service";
 
 export default function HRRecruitingPage() {
     const t = useTranslations("Recruiting");
     const router = useRouter();
+    const params = useParams();
+    const locale = (params?.locale as string) || "uz";
+
     const [vacancies, setVacancies] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [managers, setManagers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [vacancyModalOpen, setVacancyModalOpen] = useState(false);
+    const [cvParserOpen, setCvParserOpen] = useState(false);
     const [editingVacancyId, setEditingVacancyId] = useState<string | null>(null);
     const [vacancyForm, setVacancyForm] = useState({
         title: "",
@@ -140,9 +146,34 @@ export default function HRRecruitingPage() {
         }
     };
 
+    const handleCandidateExtracted = async (parsedData: any) => {
+        if (!vacancies || vacancies.length === 0) {
+            alert("Nomzod qo'shish uchun avval bitta ochiq vakansiya yarating.");
+            return;
+        }
+
+        const selectedVac = vacancies[0];
+        try {
+            const formData = new FormData();
+            formData.append("fullName", parsedData.fullName || "Nomzod");
+            formData.append("email", parsedData.email || `candidate_${Date.now()}@example.com`);
+            formData.append("phone", parsedData.phone || "+998900000000");
+            formData.append("location", parsedData.location || "Toshkent");
+            formData.append("resumeText", parsedData.rawText || JSON.stringify(parsedData.skills));
+            formData.append("vacancyId", selectedVac.id);
+
+            await applyForJob(formData);
+            await loadData();
+            alert(`"${parsedData.fullName || "Nomzod"}" muvaffaqiyatli "${selectedVac.title}" vakansiyasiga qo'shildi.`);
+        } catch (err: any) {
+            console.error(err);
+            alert(err.message || "Nomzodni qo'shishda xatolik yuz berdi");
+        }
+    };
+
     return (
         <div className="max-w-[1400px] mx-auto p-8 flex flex-col gap-8">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="flex flex-col gap-2">
                     <button
                         onClick={() => router.back()}
@@ -157,16 +188,34 @@ export default function HRRecruitingPage() {
                         {t("subtitle")}
                     </p>
                 </div>
-                <button
-                    onClick={() => {
-                        setEditingVacancyId(null);
-                        setVacancyForm({ title: "", companyName: "", description: "", requirements: [""], departmentId: "" });
-                        setVacancyModalOpen(true);
-                    }}
-                    className="px-6 py-3 bg-black text-white text-[12px] font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors"
-                >
-                    {t("newVacancy")}
-                </button>
+
+                <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                        href={`/${locale}/jobs`}
+                        target="_blank"
+                        className="px-4 py-3 bg-white text-black border-2 border-black text-[11px] font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center gap-2"
+                    >
+                        <span>🌐</span> Ochiq Vakansiyalar (Careers) ↗
+                    </Link>
+
+                    <button
+                        onClick={() => setCvParserOpen(true)}
+                        className="px-4 py-3 bg-white text-black border-2 border-black text-[11px] font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center gap-2"
+                    >
+                        <span>📄</span> Rezyumeni O'qish (CV Parser)
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            setEditingVacancyId(null);
+                            setVacancyForm({ title: "", companyName: "", description: "", requirements: [""], departmentId: "" });
+                            setVacancyModalOpen(true);
+                        }}
+                        className="px-6 py-3 bg-black text-white text-[11px] font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors"
+                    >
+                        + {t("newVacancy")}
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -182,6 +231,12 @@ export default function HRRecruitingPage() {
                     onDelete={handleDeleteVacancy}
                 />
             )}
+
+            <CvParserModal
+                isOpen={cvParserOpen}
+                onClose={() => setCvParserOpen(false)}
+                onCandidateExtracted={handleCandidateExtracted}
+            />
 
             {vacancyModalOpen && (
                 <div className="bg-white border border-gray-200 p-8 flex flex-col gap-6 mt-8">
@@ -295,4 +350,3 @@ export default function HRRecruitingPage() {
         </div>
     );
 }
-

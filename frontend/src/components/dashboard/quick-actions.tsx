@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
     TodayAttendanceStatus,
     fetchTodayAttendanceStatus,
@@ -16,6 +17,7 @@ interface QuickActionsProps {
 }
 
 export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps) {
+    const t = useTranslations("DashboardProfile");
     const params = useParams();
     const locale = (params?.locale as string) || "uz";
 
@@ -43,7 +45,7 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
             await loadStatus();
             if (onAttendanceUpdated) onAttendanceUpdated();
         } catch (err: any) {
-            alert(err.message || "Check Out qilishda xatolik");
+            alert(err.message || "Error");
         } finally {
             setLoading(false);
         }
@@ -63,7 +65,7 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
                 <div className="w-full py-4 px-6 bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-widest flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        <span>Davomat yakunlandi</span>
+                        <span>{t("attendanceCompleted")}</span>
                     </div>
                     <span className="text-[10px] text-gray-500 font-bold">
                         {attendanceStatus?.checkInTime
@@ -97,16 +99,16 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
                         <span className="animate-pulse">...</span>
                     ) : (
                         <span className="text-[10px] font-bold text-gray-500">
-                            (Kirildi:{" "}
-                            {attendanceStatus?.checkInTime
-                                ? new Date(
-                                      attendanceStatus.checkInTime,
-                                  ).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                  })
-                                : ""}
-                            )
+                            ({t("checkedInAt", {
+                                time: attendanceStatus?.checkInTime
+                                    ? new Date(
+                                          attendanceStatus.checkInTime,
+                                      ).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                      })
+                                    : "",
+                            })})
                         </span>
                     )}
                 </button>
@@ -118,7 +120,7 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
                 >
                     <div className="flex items-center gap-2">
                         <span>📷</span>
-                        <span>Check In (Face ID)</span>
+                        <span>{t("checkInFaceId")}</span>
                     </div>
                     <span className="group-hover:translate-x-1 transition-transform">
                         &#9654;
@@ -135,8 +137,8 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
                         <span>📝</span>
                         <span>
                             {attendanceStatus?.absenceReason
-                                ? `Sabab: ${attendanceStatus.absenceReason}`
-                                : "Kelolmaslik sababini bildirish"}
+                                ? `${t("reasonPrefix")}: ${attendanceStatus.absenceReason}`
+                                : t("reportAbsenceReason")}
                         </span>
                     </span>
                     <span>&rarr;</span>
@@ -149,18 +151,18 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
             >
                 <span className="flex items-center gap-2">
                     <span>⚖️</span>
-                    <span>Ichki Nizomlar</span>
+                    <span>{t("internalRegulations")}</span>
                 </span>
                 <span>&rarr;</span>
             </Link>
 
             <button className="w-full py-4 px-6 bg-white border border-gray-200 text-black hover:border-black text-xs font-bold uppercase tracking-widest transition-colors text-left flex items-center justify-between">
-                <span>Request Leave</span>
+                <span>{t("requestLeave")}</span>
                 <span>+</span>
             </button>
 
             <button className="w-full py-4 px-6 bg-white border border-gray-200 text-black hover:border-black text-xs font-bold uppercase tracking-widest transition-colors text-left flex items-center justify-between">
-                <span>Update OKR Progress</span>
+                <span>{t("updateOkrProgress")}</span>
                 <span>+</span>
             </button>
 

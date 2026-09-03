@@ -10,6 +10,7 @@ import { fetchMyPendingTasks, fetchTargetReport, fetchCycles } from "@/src/servi
 import { checkInKeyResult } from "@/src/services/okr-service";
 import { fetchOffboardingDetails } from "@/src/services/offboarding-service";
 import ExitInterviewModal from "@/src/components/offboarding/ExitInterviewModal";
+import EmployeePayslipsSection from "@/src/components/payroll/EmployeePayslipsSection";
 
 export default function EmployeeProfilePage() {
     const t = useTranslations("DashboardProfile");
@@ -230,9 +231,9 @@ export default function EmployeeProfilePage() {
             trend: t("thisWeek"),
         },
         {
-            label: "JORIY GREYD VA MAOSH",
-            value: grade ? `Level ${grade.level} • ${grade.code}` : "Greydsiz",
-            trend: salary ? `${Number(salary).toLocaleString()} UZS` : (grade ? `${grade.minSalary.toLocaleString()} - ${grade.maxSalary.toLocaleString()} UZS` : "Belgilanmagan"),
+            label: t("currentGradeSalary"),
+            value: grade ? `Level ${grade.level} • ${grade.code}` : t("unassigned"),
+            trend: salary ? `${Number(salary).toLocaleString()} UZS` : (grade ? `${grade.minSalary.toLocaleString()} - ${grade.maxSalary.toLocaleString()} UZS` : t("notSpecified")),
         },
         {
             label: t("leaveBalance"),
@@ -248,6 +249,28 @@ export default function EmployeeProfilePage() {
     const activeCourses = dashboardData?.activeCourses || [];
     const recentActivities = dashboardData?.recentActivities || [];
     const okrs = dashboardData?.okrs || [];
+
+    const getActivityTitle = (title: string) => {
+        if (title === "Offboarding muvaffaqiyatli yakunlandi") return t("activityOffboardingCompleted");
+        if (title === "Exit Interview topshirildi") return t("activityExitInterview");
+        if (title === "Ishga qabul qilindi") return t("activityHired");
+        if (title === "Onboarding boshlandi") return t("activityOnboardingStarted");
+        if (title === "Sinov muddati o'tdi") return t("activityProbationPassed");
+        if (title === "Greyd oshirildi") return t("activityPromoted");
+        return title;
+    };
+
+    const getActivityDescription = (description: string) => {
+        if (!description) return "";
+        if (description === "Barcha aylanma varaqasi (Checklist) topshiriqlari va aktivlar to'liq topshirildi.") {
+            return t("activityOffboardingCompletedDesc");
+        }
+        if (description.startsWith("【Ketish Sababi】: ")) {
+            const val = description.replace("【Ketish Sababi】: ", "");
+            return `【${t("exitReasonPrefix")}】: ${val}`;
+        }
+        return description;
+    };
 
     const handleCheckIn = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -304,7 +327,7 @@ export default function EmployeeProfilePage() {
                             ? "bg-black text-white border-black"
                             : "bg-gray-100 text-gray-600 border-gray-300"
                     }`}>
-                        {grade ? `${grade.title} (Level ${grade.level})` : "DARAJA BELGILANMAGAN"}
+                        {grade ? `${grade.title} (Level ${grade.level})` : t("noGradeAssigned")}
                     </span>
                 </div>
             </div>
@@ -491,11 +514,11 @@ export default function EmployeeProfilePage() {
 
                     <div className="flex flex-col gap-6">
                         <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
-                            Mening maqsadlarim (OKR)
+                            {t("myGoalsOkr")}
                         </h2>
                         <div className="flex flex-col gap-4">
                             {okrs.length === 0 ? (
-                                <p className="text-sm text-gray-500">Joriy tsiklda OKR lar mavjud emas.</p>
+                                <p className="text-sm text-gray-500">{t("noOkrsInCycle")}</p>
                             ) : (
                                 okrs.map((okr: any) => (
                                     <div key={okr.id} className="border border-gray-200 bg-white p-6 flex flex-col gap-4">
@@ -506,7 +529,7 @@ export default function EmployeeProfilePage() {
                                             </div>
                                             <div className="flex flex-col items-end gap-1">
                                                 <span className="text-2xl font-bold tracking-tighter">{Math.round(okr.progress)}%</span>
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Umumiy</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("overall")}</span>
                                             </div>
                                         </div>
                                         {okr.keyResults?.length > 0 && (
@@ -522,7 +545,7 @@ export default function EmployeeProfilePage() {
                                                                 <span className="text-[10px] font-bold uppercase tracking-widest w-20 text-right">{kr.currentValue} / {kr.targetValue} {kr.unit}</span>
                                                                 {kr.checkIns?.some((ci: any) => ci.status === 'PENDING') ? (
                                                                     <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500 shrink-0">
-                                                                        Kutilmoqda
+                                                                        {t("pending")}
                                                                     </span>
                                                                 ) : kr.progress < 100 ? (
                                                                     <button 
@@ -533,11 +556,11 @@ export default function EmployeeProfilePage() {
                                                                         }}
                                                                         className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 shrink-0"
                                                                     >
-                                                                        YANGILASH
+                                                                        {t("update")}
                                                                     </button>
                                                                 ) : (
                                                                     <span className="text-[10px] font-bold uppercase tracking-widest text-green-600 shrink-0">
-                                                                        Tasdiqlangan
+                                                                        {t("approved")}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -545,14 +568,14 @@ export default function EmployeeProfilePage() {
                                                         {checkInKr?.id === kr.id && (
                                                             <form onSubmit={handleCheckIn} className="mt-2 p-4 bg-gray-50 border border-gray-200 flex flex-col gap-3 relative animate-in fade-in slide-in-from-top-2 duration-200">
                                                                 <div className="flex justify-between items-center mb-1">
-                                                                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Progressni yangilash</span>
+                                                                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">{t("updateProgress")}</span>
                                                                     <button type="button" onClick={() => setCheckInKr(null)} className="text-gray-400 hover:text-black">
                                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                                                                     </button>
                                                                 </div>
                                                                 <div className="flex items-center gap-4">
                                                                     <div className="flex-[2] flex flex-col gap-1">
-                                                                        <label className="text-[10px] font-bold uppercase text-gray-400">Natija rasmi (Ixtiyoriy)</label>
+                                                                        <label className="text-[10px] font-bold uppercase text-gray-400">{t("resultImageOptional")}</label>
                                                                         <input 
                                                                             type="file"
                                                                             accept="image/*"
@@ -565,13 +588,13 @@ export default function EmployeeProfilePage() {
                                                                         />
                                                                     </div>
                                                                     <div className="flex-[3] flex flex-col gap-1">
-                                                                        <label className="text-[10px] font-bold uppercase text-gray-400">Izoh (ixtiyoriy)</label>
+                                                                        <label className="text-[10px] font-bold uppercase text-gray-400">{t("commentOptional")}</label>
                                                                         <input 
                                                                             type="text" 
                                                                             value={checkInComment}
                                                                             onChange={(e) => setCheckInComment(e.target.value)}
                                                                             className="border border-gray-200 p-2 text-sm focus:border-black outline-none w-full"
-                                                                            placeholder="Nima ish qilindi?"
+                                                                            placeholder={t("whatWasDone")}
                                                                         />
                                                                     </div>
                                                                     <div className="flex items-end pb-1">
@@ -580,7 +603,7 @@ export default function EmployeeProfilePage() {
                                                                             disabled={isCheckingIn}
                                                                             className="bg-black text-white px-4 py-2 h-[38px] text-xs font-bold uppercase tracking-widest hover:bg-gray-800 disabled:opacity-50"
                                                                         >
-                                                                            {isCheckingIn ? "..." : "Bajarildi"}
+                                                                            {isCheckingIn ? "..." : t("done")}
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -615,14 +638,14 @@ export default function EmployeeProfilePage() {
                                             <div className="w-2 h-2 rounded-full bg-black mt-2 shrink-0" />
                                             <div className="flex flex-col gap-1">
                                                 <span className="text-sm font-bold">
-                                                    {activity.title}
+                                                    {getActivityTitle(activity.title)}
                                                 </span>
                                                 <span className="text-xs text-gray-500">
-                                                    {activity.description}
+                                                    {getActivityDescription(activity.description)}
                                                 </span>
                                             </div>
                                             <span className="ml-auto text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                                {activity.timeAgo}
+                                                {activity.timeAgo === "Yaqinda" ? t("recently") : activity.timeAgo}
                                             </span>
                                         </div>
                                     ),
@@ -630,6 +653,8 @@ export default function EmployeeProfilePage() {
                             )}
                         </div>
                     </div>
+
+                    <EmployeePayslipsSection />
                     {pendingTasks.length > 0 && (
                         <div className="flex flex-col gap-6 mt-8">
                             <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
@@ -674,7 +699,7 @@ export default function EmployeeProfilePage() {
                         <div className="border border-black bg-white p-5 flex flex-col gap-3 shadow-xs">
                             <div className="flex items-center justify-between border-b border-black pb-2.5">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
-                                    Greyd va Daraja
+                                    {t("gradeAndLevel")}
                                 </span>
                                 <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-black text-white">
                                     Level {grade.level}
@@ -685,26 +710,26 @@ export default function EmployeeProfilePage() {
                                     {grade.title}
                                 </div>
                                 <div className="text-xs font-mono text-gray-500 font-semibold">
-                                    Kodi: {grade.code}
+                                    {t("code")}: {grade.code}
                                 </div>
                             </div>
                             <div className="bg-gray-50 border border-gray-200 p-3 space-y-1 text-xs">
                                 <div className="text-gray-500 font-bold uppercase text-[10px]">
-                                    Maosh Diapazoni:
+                                    {t("salaryRange")}:
                                 </div>
                                 <div className="font-bold text-black text-sm">
                                     {grade.minSalary.toLocaleString()} - {grade.maxSalary.toLocaleString()} UZS
                                 </div>
                                 {salary && (
                                     <div className="text-emerald-700 font-bold pt-1 border-t border-gray-200 text-xs">
-                                        Belgilangan oylik: {salary.toLocaleString()} UZS
+                                        {t("assignedSalary")}: {salary.toLocaleString()} UZS
                                     </div>
                                 )}
                             </div>
                             {grade.requirements && (
                                 <div className="text-xs text-gray-600">
                                     <span className="font-bold text-black uppercase text-[10px] block mb-0.5">
-                                        Talablar:
+                                        {t("requirements")}:
                                     </span>
                                     <p className="line-clamp-3 text-gray-600 bg-gray-50 p-2 border border-gray-100">
                                         {grade.requirements}
@@ -718,7 +743,7 @@ export default function EmployeeProfilePage() {
                         <div className="border border-black bg-white p-5 flex flex-col gap-3 shadow-xs">
                             <div className="flex items-center justify-between border-b border-black pb-2.5">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
-                                    DISC Shaxsiyat Turi
+                                    {t("discPersonalityType")}
                                 </span>
                                 <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
                                     discAssessment.primaryType === "D" ? "bg-red-600 text-white" :
@@ -726,15 +751,15 @@ export default function EmployeeProfilePage() {
                                     discAssessment.primaryType === "S" ? "bg-emerald-600 text-white" :
                                     "bg-blue-600 text-white"
                                 }`}>
-                                    Tip: {discAssessment.primaryType} {discAssessment.secondaryType ? `+ ${discAssessment.secondaryType}` : ""}
+                                    {t("type")}: {discAssessment.primaryType} {discAssessment.secondaryType ? `+ ${discAssessment.secondaryType}` : ""}
                                 </span>
                             </div>
                             <div className="space-y-1">
                                 <div className="text-base font-black text-black">
-                                    {discAssessment.primaryType === "D" ? "Dominance (Yetakchi / Natija)" :
-                                     discAssessment.primaryType === "I" ? "Influence (Muloqotmand / Ilhom)" :
-                                     discAssessment.primaryType === "S" ? "Steadiness (Barqaror / Hamjihat)" :
-                                     "Conscientiousness (Aniqlik / Tahlil)"}
+                                    {discAssessment.primaryType === "D" ? "Dominance" :
+                                     discAssessment.primaryType === "I" ? "Influence" :
+                                     discAssessment.primaryType === "S" ? "Steadiness" :
+                                     "Conscientiousness"}
                                 </div>
                                 <div className="grid grid-cols-4 gap-1 text-[10px] text-center pt-2 font-bold">
                                     <div className="bg-red-50 p-1 border border-red-100">
@@ -762,21 +787,21 @@ export default function EmployeeProfilePage() {
                                 }}
                                 className="mt-1 w-full py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center"
                             >
-                                To'liq DISC Tahlili →
+                                {t("fullDiscAnalysis")}
                             </button>
                         </div>
                     ) : (
                         <div className="border border-dashed border-black bg-neutral-50 p-5 flex flex-col gap-3">
                             <div className="flex items-center justify-between border-b border-gray-300 pb-2">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
-                                    DISC Psixometrik Test
+                                    {t("discTest")}
                                 </span>
                                 <span className="px-2 py-0.5 text-[9px] font-bold uppercase bg-amber-100 text-amber-800">
-                                    Topshirilmagan
+                                    {t("notPassed")}
                                 </span>
                             </div>
                             <p className="text-xs text-gray-600 leading-relaxed">
-                                O'z shaxsiy xarakteringiz, muloqot va yetakchilik uslubingizni aniqlash uchun testdan o'ting.
+                                {t("discHint")}
                             </p>
                             <button
                                 onClick={() => {
@@ -785,7 +810,7 @@ export default function EmployeeProfilePage() {
                                 }}
                                 className="w-full py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center flex items-center justify-center gap-1.5"
                             >
-                                DISC Testidan O'tish →
+                                {t("takeDiscTest")}
                             </button>
                         </div>
                     )}
@@ -794,7 +819,7 @@ export default function EmployeeProfilePage() {
                         <div className="border-2 border-red-300 bg-red-50/40 p-5 flex flex-col gap-3 shadow-xs">
                             <div className="flex items-center justify-between border-b border-red-200 pb-2">
                                 <span className="text-[11px] font-black uppercase tracking-wider text-red-900 flex items-center gap-1.5">
-                                    <span>🏁</span> Offboarding & Aylanma Varaqasi
+                                    <span>🏁</span> {t("offboardingTitle")}
                                 </span>
                                 <span
                                     className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs ${
@@ -804,14 +829,14 @@ export default function EmployeeProfilePage() {
                                     }`}
                                 >
                                     {offboardingData.status === "COMPLETED"
-                                        ? "✓ Yakunlangan"
-                                        : "⚡ Jarayonda"}
+                                        ? t("statusOffboardingCompleted")
+                                        : t("statusInProgress")}
                                 </span>
                             </div>
 
                             <div className="flex flex-col gap-1 text-xs">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase">Oxirgi ish kuni:</span>
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase">{t("lastWorkingDay")}:</span>
                                     <span className="font-bold text-black">
                                         {offboardingData.lastWorkingDay
                                             ? new Date(offboardingData.lastWorkingDay).toISOString().split("T")[0]
@@ -819,10 +844,12 @@ export default function EmployeeProfilePage() {
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase">Topshiriqlar:</span>
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase">{t("requirements")}:</span>
                                     <span className="font-bold text-black">
-                                        {offboardingData.tasks?.filter((t: any) => t.isCompleted).length || 0}/
-                                        {offboardingData.tasks?.length || 0} bajarildi
+                                        {t("tasksCompleted", {
+                                            completed: offboardingData.tasks?.filter((t: any) => t.isCompleted).length || 0,
+                                            total: offboardingData.tasks?.length || 0,
+                                        })}
                                     </span>
                                 </div>
                             </div>
@@ -845,14 +872,14 @@ export default function EmployeeProfilePage() {
 
                             {offboardingData.exitInterviewNotes ? (
                                 <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center gap-1.5">
-                                    <span>✓</span> Exit Interview topshirildi
+                                    <span>✓</span> {t("exitInterviewCompleted")}
                                 </div>
                             ) : (
                                 <button
                                     onClick={() => setIsExitModalOpen(true)}
                                     className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-colors text-center shadow-xs"
                                 >
-                                    📝 Exit Interview So'rovnomasi →
+                                    {t("exitInterviewBtn")}
                                 </button>
                             )}
                         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
     OffboardingItem,
     OffboardingTask,
@@ -27,34 +28,6 @@ interface TemplateTaskItem {
     category: "IT_ACCESS" | "ASSET_RETURN" | "FINANCE" | "HR_DOCUMENTS";
 }
 
-const DEFAULT_COMPANY_TASKS: TemplateTaskItem[] = [
-    {
-        id: "t_1",
-        title: "IT tizimlaridan va korporativ pochtadan ruxsatni bekor qilish",
-        category: "IT_ACCESS",
-    },
-    {
-        id: "t_2",
-        title: "Korporativ noutbuk, telefon va aksessuarlarni qaytarib olish",
-        category: "ASSET_RETURN",
-    },
-    {
-        id: "t_3",
-        title: "ID karta, kalit va bino ruxsatnomalarini topshirish",
-        category: "ASSET_RETURN",
-    },
-    {
-        id: "t_4",
-        title: "Yakuniy moliyaviy hisob-kitob va oylik maoshni to'lash",
-        category: "FINANCE",
-    },
-    {
-        id: "t_5",
-        title: "Exit interview so'rovnomasini to'ldirish va hujjatlarni imzolash",
-        category: "HR_DOCUMENTS",
-    },
-];
-
 export default function OffboardingManagerModal({
     isOpen,
     onClose,
@@ -62,13 +35,43 @@ export default function OffboardingManagerModal({
     initialOffboarding,
     initialEmployeeId,
 }: OffboardingManagerModalProps) {
+    const t = useTranslations("HROffboarding.managerModal");
+
+    const defaultCompanyTasks: TemplateTaskItem[] = [
+        {
+            id: "t_1",
+            title: t("defaultTasks.t_1"),
+            category: "IT_ACCESS",
+        },
+        {
+            id: "t_2",
+            title: t("defaultTasks.t_2"),
+            category: "ASSET_RETURN",
+        },
+        {
+            id: "t_3",
+            title: t("defaultTasks.t_3"),
+            category: "ASSET_RETURN",
+        },
+        {
+            id: "t_4",
+            title: t("defaultTasks.t_4"),
+            category: "FINANCE",
+        },
+        {
+            id: "t_5",
+            title: t("defaultTasks.t_5"),
+            category: "HR_DOCUMENTS",
+        },
+    ];
+
     const [companyKey, setCompanyKey] = useState<string>("default");
     const [employees, setEmployees] = useState<any[]>([]);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
         initialEmployeeId || initialOffboarding?.employeeId || "",
     );
     const [reason, setReason] = useState<string>(
-        initialOffboarding?.reason || "O'z xohishiga ko'ra",
+        initialOffboarding?.reason || t("reasons.ownWill"),
     );
     const [lastWorkingDay, setLastWorkingDay] = useState<string>(
         initialOffboarding?.lastWorkingDay
@@ -83,7 +86,7 @@ export default function OffboardingManagerModal({
         initialOffboarding || null,
     );
 
-    const [initialTasks, setInitialTasks] = useState<TemplateTaskItem[]>(DEFAULT_COMPANY_TASKS);
+    const [initialTasks, setInitialTasks] = useState<TemplateTaskItem[]>(defaultCompanyTasks);
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
     const [editingTaskTitle, setEditingTaskTitle] = useState("");
     const [editingTaskCategory, setEditingTaskCategory] = useState<string>("IT_ACCESS");
@@ -117,13 +120,13 @@ export default function OffboardingManagerModal({
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         setInitialTasks(parsed);
                     } else {
-                        setInitialTasks(DEFAULT_COMPANY_TASKS);
+                        setInitialTasks(defaultCompanyTasks);
                     }
                 } else {
-                    setInitialTasks(DEFAULT_COMPANY_TASKS);
+                    setInitialTasks(defaultCompanyTasks);
                 }
             } catch (e) {
-                setInitialTasks(DEFAULT_COMPANY_TASKS);
+                setInitialTasks(defaultCompanyTasks);
             }
 
             if (!initialOffboarding) {
@@ -133,7 +136,7 @@ export default function OffboardingManagerModal({
                             .filter((u: any) => u.employee || u.role !== "SUPER_ADMIN")
                             .map((u: any) => ({
                                 id: u.employee?.id || u.id,
-                                firstName: u.firstName || u.employee?.firstName || "Xodim",
+                                firstName: u.firstName || u.employee?.firstName || "Employee",
                                 lastName: u.lastName || u.employee?.lastName || "",
                                 department: u.employee?.department || null,
                                 position: u.employee?.position || null,
@@ -165,13 +168,13 @@ export default function OffboardingManagerModal({
     const handleSaveTemplateForCompany = () => {
         const storageKey = `offboarding_template_${companyKey}`;
         localStorage.setItem(storageKey, JSON.stringify(initialTasks));
-        alert(`Kompaniya (${companyKey}) uchun aylanma varaqasi shabloni muvaffaqiyatli saqlandi!`);
+        alert(t("templateSavedAlert", { company: companyKey }));
     };
 
     const handleStart = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedEmployeeId) {
-            setErrorMsg("Iltimos, xodimni tanlang.");
+            setErrorMsg("Please select an employee");
             return;
         }
 
@@ -190,7 +193,7 @@ export default function OffboardingManagerModal({
             setCurrentOffboarding(res);
             if (onSuccess) onSuccess();
         } catch (err: any) {
-            setErrorMsg(err.message || "Offboarding jarayonini boshlashda xatolik");
+            setErrorMsg(err.message || "Error");
         } finally {
             setLoading(false);
         }
@@ -215,7 +218,7 @@ export default function OffboardingManagerModal({
             }
             if (onSuccess) onSuccess();
         } catch (err: any) {
-            alert(err.message || "Topshiriq holatini o'zgartirishda xatolik");
+            alert(err.message || "Error");
         }
     };
 
@@ -241,7 +244,7 @@ export default function OffboardingManagerModal({
                 setEditingTaskId(null);
                 if (onSuccess) onSuccess();
             } catch (err: any) {
-                alert(err.message || "Topshiriqni tahrirlashda xatolik");
+                alert(err.message || "Error");
             }
         } else {
             setInitialTasks(
@@ -272,7 +275,7 @@ export default function OffboardingManagerModal({
                 setNewTaskTitle("");
                 if (onSuccess) onSuccess();
             } catch (err: any) {
-                alert(err.message || "Topshiriq qo'shishda xatolik");
+                alert(err.message || "Error");
             }
         } else {
             const newItem: TemplateTaskItem = {
@@ -286,7 +289,7 @@ export default function OffboardingManagerModal({
     };
 
     const handleDeleteTask = async (taskId: string) => {
-        if (!confirm("Ushbu topshiriqni aylanma varaqasidan o'chirmoqchimisiz?")) return;
+        if (!confirm("Delete?")) return;
 
         if (currentOffboarding) {
             try {
@@ -297,7 +300,7 @@ export default function OffboardingManagerModal({
                 });
                 if (onSuccess) onSuccess();
             } catch (err: any) {
-                alert(err.message || "Topshiriqni o'chirishda xatolik");
+                alert(err.message || "Error");
             }
         } else {
             setInitialTasks(initialTasks.filter((t) => t.id !== taskId));
@@ -315,15 +318,15 @@ export default function OffboardingManagerModal({
             });
             if (onSuccess) onSuccess();
         } catch (err: any) {
-            alert(err.message || "Statusni o'zgartirishda xatolik");
+            alert(err.message || "Error");
         }
     };
 
     const categoryLabels: Record<string, { label: string; icon: string; color: string }> = {
-        IT_ACCESS: { label: "IT Ruxsatnomalar & Hisoblar", icon: "🔒", color: "text-blue-700 bg-blue-50 border-blue-200" },
-        ASSET_RETURN: { label: "Uskunalar & Moddiy Aktivlar", icon: "💻", color: "text-amber-700 bg-amber-50 border-amber-200" },
-        FINANCE: { label: "Buxgalteriya & Hisob-kitob", icon: "💰", color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-        HR_DOCUMENTS: { label: "HR Hujjatlar & Exit Interview", icon: "📝", color: "text-purple-700 bg-purple-50 border-purple-200" },
+        IT_ACCESS: { label: t("categories.IT_ACCESS"), icon: "🔒", color: "text-blue-700 bg-blue-50 border-blue-200" },
+        ASSET_RETURN: { label: t("categories.ASSET_RETURN"), icon: "💻", color: "text-amber-700 bg-amber-50 border-amber-200" },
+        FINANCE: { label: t("categories.FINANCE"), icon: "💰", color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+        HR_DOCUMENTS: { label: t("categories.HR_DOCUMENTS"), icon: "📝", color: "text-purple-700 bg-purple-50 border-purple-200" },
     };
 
     const completedTasksCount = currentOffboarding?.tasks?.filter((t) => t.isCompleted).length || 0;
@@ -338,13 +341,13 @@ export default function OffboardingManagerModal({
                         <span className="text-xl">🏁</span>
                         <div>
                             <h3 className="text-base font-black uppercase tracking-tight text-black flex items-center gap-2">
-                                <span>{currentOffboarding ? "Offboarding & Aylanma Varaqasi" : "Yangi Offboarding Boshlash"}</span>
+                                <span>{currentOffboarding ? t("editTitle") : t("createTitle")}</span>
                                 <span className="px-2 py-0.5 text-[9px] font-mono font-bold uppercase bg-gray-100 border border-gray-300 text-gray-700">
                                     🏢 {companyKey}
                                 </span>
                             </h3>
                             <p className="text-[11px] font-medium text-gray-500">
-                                Ishdan bo'shatish aylanma varaqasi, topshiriqlar qo'shish/tahrirlash va izolyatsiya
+                                {t("subtitle")}
                             </p>
                         </div>
                     </div>
@@ -366,7 +369,7 @@ export default function OffboardingManagerModal({
                     <form onSubmit={handleStart} className="flex flex-col gap-4">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                Xodimni Tanlang *
+                                {t("selectEmployee")}
                             </label>
                             <select
                                 value={selectedEmployeeId}
@@ -374,10 +377,10 @@ export default function OffboardingManagerModal({
                                 required
                                 className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
                             >
-                                <option value="">Xodimni tanlang...</option>
+                                <option value="">{t("selectEmployeePlaceholder")}</option>
                                 {employees.map((emp) => (
                                     <option key={emp.id} value={emp.id}>
-                                        {emp.firstName} {emp.lastName} ({emp.department?.name || "Bo'limsiz"} - {emp.position?.title || "Lavozimsiz"})
+                                        {emp.firstName} {emp.lastName} ({emp.department?.name || "-"} - {emp.position?.title || "-"})
                                     </option>
                                 ))}
                             </select>
@@ -386,25 +389,25 @@ export default function OffboardingManagerModal({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    Ishdan Ketish Sababi *
+                                    {t("reason")}
                                 </label>
                                 <select
                                     value={reason}
                                     onChange={(e) => setReason(e.target.value)}
                                     className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
                                 >
-                                    <option value="O'z xohishiga ko'ra">O'z xohishiga ko'ra</option>
-                                    <option value="Boshqa kompaniyaga o'tish">Boshqa kompaniyaga o'tish</option>
-                                    <option value="Shartnoma muddati tugashi">Shartnoma muddati tugashi</option>
-                                    <option value="Karyera o'zgarishi / O'qish">Karyera o'zgarishi / O'qish</option>
-                                    <option value="Kompaniya tashabbusi bilan">Kompaniya tashabbusi bilan</option>
-                                    <option value="Boshqa sabab">Boshqa sabab</option>
+                                    <option value="O'z xohishiga ko'ra">{t("reasons.ownWill")}</option>
+                                    <option value="Boshqa kompaniyaga o'tish">{t("reasons.anotherCompany")}</option>
+                                    <option value="Shartnoma muddati tugashi">{t("reasons.contractEnd")}</option>
+                                    <option value="Karyera o'zgarishi / O'qish">{t("reasons.careerChange")}</option>
+                                    <option value="Kompaniya tashabbusi bilan">{t("reasons.companyInitiative")}</option>
+                                    <option value="Boshqa sabab">{t("reasons.other")}</option>
                                 </select>
                             </div>
 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    Oxirgi Ish Kuni *
+                                    {t("lastWorkingDay")}
                                 </label>
                                 <input
                                     type="date"
@@ -419,14 +422,14 @@ export default function OffboardingManagerModal({
                         <div className="flex flex-col gap-2 pt-2 border-t border-gray-200">
                             <div className="flex items-center justify-between">
                                 <label className="text-xs font-bold uppercase tracking-wider text-black flex items-center gap-1.5">
-                                    <span>📋</span> Kompaniya Aylanma Varaqasi ({initialTasks.length} ta topshiriq)
+                                    <span>📋</span> {t("companyChecklist", { count: initialTasks.length })}
                                 </label>
                                 <button
                                     type="button"
                                     onClick={handleSaveTemplateForCompany}
                                     className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
                                 >
-                                    💾 Shablon sifatida saqlash ({companyKey})
+                                    {t("saveAsTemplate", { company: companyKey })}
                                 </button>
                             </div>
 
@@ -453,10 +456,10 @@ export default function OffboardingManagerModal({
                                                         onChange={(e) => setEditingTaskCategory(e.target.value)}
                                                         className="p-1 bg-white border border-gray-300 text-xs font-bold"
                                                     >
-                                                        <option value="IT_ACCESS">🔒 IT Ruxsatlar</option>
-                                                        <option value="ASSET_RETURN">💻 Aktivlar</option>
-                                                        <option value="FINANCE">💰 Buxgalteriya</option>
-                                                        <option value="HR_DOCUMENTS">📝 HR Hujjatlar</option>
+                                                        <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
+                                                        <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
+                                                        <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
+                                                        <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
                                                     </select>
                                                     <button
                                                         type="button"
@@ -486,7 +489,6 @@ export default function OffboardingManagerModal({
                                                             type="button"
                                                             onClick={() => handleStartEditTask(task)}
                                                             className="p-1 text-gray-500 hover:text-black text-xs font-bold"
-                                                            title="Tahrirlash"
                                                         >
                                                             ✏️
                                                         </button>
@@ -494,7 +496,6 @@ export default function OffboardingManagerModal({
                                                             type="button"
                                                             onClick={() => handleDeleteTask(task.id)}
                                                             className="p-1 text-gray-400 hover:text-red-600 text-xs font-bold"
-                                                            title="O'chirish"
                                                         >
                                                             🗑️
                                                         </button>
@@ -509,7 +510,7 @@ export default function OffboardingManagerModal({
                             <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
                                 <input
                                     type="text"
-                                    placeholder="+ Yangi topshiriq kiritish..."
+                                    placeholder={t("newTaskPlaceholder")}
                                     value={newTaskTitle}
                                     onChange={(e) => setNewTaskTitle(e.target.value)}
                                     className="flex-1 p-2 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
@@ -519,28 +520,28 @@ export default function OffboardingManagerModal({
                                     onChange={(e) => setNewTaskCategory(e.target.value)}
                                     className="p-2 bg-white border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
                                 >
-                                    <option value="IT_ACCESS">🔒 IT Ruxsatlar</option>
-                                    <option value="ASSET_RETURN">💻 Aktivlar</option>
-                                    <option value="FINANCE">💰 Buxgalteriya</option>
-                                    <option value="HR_DOCUMENTS">📝 HR Hujjatlar</option>
+                                    <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
+                                    <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
+                                    <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
+                                    <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
                                 </select>
                                 <button
                                     type="button"
                                     onClick={handleAddTask}
                                     className="px-3 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors shrink-0"
                                 >
-                                    + Qo'shish
+                                    {t("addBtn")}
                                 </button>
                             </div>
                         </div>
 
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                Dastlabki Izohlar / HR Eslatmasi
+                                {t("hrNotes")}
                             </label>
                             <textarea
                                 rows={2}
-                                placeholder="Ishdan bo'shatish jarayoni bo'yicha maxsus eslatmalar..."
+                                placeholder={t("hrNotesPlaceholder")}
                                 value={exitNotes}
                                 onChange={(e) => setExitNotes(e.target.value)}
                                 className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black resize-none"
@@ -553,14 +554,14 @@ export default function OffboardingManagerModal({
                                 onClick={onClose}
                                 className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
                             >
-                                Bekor Qilish
+                                {t("cancel")}
                             </button>
                             <button
                                 type="submit"
                                 disabled={loading}
                                 className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
                             >
-                                {loading ? "Boshlanmoqda..." : "Offboardingni Boshlash"}
+                                {loading ? t("starting") : t("startBtn")}
                             </button>
                         </div>
                     </form>
@@ -573,7 +574,7 @@ export default function OffboardingManagerModal({
                                         {currentOffboarding.employee?.firstName} {currentOffboarding.employee?.lastName}
                                     </h4>
                                     <p className="text-[11px] font-medium text-gray-600">
-                                        {currentOffboarding.employee?.department?.name || "Bo'lim"} • {currentOffboarding.employee?.position?.title || "Lavozim"}
+                                        {currentOffboarding.employee?.department?.name || "-"} • {currentOffboarding.employee?.position?.title || "-"}
                                     </p>
                                 </div>
 
@@ -588,10 +589,10 @@ export default function OffboardingManagerModal({
                                         }`}
                                     >
                                         {currentOffboarding.status === "COMPLETED"
-                                            ? "✓ Yakunlangan"
+                                            ? "✓"
                                             : currentOffboarding.status === "CANCELLED"
-                                            ? "Bekor qilingan"
-                                            : "⚡ Jarayonda"}
+                                            ? "✕"
+                                            : "⚡"} {currentOffboarding.status}
                                     </span>
 
                                     <select
@@ -599,20 +600,20 @@ export default function OffboardingManagerModal({
                                         onChange={(e) => handleStatusChange(e.target.value as any)}
                                         className="p-1 bg-white border border-gray-300 text-[10px] font-bold uppercase"
                                     >
-                                        <option value="IN_PROGRESS">Jarayonda</option>
-                                        <option value="COMPLETED">Yakunlash</option>
-                                        <option value="CANCELLED">Bekor qilish</option>
+                                        <option value="IN_PROGRESS">{t("selectStatus.inProgress")}</option>
+                                        <option value="COMPLETED">{t("selectStatus.completed")}</option>
+                                        <option value="CANCELLED">{t("selectStatus.cancelled")}</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs border-t border-gray-200 pt-2">
                                 <div>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">Sabab</span>
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">{t("reasonHeader")}</span>
                                     <span className="font-bold text-gray-800">{currentOffboarding.reason}</span>
                                 </div>
                                 <div>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">Oxirgi Ish Kuni</span>
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">{t("lastWorkingDayHeader")}</span>
                                     <span className="font-bold text-gray-800">
                                         {currentOffboarding.lastWorkingDay
                                             ? new Date(currentOffboarding.lastWorkingDay).toISOString().split("T")[0]
@@ -620,16 +621,16 @@ export default function OffboardingManagerModal({
                                     </span>
                                 </div>
                                 <div>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">Aktivlar Topshirildi</span>
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">{t("assetsReturnedHeader")}</span>
                                     <span className={`font-bold ${currentOffboarding.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
-                                        {currentOffboarding.isAssetsReturned ? "✓ Ha" : "Kutilmoqda"}
+                                        {currentOffboarding.isAssetsReturned ? t("yes") : t("pending")}
                                     </span>
                                 </div>
                             </div>
 
                             <div className="flex flex-col gap-1 pt-1">
                                 <div className="flex items-center justify-between text-[10px] font-bold text-gray-600">
-                                    <span>Aylanma Varaqasi Bajarilishi ({completedTasksCount}/{totalTasksCount})</span>
+                                    <span>{t("checklistCompletion", { completed: completedTasksCount, total: totalTasksCount })}</span>
                                     <span>{progressPercent}%</span>
                                 </div>
                                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -643,8 +644,8 @@ export default function OffboardingManagerModal({
 
                         <div className="flex flex-col gap-3">
                             <h4 className="text-xs font-black uppercase tracking-wider text-black flex items-center justify-between">
-                                <span>📋 Aylanma Varaqasi (Checklist)</span>
-                                <span className="text-[10px] font-bold text-gray-500">{totalTasksCount} ta topshiriq</span>
+                                <span>{t("checklistTitle")}</span>
+                                <span className="text-[10px] font-bold text-gray-500">{t("tasksCount", { count: totalTasksCount })}</span>
                             </h4>
 
                             <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
@@ -672,10 +673,10 @@ export default function OffboardingManagerModal({
                                                         onChange={(e) => setEditingTaskCategory(e.target.value)}
                                                         className="p-1 bg-white border border-gray-300 text-xs font-bold"
                                                     >
-                                                        <option value="IT_ACCESS">🔒 IT Ruxsatlar</option>
-                                                        <option value="ASSET_RETURN">💻 Aktivlar</option>
-                                                        <option value="FINANCE">💰 Buxgalteriya</option>
-                                                        <option value="HR_DOCUMENTS">📝 HR Hujjatlar</option>
+                                                        <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
+                                                        <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
+                                                        <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
+                                                        <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
                                                     </select>
                                                     <button
                                                         type="button"
@@ -716,7 +717,6 @@ export default function OffboardingManagerModal({
                                                             type="button"
                                                             onClick={() => handleStartEditTask(task)}
                                                             className="p-1 text-gray-500 hover:text-black transition-colors font-bold text-xs"
-                                                            title="Tahrirlash"
                                                         >
                                                             ✏️
                                                         </button>
@@ -724,7 +724,6 @@ export default function OffboardingManagerModal({
                                                             type="button"
                                                             onClick={() => handleDeleteTask(task.id)}
                                                             className="p-1 text-gray-400 hover:text-red-600 transition-colors font-bold text-xs"
-                                                            title="O'chirish"
                                                         >
                                                             🗑️
                                                         </button>
@@ -740,7 +739,7 @@ export default function OffboardingManagerModal({
                                 <input
                                     type="text"
                                     required
-                                    placeholder="+ Yangi topshiriq qo'shish..."
+                                    placeholder={t("newTaskPlaceholder")}
                                     value={newTaskTitle}
                                     onChange={(e) => setNewTaskTitle(e.target.value)}
                                     className="flex-1 p-2 bg-gray-50 border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
@@ -750,16 +749,16 @@ export default function OffboardingManagerModal({
                                     onChange={(e) => setNewTaskCategory(e.target.value)}
                                     className="p-2 bg-gray-50 border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
                                 >
-                                    <option value="IT_ACCESS">🔒 IT Ruxsatlar</option>
-                                    <option value="ASSET_RETURN">💻 Aktivlar</option>
-                                    <option value="FINANCE">💰 Buxgalteriya</option>
-                                    <option value="HR_DOCUMENTS">📝 HR Hujjatlar</option>
+                                    <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
+                                    <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
+                                    <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
+                                    <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
                                 </select>
                                 <button
                                     type="submit"
                                     className="px-3 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors shrink-0"
                                 >
-                                    + Qo'shish
+                                    {t("addBtn")}
                                 </button>
                             </form>
                         </div>
@@ -767,7 +766,7 @@ export default function OffboardingManagerModal({
                         {currentOffboarding.exitInterviewNotes && (
                             <div className="p-3.5 bg-purple-50/70 border border-purple-200 flex flex-col gap-1.5">
                                 <span className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                                    <span>📝</span> Exit Interview So'rovnomasi Natijasi
+                                    <span>📝</span> {t("exitInterviewResultTitle")}
                                 </span>
                                 <p className="text-xs font-medium text-gray-800 whitespace-pre-wrap">
                                     {currentOffboarding.exitInterviewNotes}
@@ -781,7 +780,7 @@ export default function OffboardingManagerModal({
                                 onClick={onClose}
                                 className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
                             >
-                                Yopish
+                                {t("close")}
                             </button>
                         </div>
                     </div>

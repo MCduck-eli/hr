@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { JobGrade, EmployeeWithGrade } from "@/src/services/grading-service";
 
 interface AssignGradeModalProps {
@@ -18,6 +19,7 @@ export default function AssignGradeModal({
     employee,
     grades,
 }: AssignGradeModalProps) {
+    const t = useTranslations("Grading");
     const [selectedGradeId, setSelectedGradeId] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export default function AssignGradeModal({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedGradeId) {
-            setError("Iltimos, greydni tanlang.");
+            setError(t("selectGrade"));
             return;
         }
 
@@ -45,7 +47,7 @@ export default function AssignGradeModal({
             await onAssign(employee.id, selectedGradeId);
             onClose();
         } catch (err: any) {
-            setError(err.message || "Greyd biriktirishda xatolik yuz berdi.");
+            setError(err.message || "Error");
         } finally {
             setIsSubmitting(false);
         }
@@ -57,10 +59,10 @@ export default function AssignGradeModal({
                 <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
                     <div>
                         <h2 className="text-xl font-bold uppercase tracking-tight text-black">
-                            Greyd Biriktirish
+                            {t("assignModalTitle")}
                         </h2>
                         <p className="text-xs text-gray-500 mt-0.5">
-                            Xodim: <span className="font-bold text-black">{employee.firstName} {employee.lastName}</span>
+                            {t("employee")}: <span className="font-bold text-black">{employee.firstName} {employee.lastName}</span>
                         </p>
                     </div>
                     <button
@@ -82,24 +84,24 @@ export default function AssignGradeModal({
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="bg-gray-50 p-4 border border-gray-200 text-xs space-y-1">
                         <div className="flex justify-between">
-                            <span className="text-gray-500">Bo'lim:</span>
-                            <span className="font-semibold text-black">{employee.department?.name || "Biriktirilmagan"}</span>
+                            <span className="text-gray-500">{t("department")}:</span>
+                            <span className="font-semibold text-black">{employee.department?.name || "-"}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-gray-500">Lavozim:</span>
-                            <span className="font-semibold text-black">{employee.position || "Ko'rsatilmagan"}</span>
+                            <span className="text-gray-500">{t("position")}:</span>
+                            <span className="font-semibold text-black">{employee.position || "-"}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-gray-500">Hozirgi Greyd:</span>
+                            <span className="text-gray-500">{t("currentGrade")}:</span>
                             <span className="font-semibold text-black">
-                                {employee.grade ? `${employee.grade.title} (${employee.grade.code})` : "Mavjud emas"}
+                                {employee.grade ? `${employee.grade.title} (${employee.grade.code})` : t("unassigned")}
                             </span>
                         </div>
                     </div>
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                            Yangi Greydni Tanlang *
+                            {t("targetGrade")} *
                         </label>
                         <select
                             value={selectedGradeId}
@@ -107,7 +109,7 @@ export default function AssignGradeModal({
                             className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
                             required
                         >
-                            <option value="">Greydni tanlang...</option>
+                            <option value="">{t("selectGrade")}</option>
                             {grades.map((g) => (
                                 <option key={g.id} value={g.id}>
                                     Level {g.level} | {g.title} ({g.code}) — {g.minSalary.toLocaleString()} - {g.maxSalary.toLocaleString()} UZS
@@ -118,20 +120,17 @@ export default function AssignGradeModal({
 
                     {selectedGrade && (
                         <div className="bg-blue-50 border border-blue-200 p-4 text-xs space-y-2">
-                            <div className="font-bold text-blue-900 uppercase">
-                                Tanlangan Greyd Ma'lumotlari:
-                            </div>
                             <div className="flex justify-between text-blue-800">
-                                <span>Daraja:</span>
+                                <span>{t("level")}:</span>
                                 <span className="font-bold">Level {selectedGrade.level}</span>
                             </div>
                             <div className="flex justify-between text-blue-800">
-                                <span>Maosh diapazoni:</span>
+                                <span>{t("salaryRange")}</span>
                                 <span className="font-bold">{selectedGrade.minSalary.toLocaleString()} - {selectedGrade.maxSalary.toLocaleString()} UZS</span>
                             </div>
                             {selectedGrade.requirements && (
                                 <div className="text-blue-900 pt-1 border-t border-blue-200/60">
-                                    <span className="font-semibold">Talablar:</span> {selectedGrade.requirements}
+                                    <span className="font-semibold">{t("requirements")}</span> {selectedGrade.requirements}
                                 </div>
                             )}
                         </div>
@@ -144,14 +143,14 @@ export default function AssignGradeModal({
                             disabled={isSubmitting}
                             className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
                         >
-                            Bekor qilish
+                            {t("cancel")}
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
                             className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
                         >
-                            {isSubmitting ? "Biriktirilmoqda..." : "Tasdiqlash"}
+                            {isSubmitting ? t("saving") : t("assign")}
                         </button>
                     </div>
                 </form>

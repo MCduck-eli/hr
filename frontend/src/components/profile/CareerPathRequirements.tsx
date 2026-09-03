@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import RequestPromotionModal from "../grading/RequestPromotionModal";
 import { createPromotionRequest } from "@/src/services/grading-service";
 
@@ -28,6 +29,7 @@ export default function CareerPathRequirements({
     employeeName,
     onRefresh,
 }: CareerPathProps) {
+    const t = useTranslations("DashboardProfile");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -38,11 +40,11 @@ export default function CareerPathRequirements({
     const handlePromotionSubmit = async (data: any) => {
         try {
             await createPromotionRequest(data);
-            setActionMessage({ type: "success", text: "Ko'tarilish so'rovi muvaffaqiyatli yuborildi!" });
+            setActionMessage({ type: "success", text: t("promotionSuccess") });
             if (onRefresh) onRefresh();
             setTimeout(() => setActionMessage(null), 5000);
         } catch (err: any) {
-            setActionMessage({ type: "error", text: err.message || "So'rov yuborishda xatolik yuz berdi" });
+            setActionMessage({ type: "error", text: err.message || "Error" });
         }
     };
 
@@ -60,17 +62,17 @@ export default function CareerPathRequirements({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black pb-4">
                 <div>
                     <div className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1">
-                        Karyera O'sishi va Rejasi
+                        {t("careerPlanBadge")}
                     </div>
                     <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-black">
-                        Keyingi Greydga Ko'tarilish Talablari
+                        {t("careerRequirementsTitle")}
                     </h2>
                 </div>
 
                 {activePromotionRequest ? (
                     <div className="bg-amber-50 border border-amber-300 text-amber-900 px-3 py-1.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                        So'rov ko'rib chiqilmoqda
+                        {t("requestInReview")}
                     </div>
                 ) : isReadyForPromotion && nextGrade ? (
                     <button
@@ -80,7 +82,7 @@ export default function CareerPathRequirements({
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                         </svg>
-                        Ko'tarish So'rovi Berish
+                        {t("requestPromotionBtn")}
                     </button>
                 ) : null}
             </div>
@@ -92,10 +94,10 @@ export default function CareerPathRequirements({
                     </div>
                     <div>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block">
-                            Hozirgi Daraja
+                            {t("currentLevel")}
                         </span>
                         <span className="text-base font-bold text-black">
-                            {currentGrade ? currentGrade.title : "Greyd biriktirilmagan"}
+                            {currentGrade ? currentGrade.title : t("unassigned")}
                         </span>
                     </div>
                 </div>
@@ -115,10 +117,10 @@ export default function CareerPathRequirements({
                     </div>
                     <div>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block">
-                            Maqsadli Keyingi Greyd
+                            {t("targetNextGrade")}
                         </span>
                         <span className="text-base font-bold text-black">
-                            {nextGrade ? nextGrade.title : "Eng yuqori darajadasiz"}
+                            {nextGrade ? nextGrade.title : t("topLevelReached")}
                         </span>
                     </div>
                 </div>
@@ -129,18 +131,18 @@ export default function CareerPathRequirements({
                     <div className="border border-gray-200 p-5 space-y-4">
                         <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                             <span className="text-xs font-bold uppercase tracking-wider text-black">
-                                1. OKR Bajarilish Ko'rsatkichi
+                                {t("okrProgressTitle")}
                             </span>
                             <span className={`px-2 py-0.5 text-[10px] font-bold uppercase ${
                                 isOkrMet ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
                             }`}>
-                                {isOkrMet ? "Bajarildi ✓" : `Kamida ${okrTarget}% kerak`}
+                                {isOkrMet ? t("okrMet") : t("okrRequired", { target: okrTarget })}
                             </span>
                         </div>
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between text-xs font-bold">
-                                <span className="text-gray-500">Joriy Natija:</span>
+                                <span className="text-gray-500">{t("currentResult")}:</span>
                                 <span className="text-black">{currentOkr}% / {okrTarget}%</span>
                             </div>
                             <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden relative">
@@ -152,26 +154,26 @@ export default function CareerPathRequirements({
                         </div>
 
                         <p className="text-[11px] text-gray-500">
-                            Keyingi darajaga o'tish uchun joriy siklda belgilangan OKR maqsadlarining kamida {okrTarget}% qismi muvaffaqiyatli bajarilishi shart.
+                            {t("okrHint", { target: okrTarget })}
                         </p>
                     </div>
 
                     <div className="border border-gray-200 p-5 space-y-4">
                         <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                             <span className="text-xs font-bold uppercase tracking-wider text-black">
-                                2. 360 Baholash Natijasi
+                                {t("feedback360Title")}
                             </span>
                             <span className={`px-2 py-0.5 text-[10px] font-bold uppercase ${
                                 isFeedbackMet ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-700"
                             }`}>
-                                {currentFeedback !== null ? `${currentFeedback} / 5.0` : "Hali baholanmagan"}
+                                {currentFeedback !== null && currentFeedback !== undefined ? `${currentFeedback} / 5.0` : t("notSpecified")}
                             </span>
                         </div>
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between text-xs font-bold">
-                                <span className="text-gray-500">Talab etilgan ball:</span>
-                                <span className="text-black">{feedbackTarget}.0+ ball</span>
+                                <span className="text-gray-500">{t("requiredScore")}:</span>
+                                <span className="text-black">{feedbackTarget}.0+</span>
                             </div>
                             <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
                                 <div
@@ -182,24 +184,24 @@ export default function CareerPathRequirements({
                         </div>
 
                         <p className="text-[11px] text-gray-500">
-                            Hamkasblar va rahbarlar tomonidan o'tkaziladigan 360 baholashda xodimning o'rtacha ko'rsatkichi kamida {feedbackTarget}.0 ball bo'lishi tavsiya etiladi.
+                            {t("feedbackHint", { target: feedbackTarget })}
                         </p>
                     </div>
 
                     <div className="border border-gray-200 p-5 space-y-3 md:col-span-2">
                         <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                             <span className="text-xs font-bold uppercase tracking-wider text-black">
-                                3. {nextGrade.title} uchun Malakaviy Talablar va Mas'uliyatlar
+                                {t("qualificationsTitle", { title: nextGrade.title })}
                             </span>
                             <span className="text-xs font-black text-emerald-700">
-                                Yangi Maosh: {nextGrade.minSalary.toLocaleString()} — {nextGrade.maxSalary.toLocaleString()} UZS
+                                {t("newSalary")}: {nextGrade.minSalary.toLocaleString()} — {nextGrade.maxSalary.toLocaleString()} UZS
                             </span>
                         </div>
 
                         {nextGrade.requirements && (
                             <div>
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
-                                    Bilim va Tajriba Talabi:
+                                    {t("knowledgeExp")}:
                                 </span>
                                 <p className="text-xs text-gray-700 bg-gray-50 p-3 border border-gray-200">
                                     {nextGrade.requirements}
@@ -210,7 +212,7 @@ export default function CareerPathRequirements({
                         {nextGrade.responsibilities && (
                             <div>
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 block mb-1">
-                                    Kutiladigan Asosiy Mas'uliyatlar:
+                                    {t("responsibilities")}:
                                 </span>
                                 <p className="text-xs text-gray-700 bg-gray-50 p-3 border border-gray-200">
                                     {nextGrade.responsibilities}
@@ -221,23 +223,23 @@ export default function CareerPathRequirements({
                 </div>
             ) : (
                 <div className="text-center py-6 text-xs text-gray-500">
-                    Siz kompaniyadagi eng yuqori lavozim darajasiga yetgansiz.
+                    {t("maxLevelMessage")}
                 </div>
             )}
 
             {activePromotionRequest && (
                 <div className="bg-blue-50 border border-blue-200 p-4 text-xs space-y-1.5">
                     <div className="font-bold text-blue-900 uppercase">
-                        Yuborilgan Ko'tarilish So'rovi:
+                        {t("submittedPromotionRequest")}:
                     </div>
                     <div className="text-blue-800">
-                        <span className="font-semibold">Maqsadli Greyd:</span> {activePromotionRequest.targetGradeTitle}
+                        <span className="font-semibold">{t("targetGrade")}:</span> {activePromotionRequest.targetGradeTitle}
                     </div>
                     <div className="text-blue-800">
-                        <span className="font-semibold">Taklif etilgan maosh:</span> {activePromotionRequest.proposedSalary.toLocaleString()} UZS
+                        <span className="font-semibold">{t("proposedSalary")}:</span> {activePromotionRequest.proposedSalary.toLocaleString()} UZS
                     </div>
                     <div className="text-blue-800">
-                        <span className="font-semibold">Asos:</span> {activePromotionRequest.reason}
+                        <span className="font-semibold">{t("reason")}:</span> {activePromotionRequest.reason}
                     </div>
                 </div>
             )}
@@ -250,7 +252,7 @@ export default function CareerPathRequirements({
                     employees={[
                         {
                             id: employeeId,
-                            firstName: employeeName?.split(" ")[0] || "Xodim",
+                            firstName: employeeName?.split(" ")[0] || "Employee",
                             lastName: employeeName?.split(" ")[1] || "",
                             grade: currentGrade,
                         },

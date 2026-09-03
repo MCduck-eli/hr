@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
     JourneyEvent,
     EmployeeJourneyResponse,
@@ -15,8 +16,8 @@ interface EmployeeJourneyTimelineProps {
 
 export default function EmployeeJourneyTimeline({
     employeeId,
-    employeeName,
 }: EmployeeJourneyTimelineProps) {
+    const t = useTranslations("EJM");
     const [journeyData, setJourneyData] = useState<EmployeeJourneyResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export default function EmployeeJourneyTimeline({
             const data = await fetchEmployeeJourney(employeeId);
             setJourneyData(data);
         } catch (err: any) {
-            setError(err.message || "EJM ma'lumotlarini yuklashda xatolik yuz berdi");
+            setError(err.message || "Error");
         } finally {
             setLoading(false);
         }
@@ -43,91 +44,91 @@ export default function EmployeeJourneyTimeline({
 
     const stageConfig: Record<string, { label: string; bg: string; text: string; border: string; icon: string }> = {
         CANDIDATE_APPLIED: {
-            label: "Nomzodlik Arizasi",
+            label: t("stages.CANDIDATE_APPLIED"),
             bg: "bg-sky-50",
             text: "text-sky-800",
             border: "border-sky-500",
             icon: "📝",
         },
         OFFER_ACCEPTED: {
-            label: "Offer Qabul Qilindi",
+            label: t("stages.OFFER_ACCEPTED"),
             bg: "bg-teal-50",
             text: "text-teal-800",
             border: "border-teal-500",
             icon: "🤝",
         },
         HIRED: {
-            label: "Ishga Qabul",
+            label: t("stages.HIRED"),
             bg: "bg-emerald-50",
             text: "text-emerald-800",
             border: "border-emerald-500",
             icon: "🚀",
         },
         ONBOARDING_STARTED: {
-            label: "Onboarding Boshlandi",
+            label: t("stages.ONBOARDING_STARTED"),
             bg: "bg-blue-50",
             text: "text-blue-800",
             border: "border-blue-500",
             icon: "📚",
         },
         ONBOARDING_COMPLETED: {
-            label: "Onboarding / Nizom",
+            label: t("stages.ONBOARDING_COMPLETED"),
             bg: "bg-blue-50",
             text: "text-blue-800",
             border: "border-blue-500",
             icon: "✅",
         },
         PROBATION_PASSED: {
-            label: "Sinov Muddati O'tdi",
+            label: t("stages.PROBATION_PASSED"),
             bg: "bg-teal-50",
             text: "text-teal-800",
             border: "border-teal-500",
             icon: "🛡️",
         },
         PROMOTED: {
-            label: "Greyd / Karyera O'sishi",
+            label: t("stages.PROMOTED"),
             bg: "bg-purple-50",
             text: "text-purple-800",
             border: "border-purple-500",
             icon: "👑",
         },
         DEPARTMENT_CHANGED: {
-            label: "Bo'lim / Lavozim O'zgardi",
+            label: t("stages.DEPARTMENT_CHANGED"),
             bg: "bg-amber-50",
             text: "text-amber-800",
             border: "border-amber-500",
             icon: "🔄",
         },
         COURSE_COMPLETED: {
-            label: "Kurs Yakunlandi",
+            label: t("stages.COURSE_COMPLETED"),
             bg: "bg-indigo-50",
             text: "text-indigo-800",
             border: "border-indigo-500",
             icon: "🎓",
         },
         CERTIFICATE_EARNED: {
-            label: "Sertifikat Olindi",
+            label: t("stages.CERTIFICATE_EARNED"),
             bg: "bg-cyan-50",
             text: "text-cyan-800",
             border: "border-cyan-500",
             icon: "📜",
         },
         PERFORMANCE_REVIEWED: {
-            label: "Baholash / OKR / DISC / 360",
+            label: t("stages.PERFORMANCE_REVIEWED"),
             bg: "bg-violet-50",
             text: "text-violet-800",
             border: "border-violet-500",
             icon: "⭐",
         },
         OFFBOARDING_STARTED: {
-            label: "Offboarding Boshlandi",
+            label: t("stages.OFFBOARDING_STARTED"),
             bg: "bg-red-50",
             text: "text-red-800",
             border: "border-red-500",
             icon: "🚪",
         },
         TERMINATED: {
-            label: "Ish Faoliyati Yakunlandi",
+            label: t("stages.TERMINATED"),
             bg: "bg-gray-100",
             text: "text-gray-800",
             border: "border-gray-400",
@@ -147,7 +148,7 @@ export default function EmployeeJourneyTimeline({
 
     const rawTimeline = journeyData?.timeline || [];
     const stages = journeyData?.stages || [];
-    const currentStageName = journeyData?.currentStage || "Asosiy Faoliyat";
+    const currentStageName = journeyData?.currentStage || t("defaultCurrentStage");
 
     const matchesCategoryFilter = (item: JourneyEvent, cat: string) => {
         if (cat === "ALL") return true;
@@ -182,7 +183,7 @@ export default function EmployeeJourneyTimeline({
         return (
             <div className="border border-black bg-white p-6 shadow-xs">
                 <div className="text-xs font-bold uppercase tracking-widest text-black animate-pulse">
-                    EJM (Xodimning Hayotiy Sikl Xaritasi) yuklanmoqda...
+                    {t("loading")}
                 </div>
             </div>
         );
@@ -194,14 +195,14 @@ export default function EmployeeJourneyTimeline({
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                         <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                            Employee Journey Map (EJM)
+                            {t("badge")}
                         </span>
                         <span className="text-[10px] font-bold px-2 py-0.5 bg-black text-white uppercase tracking-wider">
-                            Dinamik Karyera Yo'li
+                            {t("dynamicPath")}
                         </span>
                     </div>
                     <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-black">
-                        Xodimning Hayotiy Sikl Xaritasi
+                        {t("title")}
                     </h2>
                 </div>
 
@@ -209,7 +210,7 @@ export default function EmployeeJourneyTimeline({
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <div className="flex flex-col">
                         <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
-                            Hozirgi Bosqichda:
+                            {t("currentStage")}:
                         </span>
                         <span className="text-xs font-black uppercase text-emerald-400">
                             {currentStageName}
@@ -228,10 +229,10 @@ export default function EmployeeJourneyTimeline({
                 <div className="flex flex-col gap-3 bg-gray-50 p-4 border border-gray-200">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-black uppercase tracking-wider text-black">
-                            Bosqichlar Ketma-ketligi & Holati
+                            {t("stagesSequence")}
                         </span>
                         <span className="text-[10px] font-bold text-gray-500 uppercase">
-                            Avtomatik reja
+                            {t("autoPlan")}
                         </span>
                     </div>
 
@@ -262,7 +263,7 @@ export default function EmployeeJourneyTimeline({
                                                     : "bg-gray-100 text-gray-500"
                                             }`}
                                         >
-                                            {isCurrent ? "Joriy" : isCompleted ? "✓ O'tgan" : "Reja"}
+                                            {isCurrent ? t("statusCurrent") : isCompleted ? t("statusCompleted") : t("statusPlanned")}
                                         </span>
                                     </div>
 
@@ -286,7 +287,7 @@ export default function EmployeeJourneyTimeline({
                             filterCategory === "ALL" ? "bg-black text-white" : "bg-white text-black border border-gray-300 hover:border-black"
                         }`}
                     >
-                        Barchasi ({rawTimeline.length})
+                        {t("allFilter")} ({rawTimeline.length})
                     </button>
                     <button
                         onClick={() => setFilterCategory("ONBOARDING")}
@@ -294,7 +295,7 @@ export default function EmployeeJourneyTimeline({
                             filterCategory === "ONBOARDING" ? "bg-blue-700 text-white" : "bg-white text-blue-700 border border-blue-200 hover:border-blue-600"
                         }`}
                     >
-                        Onboarding & Qabul
+                        {t("onboardingFilter")}
                     </button>
                     <button
                         onClick={() => setFilterCategory("CAREER")}
@@ -302,7 +303,7 @@ export default function EmployeeJourneyTimeline({
                             filterCategory === "CAREER" ? "bg-purple-700 text-white" : "bg-white text-purple-700 border border-purple-200 hover:border-purple-600"
                         }`}
                     >
-                        Greyd & Karyera
+                        {t("careerFilter")}
                     </button>
                     <button
                         onClick={() => setFilterCategory("PERFORMANCE")}
@@ -310,7 +311,7 @@ export default function EmployeeJourneyTimeline({
                             filterCategory === "PERFORMANCE" ? "bg-violet-700 text-white" : "bg-white text-violet-700 border border-violet-200 hover:border-violet-600"
                         }`}
                     >
-                        Baholash / OKR / DISC / 360
+                        {t("performanceFilter")}
                     </button>
                     <button
                         onClick={() => setFilterCategory("ACADEMY")}
@@ -318,7 +319,7 @@ export default function EmployeeJourneyTimeline({
                             filterCategory === "ACADEMY" ? "bg-cyan-700 text-white" : "bg-white text-cyan-700 border border-cyan-200 hover:border-cyan-600"
                         }`}
                     >
-                        Sertifikatlar & Kurslar
+                        {t("academyFilter")}
                     </button>
                     <button
                         onClick={() => setFilterCategory("OFFBOARDING")}
@@ -326,14 +327,14 @@ export default function EmployeeJourneyTimeline({
                             filterCategory === "OFFBOARDING" ? "bg-red-700 text-white" : "bg-white text-red-700 border border-red-200 hover:border-red-600"
                         }`}
                     >
-                        Offboarding
+                        {t("offboardingFilter")}
                     </button>
                 </div>
 
                 <div className="w-full sm:w-64">
                     <input
                         type="text"
-                        placeholder="Qidirish (masalan: greyd, OKR, sertifikat)..."
+                        placeholder={t("searchPlaceholder")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full px-3 py-1.5 bg-white border border-gray-300 text-xs text-black placeholder-gray-400 focus:outline-none focus:border-black"
@@ -343,7 +344,7 @@ export default function EmployeeJourneyTimeline({
 
             {filteredTimeline.length === 0 ? (
                 <div className="p-8 text-center border border-dashed border-gray-300 text-gray-400 text-xs font-bold uppercase tracking-wider">
-                    Ushbu parametrlar bo'yicha hayotiy sikl hodisalari topilmadi.
+                    {t("noEvents")}
                 </div>
             ) : (
                 <div className="relative pl-6 md:pl-8 border-l-2 border-black space-y-8 my-2">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
     OffboardingItem,
     fetchAllOffboardingRequests,
@@ -10,6 +11,7 @@ import {
 import OffboardingManagerModal from "@/src/components/offboarding/OffboardingManagerModal";
 
 export default function HROffboardingPage() {
+    const t = useTranslations("HROffboarding");
     const params = useParams();
     const router = useRouter();
     const locale = (params?.locale as string) || "uz";
@@ -30,7 +32,7 @@ export default function HROffboardingPage() {
             const data = await fetchAllOffboardingRequests();
             setOffboardings(data || []);
         } catch (err: any) {
-            setError(err.message || "Offboarding ma'lumotlarini yuklashda xatolik");
+            setError(err.message || "Error");
         } finally {
             setLoading(false);
         }
@@ -79,14 +81,14 @@ export default function HROffboardingPage() {
                             href={`/${locale}/hr/dashboard`}
                             className="text-xs font-bold text-gray-500 hover:text-black uppercase tracking-wider"
                         >
-                            &larr; Dashboard
+                            {t("dashboardLink")}
                         </Link>
                     </div>
                     <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-black flex items-center gap-2">
-                        <span>🏁</span> Offboarding & Ishdan Bo'shatish
+                        <span>🏁</span> {t("title")}
                     </h1>
                     <p className="text-xs font-medium text-gray-500">
-                        Xodimlar ketishi, aylanma varaqasi (Checklist), aktivlar qaytarilishi va Exit Interview nazorati
+                        {t("subtitle")}
                     </p>
                 </div>
 
@@ -96,7 +98,7 @@ export default function HROffboardingPage() {
                         className="px-5 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center gap-2 shadow-xs"
                     >
                         <span>+</span>
-                        <span>Yangi Offboarding Boshlash</span>
+                        <span>{t("startNewBtn")}</span>
                     </button>
                 </div>
             </div>
@@ -104,25 +106,25 @@ export default function HROffboardingPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 bg-white border border-gray-200 flex flex-col gap-1">
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        Jami Jarayonlar
+                        {t("totalProcesses")}
                     </span>
                     <span className="text-2xl font-black text-black">{totalCount}</span>
                 </div>
                 <div className="p-4 bg-amber-50/50 border border-amber-200 flex flex-col gap-1">
                     <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
-                        Jarayonda (Faol)
+                        {t("inProgressActive")}
                     </span>
                     <span className="text-2xl font-black text-amber-900">{inProgressCount}</span>
                 </div>
                 <div className="p-4 bg-emerald-50/50 border border-emerald-200 flex flex-col gap-1">
                     <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                        Yakunlangan
+                        {t("completed")}
                     </span>
                     <span className="text-2xl font-black text-emerald-900">{completedCount}</span>
                 </div>
                 <div className="p-4 bg-purple-50/50 border border-purple-200 flex flex-col gap-1">
                     <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">
-                        Aktivlar Kutilmoqda
+                        {t("assetsPending")}
                     </span>
                     <span className="text-2xl font-black text-purple-900">{assetsPendingCount}</span>
                 </div>
@@ -131,10 +133,10 @@ export default function HROffboardingPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 border border-gray-200">
                 <div className="flex items-center gap-1 overflow-x-auto">
                     {[
-                        { id: "ALL", label: "Barchasi" },
-                        { id: "IN_PROGRESS", label: "Jarayonda" },
-                        { id: "COMPLETED", label: "Yakunlangan" },
-                        { id: "CANCELLED", label: "Bekor qilingan" },
+                        { id: "ALL", label: t("tabs.all") },
+                        { id: "IN_PROGRESS", label: t("tabs.inProgress") },
+                        { id: "COMPLETED", label: t("tabs.completed") },
+                        { id: "CANCELLED", label: t("tabs.cancelled") },
                     ].map((tab) => (
                         <button
                             key={tab.id}
@@ -153,7 +155,7 @@ export default function HROffboardingPage() {
                 <div className="w-full sm:w-72">
                     <input
                         type="text"
-                        placeholder="Xodim yoki bo'lim nomi bo'yicha qidirish..."
+                        placeholder={t("searchPlaceholder")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full p-2 bg-gray-50 border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
@@ -163,7 +165,7 @@ export default function HROffboardingPage() {
 
             {loading ? (
                 <div className="p-12 text-center border border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-400 animate-pulse">
-                    Offboarding ma'lumotlari yuklanmoqda...
+                    {t("loading")}
                 </div>
             ) : error ? (
                 <div className="p-6 bg-red-50 border border-red-200 text-red-700 text-xs font-bold text-center">
@@ -173,13 +175,13 @@ export default function HROffboardingPage() {
                 <div className="p-12 text-center border border-dashed border-gray-300 flex flex-col items-center justify-center gap-3">
                     <span className="text-3xl">🏁</span>
                     <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                        Hozircha offboarding arizalari mavjud emas.
+                        {t("emptyState")}
                     </p>
                     <button
                         onClick={handleOpenCreate}
                         className="px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
                     >
-                        + Birinchi Offboardingni Boshlash
+                        {t("startFirst")}
                     </button>
                 </div>
             ) : (
@@ -206,10 +208,10 @@ export default function HROffboardingPage() {
                                             }`}
                                         >
                                             {item.status === "COMPLETED"
-                                                ? "✓ Yakunlangan"
+                                                ? t("status.completed")
                                                 : item.status === "CANCELLED"
-                                                ? "Bekor qilingan"
-                                                : "⚡ Jarayonda"}
+                                                ? t("status.cancelled")
+                                                : t("status.inProgress")}
                                         </span>
 
                                         <span className="text-[10px] font-mono font-bold text-gray-500">
@@ -224,26 +226,26 @@ export default function HROffboardingPage() {
                                             {item.employee?.firstName} {item.employee?.lastName}
                                         </h3>
                                         <p className="text-xs font-medium text-gray-600">
-                                            {item.employee?.department?.name || "Bo'limsiz"} • {item.employee?.position?.title || "Lavozimsiz"}
+                                            {item.employee?.department?.name || t("unassignedDept")} • {item.employee?.position?.title || t("unassignedPos")}
                                         </p>
                                     </div>
 
                                     <div className="p-2.5 bg-gray-50 border border-gray-200 text-xs flex flex-col gap-1">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase">Sabab:</span>
+                                            <span className="text-[10px] font-bold text-gray-500 uppercase">{t("reasonLabel")}</span>
                                             <span className="font-bold text-gray-800">{item.reason}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase">Aktivlar:</span>
+                                            <span className="text-[10px] font-bold text-gray-500 uppercase">{t("assetsLabel")}</span>
                                             <span className={`font-bold ${item.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
-                                                {item.isAssetsReturned ? "✓ Topshirildi" : "Kutilmoqda"}
+                                                {item.isAssetsReturned ? t("assetsReturned") : t("assetsPendingLabel")}
                                             </span>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-col gap-1">
                                         <div className="flex items-center justify-between text-[10px] font-bold text-gray-600">
-                                            <span>Aylanma varaqasi ({completedTasks}/{totalTasks})</span>
+                                            <span>{t("checklistProgress", { completed: completedTasks, total: totalTasks })}</span>
                                             <span>{pct}%</span>
                                         </div>
                                         <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -256,7 +258,7 @@ export default function HROffboardingPage() {
 
                                     {item.exitInterviewNotes && (
                                         <div className="p-2 bg-purple-50 border border-purple-200 text-[11px] font-medium text-purple-900 truncate">
-                                            📝 Exit Interview to'ldirilgan
+                                            {t("exitInterviewFilled")}
                                         </div>
                                     )}
                                 </div>
@@ -266,7 +268,7 @@ export default function HROffboardingPage() {
                                         onClick={() => handleOpenEdit(item)}
                                         className="flex-1 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center"
                                     >
-                                        Boshqarish 📋
+                                        {t("manageBtn")}
                                     </button>
                                 </div>
                             </div>
