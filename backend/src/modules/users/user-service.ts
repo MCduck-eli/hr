@@ -31,6 +31,8 @@ export class UserService {
                 id: true,
                 email: true,
                 role: true,
+                customRoleId: true,
+                customRole: true,
                 companyName: true,
                 phone: true,
                 createdAt: true,
@@ -114,6 +116,8 @@ export class UserService {
                 id: true,
                 email: true,
                 role: true,
+                customRoleId: true,
+                customRole: true,
                 companyName: true,
                 phone: true,
                 createdAt: true,
@@ -138,6 +142,7 @@ export class UserService {
             email,
             password,
             role,
+            customRoleId,
             firstName,
             lastName,
             companyName,
@@ -149,13 +154,17 @@ export class UserService {
         } = payload;
 
         let finalCompanyName = companyName || null;
-        if (!finalCompanyName && currentUser?.id) {
+        let callerRole = "";
+        if (currentUser?.id) {
             const caller = await prisma.user.findUnique({
                 where: { id: currentUser.id },
-                select: { companyName: true },
+                select: { role: true, companyName: true },
             });
-            if (caller?.companyName) {
-                finalCompanyName = caller.companyName;
+            if (caller) {
+                callerRole = caller.role;
+                if (caller.role !== "SUPER_ADMIN") {
+                    finalCompanyName = caller.companyName || null;
+                }
             }
         }
 
@@ -169,6 +178,45 @@ export class UserService {
 
         const hashedPassword = await hashPassword(password);
 
+        let resolvedRole: any = "EMPLOYEE";
+        let resolvedCustomRoleId: string | null = customRoleId || null;
+
+        if (customRoleId) {
+            const customRole = await prisma.companyRole.findUnique({
+                where: { id: customRoleId },
+            });
+            if (customRole) {
+                resolvedCustomRoleId = customRole.id;
+                resolvedRole = customRole.baseRole;
+            }
+        } else if (role) {
+            const validSystemRoles = ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN", "DEPARTMENT_HEAD", "ACCOUNTANT", "EMPLOYEE", "RECRUITER", "CANDIDATE"];
+            if (validSystemRoles.includes(role)) {
+                resolvedRole = role;
+                resolvedCustomRoleId = null;
+            } else if (role === "MANAGER") {
+                resolvedRole = "DEPARTMENT_HEAD";
+                resolvedCustomRoleId = null;
+            } else {
+                const customRole = await prisma.companyRole.findFirst({
+                    where: {
+                        companyName: finalCompanyName,
+                        OR: [
+                            { id: role },
+                            { code: role },
+                            { name: { equals: role, mode: "insensitive" } },
+                        ],
+                    },
+                });
+                if (customRole) {
+                    resolvedCustomRoleId = customRole.id;
+                    resolvedRole = customRole.baseRole;
+                } else {
+                    resolvedRole = "EMPLOYEE";
+                }
+            }
+        }
+
         let statusConfigId = payload.statusConfigId;
         let statusConfig = null;
         if (statusConfigId) {
@@ -179,6 +227,7 @@ export class UserService {
         if (!statusConfig && payload.status) {
             statusConfig = await prisma.employeeStatusConfig.findFirst({
                 where: {
+                    ...(finalCompanyName ? { companyName: finalCompanyName } : {}),
                     OR: [
                         { code: payload.status },
                         { id: payload.status },
@@ -193,7 +242,10 @@ export class UserService {
 
         if (!statusConfig) {
             statusConfig = await prisma.employeeStatusConfig.findFirst({
-                where: { code: "NEW" },
+                where: {
+                    ...(finalCompanyName ? { companyName: finalCompanyName } : {}),
+                    code: "NEW",
+                },
             });
             if (statusConfig) {
                 statusConfigId = statusConfig.id;
@@ -222,6 +274,7 @@ export class UserService {
             const trimmedPos = positionId.trim();
             const existingPos = await prisma.position.findFirst({
                 where: {
+                    companyName: finalCompanyName,
                     OR: [
                         { id: trimmedPos },
                         { title: { equals: trimmedPos, mode: "insensitive" } },
@@ -234,7 +287,7 @@ export class UserService {
                 const newPos = await prisma.position.create({
                     data: {
                         title: trimmedPos,
-                        departmentId: departmentId || null,
+                        companyName: finalCompanyName,
                     },
                 }).catch(() => null);
                 if (newPos) {
@@ -243,11 +296,23 @@ export class UserService {
             }
         }
 
+        let resolvedDepartmentId = departmentId || null;
+        if (resolvedDepartmentId && finalCompanyName && callerRole !== "SUPER_ADMIN") {
+            const dept = await prisma.department.findUnique({
+                where: { id: resolvedDepartmentId },
+                select: { companyName: true },
+            });
+            if (dept && dept.companyName && dept.companyName !== finalCompanyName) {
+                resolvedDepartmentId = null;
+            }
+        }
+
         const newUser = await prisma.user.create({
             data: {
                 email,
                 password: hashedPassword,
-                role: role || "EMPLOYEE",
+                role: resolvedRole,
+                customRoleId: resolvedCustomRoleId,
                 companyName: finalCompanyName,
                 phone: phone || null,
                 employee: {
@@ -258,7 +323,7 @@ export class UserService {
                         statusConfigId: statusConfigId || undefined,
                         statusStartedAt: new Date(),
                         statusExpiresAt,
-                        ...(departmentId && { departmentId }),
+                        ...(resolvedDepartmentId && { departmentId: resolvedDepartmentId }),
                         ...(resolvedPositionId && { positionId: resolvedPositionId }),
                         ...(leaveBalance !== undefined && { leaveBalance }),
                         ...(assignedCourseIds &&
@@ -278,6 +343,8 @@ export class UserService {
                 id: true,
                 email: true,
                 role: true,
+                customRoleId: true,
+                customRole: true,
                 companyName: true,
                 phone: true,
                 createdAt: true,
@@ -399,7 +466,7 @@ export class UserService {
 
         return newUser;
     }
-    async updateUser(id: string, payload: any) {
+    async updateUser(id: string, payload: any, currentUser?: any) {
         const userExists = await prisma.user.findUnique({
             where: { id },
             include: { employee: true },
@@ -408,6 +475,25 @@ export class UserService {
         if (!userExists) {
             throw new AppError("User not found", 404);
         }
+
+        let callerRole = "";
+        let callerCompany = "";
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller) {
+                callerRole = caller.role;
+                callerCompany = caller.companyName || "";
+            }
+        }
+
+        if (callerRole !== "SUPER_ADMIN" && callerCompany && userExists.companyName && userExists.companyName !== callerCompany) {
+            throw new AppError("Boshqa kompaniya foydalanuvchisini o'zgartirish huquqi yo'q", 403);
+        }
+
+        const finalCompanyName = callerRole === "SUPER_ADMIN" ? (payload.companyName !== undefined ? payload.companyName : userExists.companyName) : userExists.companyName;
 
         const {
             email,
@@ -455,6 +541,7 @@ export class UserService {
             if (!statusConfig && payload.status) {
                 statusConfig = await prisma.employeeStatusConfig.findFirst({
                     where: {
+                        ...(finalCompanyName ? { companyName: finalCompanyName } : {}),
                         OR: [
                             { code: payload.status },
                             { id: payload.status },
@@ -494,6 +581,7 @@ export class UserService {
                 const trimmedPos = String(positionId).trim();
                 const existingPos = await prisma.position.findFirst({
                     where: {
+                        companyName: finalCompanyName,
                         OR: [
                             { id: trimmedPos },
                             { title: { equals: trimmedPos, mode: "insensitive" } },
@@ -506,10 +594,78 @@ export class UserService {
                     const newPos = await prisma.position.create({
                         data: {
                             title: trimmedPos,
-                            departmentId: departmentId || null,
+                            companyName: finalCompanyName,
                         },
                     }).catch(() => null);
                     resolvedPositionId = newPos ? newPos.id : null;
+                }
+            }
+        }
+
+        let resolvedDepartmentId: string | null | undefined = undefined;
+        if (departmentId !== undefined) {
+            if (!departmentId || departmentId === "") {
+                resolvedDepartmentId = null;
+            } else {
+                resolvedDepartmentId = departmentId;
+                if (finalCompanyName && callerRole !== "SUPER_ADMIN") {
+                    const dept = await prisma.department.findUnique({
+                        where: { id: departmentId },
+                        select: { companyName: true },
+                    });
+                    if (dept && dept.companyName && dept.companyName !== finalCompanyName) {
+                        resolvedDepartmentId = null;
+                    }
+                }
+            }
+        }
+
+        let resolvedRole: any = undefined;
+        let resolvedCustomRoleId: string | null | undefined = undefined;
+
+        if (payload.customRoleId !== undefined) {
+            if (!payload.customRoleId || payload.customRoleId === "") {
+                resolvedCustomRoleId = null;
+            } else {
+                const customRole = await prisma.companyRole.findUnique({
+                    where: { id: payload.customRoleId },
+                });
+                if (customRole) {
+                    resolvedCustomRoleId = customRole.id;
+                    resolvedRole = customRole.baseRole;
+                }
+            }
+        }
+
+        if (role !== undefined && resolvedRole === undefined) {
+            const validSystemRoles = ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN", "DEPARTMENT_HEAD", "ACCOUNTANT", "EMPLOYEE", "RECRUITER", "CANDIDATE"];
+            if (validSystemRoles.includes(role)) {
+                resolvedRole = role;
+                if (payload.customRoleId === undefined) {
+                    resolvedCustomRoleId = null;
+                }
+            } else if (role === "MANAGER") {
+                resolvedRole = "DEPARTMENT_HEAD";
+                if (payload.customRoleId === undefined) {
+                    resolvedCustomRoleId = null;
+                }
+            } else {
+                const customRole = await prisma.companyRole.findFirst({
+                    where: {
+                        companyName: finalCompanyName,
+                        OR: [
+                            { id: role },
+                            { code: role },
+                            { name: { equals: role, mode: "insensitive" } },
+                        ],
+                    },
+                });
+                if (customRole) {
+                    resolvedCustomRoleId = customRole.id;
+                    resolvedRole = customRole.baseRole;
+                } else {
+                    resolvedRole = "EMPLOYEE";
+                    resolvedCustomRoleId = null;
                 }
             }
         }
@@ -518,17 +674,17 @@ export class UserService {
             where: { id },
             data: {
                 ...(email && { email }),
-                ...(role && { role }),
-                ...(companyName !== undefined && { companyName }),
+                ...(resolvedRole && { role: resolvedRole }),
+                ...(resolvedCustomRoleId !== undefined && { customRoleId: resolvedCustomRoleId }),
+                ...(callerRole === "SUPER_ADMIN" && companyName !== undefined && { companyName }),
                 ...(phone !== undefined && { phone }),
                 ...(hashedPassword && { password: hashedPassword }),
                 employee: {
                     update: {
                         ...(firstName !== undefined && { firstName }),
                         ...(lastName !== undefined && { lastName }),
-                        ...(departmentId !== undefined && {
-                            departmentId:
-                                departmentId === "" ? null : departmentId,
+                        ...(resolvedDepartmentId !== undefined && {
+                            departmentId: resolvedDepartmentId,
                         }),
                         ...(resolvedPositionId !== undefined && {
                             positionId: resolvedPositionId,
@@ -551,13 +707,15 @@ export class UserService {
                 id: true,
                 email: true,
                 role: true,
+                customRoleId: true,
+                customRole: true,
                 companyName: true,
                 phone: true,
                 employee: true,
             },
         });
     }
-    async deleteUser(id: string) {
+    async deleteUser(id: string, currentUser?: any) {
         const userExists = await prisma.user.findUnique({
             where: { id },
             include: { employee: true },
@@ -565,6 +723,16 @@ export class UserService {
 
         if (!userExists) {
             throw new AppError("User not found", 404);
+        }
+
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN" && caller.companyName && userExists.companyName && userExists.companyName !== caller.companyName) {
+                throw new AppError("Boshqa kompaniya foydalanuvchisini o'chirish huquqi yo'q", 403);
+            }
         }
 
         if (userExists.role === "DIRECTOR") {

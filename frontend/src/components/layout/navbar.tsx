@@ -76,7 +76,9 @@ export default function Navbar() {
             return `/${locale}/director/dashboard`;
         } else if (userRole === "HR_ADMIN") {
             return `/${locale}/hr/dashboard`;
-        } else if (userRole === "MANAGER") {
+        } else if (userRole === "ACCOUNTANT") {
+            return `/${locale}/profile?tab=payroll`;
+        } else if (userRole === "MANAGER" || userRole === "DEPARTMENT_HEAD") {
             return `/${locale}/manager/okr`;
         } else if (userRole === "RECRUITER") {
             return `/${locale}/recruiter/vacancies`;
@@ -119,32 +121,57 @@ export default function Navbar() {
                     </Link>
                 </div>
 
-                {(userRole === "DIRECTOR" || userRole === "HR_ADMIN") && (
+                {(userRole === "DIRECTOR" || userRole === "HR_ADMIN" || userRole === "ACCOUNTANT") && (
                     <div className="hidden md:flex items-center gap-8 text-[11px] font-bold text-gray-500 uppercase tracking-widest bg-gray-200/50 px-6 py-2 rounded-sm">
-                        <Link
-                            href={`/${locale}/hr/okr`}
-                            className="hover:text-black transition-colors"
-                        >
-                            {t("okr")}
-                        </Link>
-                        <Link
-                            href={`/${locale}/grading`}
-                            className="hover:text-black transition-colors"
-                        >
-                            {t("grading")}
-                        </Link>
-                        <Link
-                            href={`/${locale}/disc`}
-                            className="hover:text-black transition-colors"
-                        >
-                            {t("disc")}
-                        </Link>
-                        <Link
-                            href={`/${locale}/feedback`}
-                            className="hover:text-black transition-colors"
-                        >
-                            {t("feedback")}
-                        </Link>
+                        {userRole === "ACCOUNTANT" ? (
+                            <>
+                                <Link
+                                    href={`/${locale}/profile`}
+                                    className="hover:text-black text-black font-black transition-colors"
+                                >
+                                    👤 {t("myProfile") || "Profilim"}
+                                </Link>
+                                <Link
+                                    href={`/${locale}/profile?tab=payroll`}
+                                    className="hover:text-black text-black font-black transition-colors"
+                                >
+                                    💵 {t("payroll") || "Oylik & Moliya"}
+                                </Link>
+                            </>
+                        ) : (
+                            <>
+                                <Link
+                                    href={`/${locale}/hr/okr`}
+                                    className="hover:text-black transition-colors"
+                                >
+                                    {t("okr")}
+                                </Link>
+                                <Link
+                                    href={`/${locale}/grading`}
+                                    className="hover:text-black transition-colors"
+                                >
+                                    {t("grading")}
+                                </Link>
+                                <Link
+                                    href={`/${locale}/disc`}
+                                    className="hover:text-black transition-colors"
+                                >
+                                    {t("disc")}
+                                </Link>
+                                <Link
+                                    href={`/${locale}/feedback`}
+                                    className="hover:text-black transition-colors"
+                                >
+                                    {t("feedback")}
+                                </Link>
+                                <Link
+                                    href={`/${locale}/hr/payroll`}
+                                    className="hover:text-black transition-colors"
+                                >
+                                    {t("payroll") || "Oylik & Moliya"}
+                                </Link>
+                            </>
+                        )}
                     </div>
                 )}
 

@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { fetchDepartments, createDepartment } from "@/src/services/department-service";
 import { fetchAllStatuses } from "@/src/services/employee-status-service";
+import { fetchAllRoles } from "@/src/services/role-service";
 import DepartmentModal from "./department-modal";
 import StatusManagementModal from "./status-management-modal";
+import RoleManagementModal from "./role-management-modal";
 
 interface EmployeeFormProps {
     initialData: any;
@@ -22,8 +24,10 @@ export default function EmployeeForm({
 
     const [departments, setDepartments] = useState<any[]>([]);
     const [statuses, setStatuses] = useState<any[]>([]);
+    const [roles, setRoles] = useState<any[]>([]);
     const [isCreatingDept, setIsCreatingDept] = useState(false);
     const [isManagingStatus, setIsManagingStatus] = useState(false);
+    const [isManagingRoles, setIsManagingRoles] = useState(false);
     const [isDeptLoading, setIsDeptLoading] = useState(false);
 
     const loadDepartments = async () => {
@@ -44,6 +48,15 @@ export default function EmployeeForm({
         }
     };
 
+    const loadRoles = async () => {
+        try {
+            const data = await fetchAllRoles();
+            setRoles(data || []);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     const [currentUserRole, setCurrentUserRole] = useState("");
 
     useEffect(() => {
@@ -56,6 +69,7 @@ export default function EmployeeForm({
         } catch (e) {}
         loadDepartments();
         loadStatuses();
+        loadRoles();
     }, []);
 
     const [form, setForm] = useState<any>({
@@ -64,6 +78,7 @@ export default function EmployeeForm({
         firstName: "",
         lastName: "",
         role: "EMPLOYEE",
+        customRoleId: "",
         status: "NEW",
         statusConfigId: "",
         departmentId: "",
@@ -93,7 +108,8 @@ export default function EmployeeForm({
                     initialData.lastName ||
                     initialData.employee?.lastName ||
                     "",
-                role: initialData.role || "EMPLOYEE",
+                role: initialData.customRoleId || initialData.role || "EMPLOYEE",
+                customRoleId: initialData.customRoleId || "",
                 status: initialData.status || initialData.employee?.status || "NEW",
                 statusConfigId:
                     initialData.statusConfigId ||
@@ -116,6 +132,7 @@ export default function EmployeeForm({
                 firstName: "",
                 lastName: "",
                 role: "EMPLOYEE",
+                customRoleId: "",
                 status: "NEW",
                 statusConfigId: "",
                 departmentId: "",
@@ -166,8 +183,24 @@ export default function EmployeeForm({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        let payloadRole = form.role || "EMPLOYEE";
+        let payloadCustomRoleId = form.customRoleId || null;
+
+        const matchedRole = roles.find((r) => r.id === form.customRoleId || r.id === form.role || r.code === form.role);
+        if (matchedRole) {
+            if (matchedRole.isSystem) {
+                payloadRole = matchedRole.code;
+                payloadCustomRoleId = null;
+            } else {
+                payloadRole = matchedRole.baseRole;
+                payloadCustomRoleId = matchedRole.id;
+            }
+        }
+
         const payload = {
             ...form,
+            role: payloadRole,
+            customRoleId: payloadCustomRoleId,
             leaveBalance:
                 form.leaveBalance === "" ? 0 : Number(form.leaveBalance),
         };
@@ -265,21 +298,68 @@ export default function EmployeeForm({
 
                 <div className="grid grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                            {t("role")}
-                        </label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                                {t("role")}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setIsManagingRoles(true)}
+                                className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                                + Sozlash
+                            </button>
+                        </div>
                         <select
-                            value={form.role}
-                            onChange={(e) =>
-                                setForm({ ...form, role: e.target.value })
-                            }
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
+                            value={form.customRoleId || form.role || "EMPLOYEE"}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                const matched = roles.find((r) => r.id === val || r.code === val);
+                                if (matched) {
+                                    if (matched.isSystem) {
+                                        setForm({
+                                            ...form,
+                                            role: matched.code,
+                                            customRoleId: "",
+                                        });
+                                    } else {
+                                        setForm({
+                                            ...form,
+                                            role: matched.baseRole,
+                                            customRoleId: matched.id,
+                                        });
+                                    }
+                                } else {
+                                    setForm({
+                                        ...form,
+                                        role: val,
+                                        customRoleId: "",
+                                    });
+                                }
+                            }}
+                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black font-semibold"
                         >
-                            <option value="EMPLOYEE">{t("employee")}</option>
-                            <option value="MANAGER">{t("manager")}</option>
-                            <option value="RECRUITER">{t("recruiter")}</option>
-                            {(currentUserRole === "DIRECTOR" || currentUserRole === "SUPER_ADMIN") && (
-                                <option value="HR_ADMIN">{t("hrAdmin") || "HR Admin"}</option>
+                            {roles.length > 0 ? (
+                                roles
+                                    .filter((r) => {
+                                        if (r.code === "DIRECTOR" && currentUserRole !== "DIRECTOR" && currentUserRole !== "SUPER_ADMIN") {
+                                            return false;
+                                        }
+                                        return true;
+                                    })
+                                    .map((r) => (
+                                        <option key={r.id} value={r.id}>
+                                            {r.isSystem ? `🛡️ ${r.name}` : `✨ ${r.name}`}
+                                        </option>
+                                    ))
+                            ) : (
+                                <>
+                                    <option value="EMPLOYEE">{t("employee") || "Xodim"}</option>
+                                    <option value="DEPARTMENT_HEAD">{t("departmentHead") || "Bo'lim boshlig'i"}</option>
+                                    <option value="HR_ADMIN">{t("hrAdmin") || "HR Admin"}</option>
+                                    <option value="ACCOUNTANT">{t("accountant") || "Bugalter / Hisobchi"}</option>
+                                    <option value="RECRUITER">{t("recruiter") || "Rekruter"}</option>
+                                </>
                             )}
                         </select>
                     </div>
@@ -338,7 +418,7 @@ export default function EmployeeForm({
                                     ...form,
                                     leaveBalance:
                                         e.target.value === ""
-                                            ? ""
+                                             ? ""
                                             : Number(e.target.value),
                                 })
                             }
@@ -423,6 +503,13 @@ export default function EmployeeForm({
                 statuses={statuses}
                 onRefresh={loadStatuses}
             />
+            <RoleManagementModal
+                isOpen={isManagingRoles}
+                onClose={() => setIsManagingRoles(false)}
+                roles={roles}
+                onRefresh={loadRoles}
+            />
         </div>
     );
 }
+

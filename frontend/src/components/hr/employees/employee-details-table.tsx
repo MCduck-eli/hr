@@ -31,7 +31,9 @@ export default function EmployeeDetailsTable({
         const locale = window.location.pathname.split("/")[1] || "uz";
         if (u.role === "HR_ADMIN") {
             router.push(`/${locale}/hr/dashboard`);
-        } else if (u.role === "MANAGER") {
+        } else if (u.role === "ACCOUNTANT") {
+            router.push(`/${locale}/profile?tab=payroll`);
+        } else if (u.role === "MANAGER" || u.role === "DEPARTMENT_HEAD") {
             router.push(`/${locale}/manager/okr`);
         } else if (u.role === "RECRUITER") {
             router.push(`/${locale}/recruiter/vacancies`);
@@ -95,18 +97,53 @@ export default function EmployeeDetailsTable({
                                     <td className="p-3 text-xs font-medium text-gray-600 font-mono">
                                         {u.email}
                                     </td>
-                                    <td className="p-3 text-xs font-bold uppercase text-gray-600">
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                                            u.role === "HR_ADMIN"
-                                                ? "bg-purple-100 text-purple-800"
+                                    <td className="p-3 text-xs font-bold uppercase text-gray-600 whitespace-nowrap">
+                                        {u.customRole ? (
+                                            <span
+                                                style={{
+                                                    backgroundColor: `${u.customRole.color || "#6366f1"}15`,
+                                                    color: u.customRole.color || "#6366f1",
+                                                    borderColor: `${u.customRole.color || "#6366f1"}35`,
+                                                }}
+                                                className="px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide border inline-flex items-center gap-1"
+                                            >
+                                                <span
+                                                    style={{ backgroundColor: u.customRole.color || "#6366f1" }}
+                                                    className="w-1.5 h-1.5 rounded-full"
+                                                />
+                                                {u.customRole.name}
+                                            </span>
+                                        ) : (
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide border ${
+                                                u.role === "HR_ADMIN"
+                                                    ? "bg-purple-50 text-purple-700 border-purple-200"
+                                                : u.role === "ACCOUNTANT"
+                                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                : u.role === "DEPARTMENT_HEAD"
+                                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                                                 : u.role === "MANAGER"
-                                                ? "bg-blue-100 text-blue-800"
+                                                    ? "bg-blue-50 text-blue-700 border-blue-200"
                                                 : u.role === "RECRUITER"
-                                                ? "bg-amber-100 text-amber-800"
-                                                : "bg-gray-100 text-gray-700"
-                                        }`}>
-                                            {u.role}
-                                        </span>
+                                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                : u.role === "DIRECTOR"
+                                                    ? "bg-rose-50 text-rose-700 border-rose-200"
+                                                : "bg-gray-50 text-gray-700 border-gray-200"
+                                            }`}>
+                                                {u.role === "HR_ADMIN"
+                                                    ? (t("hrAdmin") || "HR Admin")
+                                                    : u.role === "ACCOUNTANT"
+                                                    ? (t("accountant") || "Bugalter")
+                                                    : u.role === "DEPARTMENT_HEAD"
+                                                    ? (t("departmentHead") || "Bo'lim boshlig'i")
+                                                    : u.role === "MANAGER"
+                                                    ? (t("manager") || "Menejer")
+                                                    : u.role === "RECRUITER"
+                                                    ? (t("recruiter") || "Rekruter")
+                                                    : u.role === "DIRECTOR"
+                                                    ? (t("director") || "Direktor")
+                                                    : (t("employee") || "Xodim")}
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="p-3 text-xs font-medium text-gray-600">
                                         {u.employee?.department?.name || "-"}

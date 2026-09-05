@@ -10,7 +10,7 @@ userRouter.use(authenticate);
 
 userRouter.get(
     "/",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
     userController.getAll,
 );
 

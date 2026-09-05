@@ -631,6 +631,17 @@ export class AttendanceService {
         return Math.round((totalMs / (1000 * 60 * 60)) * 10) / 10;
     }
 
+    async cleanupOldAttendances() {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 90);
+        cutoffDate.setHours(0, 0, 0, 0);
+        await prisma.attendance.deleteMany({
+            where: {
+                date: { lt: cutoffDate },
+            },
+        }).catch(() => {});
+    }
+
     async getAllAttendance(
         query: {
             startDate?: string;
@@ -640,6 +651,8 @@ export class AttendanceService {
         },
         currentUser?: any,
     ) {
+        this.cleanupOldAttendances().catch(() => {});
+
         const schedules = await prisma.workSchedule.findMany();
         const defaultSchedule = schedules.find((s) => s.isDefault) || {
             id: "default",
@@ -688,19 +701,39 @@ export class AttendanceService {
             ];
         }
 
-        const [allEmployees, attendancesForDate] = await Promise.all([
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setDate(threeMonthsAgo.getDate() - 90);
+        threeMonthsAgo.setHours(0, 0, 0, 0);
+
+        const [allEmployees, attendancesForDate, allPastAttendances, allPastLeaves] = await Promise.all([
             prisma.employee.findMany({
                 where: whereEmployee,
                 include: {
                     department: { select: { id: true, name: true } },
                     position: { select: { id: true, title: true } },
-                    user: { select: { email: true } },
+                    user: { select: { email: true, createdAt: true } },
                 },
                 orderBy: { firstName: "asc" },
             }),
             prisma.attendance.findMany({
                 where: {
                     date: selectedDate,
+                    ...(query.employeeId ? { employeeId: query.employeeId } : {}),
+                },
+            }),
+            prisma.attendance.findMany({
+                where: {
+                    date: { gte: threeMonthsAgo },
+                    ...(companyFilter ? { employee: { user: { companyName: companyFilter } } } : {}),
+                    ...(query.employeeId ? { employeeId: query.employeeId } : {}),
+                },
+                orderBy: { date: "desc" },
+            }),
+            prisma.leaveRequest.findMany({
+                where: {
+                    status: "APPROVED",
+                    endDate: { gte: threeMonthsAgo },
+                    ...(companyFilter ? { employee: { user: { companyName: companyFilter } } } : {}),
                     ...(query.employeeId ? { employeeId: query.employeeId } : {}),
                 },
             }),
@@ -801,6 +834,145 @@ export class AttendanceService {
             defaultSchedule.workingDays || [1, 2, 3, 4, 5]
         ).includes(dayOfWeek);
 
+        const now = new Date();
+        const absentRecords: any[] = [];
+
+        allEmployees.forEach((emp) => {
+            const empSchedule =
+                schedules.find((s) => s.employeeId === emp.id) ||
+                (emp.departmentId
+                    ? schedules.find((s) => s.departmentId === emp.departmentId)
+                    : null) ||
+                defaultSchedule;
+
+            const workingDaysArr = empSchedule.workingDays || [1, 2, 3, 4, 5];
+            const empCreatedAtRaw = emp.createdAt || emp.user?.createdAt || threeMonthsAgo;
+            const empCreatedAt = new Date(empCreatedAtRaw);
+            empCreatedAt.setHours(0, 0, 0, 0);
+
+            const evalStart = empCreatedAt > threeMonthsAgo ? empCreatedAt : threeMonthsAgo;
+            const evalEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+            const empAttendances = allPastAttendances.filter((a) => a.employeeId === emp.id);
+            const empLeaves = allPastLeaves.filter((l) => l.employeeId === emp.id);
+
+            if (evalStart <= evalEnd) {
+                const curDay = new Date(evalStart);
+                while (curDay <= evalEnd) {
+                    const dow = curDay.getDay() === 0 ? 7 : curDay.getDay();
+                    if (workingDaysArr.includes(dow)) {
+                        const curDayStr = curDay.toISOString().split("T")[0];
+                        const isToday = curDay.toDateString() === now.toDateString();
+
+                        const att = empAttendances.find((a) => {
+                            const attStr = a.date ? new Date(a.date).toISOString().split("T")[0] : "";
+                            return attStr === curDayStr;
+                        });
+
+                        const onLeave = empLeaves.some((l) => {
+                            const sStr = new Date(l.startDate).toISOString().split("T")[0];
+                            const eStr = new Date(l.endDate).toISOString().split("T")[0];
+                            return curDayStr >= sStr && curDayStr <= eStr;
+                        });
+
+                        const hasCheckedIn = Boolean(att?.checkIn || att?.status === "PRESENT" || att?.status === "LATE" || att?.status === "HALF_DAY");
+
+                        if (!hasCheckedIn && !onLeave) {
+                            if (!isToday || (isToday && att?.absenceReason)) {
+                                absentRecords.push({
+                                    id: att?.id || `absent-${emp.id}-${curDayStr}`,
+                                    employeeId: emp.id,
+                                    date: curDayStr,
+                                    employeeName: `${emp.firstName} ${emp.lastName}`.trim(),
+                                    department: emp.department?.name || "-",
+                                    position: emp.position?.title || "-",
+                                    status: att?.absenceReason ? "SABABLI" : "SABABSIZ",
+                                    absenceReason: att?.absenceReason || null,
+                                    reasonSubmittedBy: att?.reasonSubmittedBy || null,
+                                    employee: {
+                                        id: emp.id,
+                                        firstName: emp.firstName,
+                                        lastName: emp.lastName,
+                                        department: emp.department,
+                                        position: emp.position,
+                                    },
+                                });
+                            }
+                        }
+                    }
+                    curDay.setDate(curDay.getDate() + 1);
+                }
+            }
+        });
+
+        absentRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        const monthNames = [
+            "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+            "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"
+        ];
+
+        const lastThreeMonths: any[] = [];
+        for (let i = 0; i < 3; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const m = d.getMonth() + 1;
+            const y = d.getFullYear();
+            const mStart = new Date(y, m - 1, 1);
+            const mEnd = new Date(y, m, 0, 23, 59, 59, 999);
+
+            let mWorkingDays = 0;
+            const curIter = new Date(mStart);
+            while (curIter <= mEnd) {
+                const dow = curIter.getDay() === 0 ? 7 : curIter.getDay();
+                if ([1, 2, 3, 4, 5].includes(dow)) mWorkingDays++;
+                curIter.setDate(curIter.getDate() + 1);
+            }
+
+            const mAttendances = allPastAttendances.filter((a) => {
+                if (!a.date) return false;
+                const ad = new Date(a.date);
+                return ad >= mStart && ad <= mEnd;
+            });
+
+            const mAttended = mAttendances.filter((a) => a.checkIn).length;
+            const mLates = mAttendances.filter((a) => a.status === "LATE" || (a.lateMinutes && a.lateMinutes > 0)).length;
+            const mAbsents = absentRecords.filter((ar) => {
+                const ard = new Date(ar.date);
+                return ard >= mStart && ard <= mEnd;
+            }).length;
+
+            lastThreeMonths.push({
+                month: m,
+                year: y,
+                monthName: monthNames[m - 1],
+                totalWorkingDays: mWorkingDays,
+                attendedCount: mAttended,
+                absentCount: mAbsents,
+                lateCount: mLates,
+            });
+        }
+
+        const employeeThreeMonthSummaries = allEmployees.map((emp) => {
+            const empPastAtts = allPastAttendances.filter((a) => a.employeeId === emp.id);
+            const empAbsents = absentRecords.filter((a) => a.employeeId === emp.id);
+            const attendedCount = empPastAtts.filter((a) => a.checkIn).length;
+            const lateCount = empPastAtts.filter((a) => a.status === "LATE" || (a.lateMinutes && a.lateMinutes > 0)).length;
+            const absentCount = empAbsents.length;
+            const totalEvents = attendedCount + absentCount;
+            const attendanceRate = totalEvents > 0 ? Math.round((attendedCount / totalEvents) * 100) : 100;
+
+            return {
+                employeeId: emp.id,
+                name: `${emp.firstName} ${emp.lastName}`.trim(),
+                department: emp.department?.name || "-",
+                position: emp.position?.title || "-",
+                attendedCount,
+                absentCount,
+                lateCount,
+                attendanceRate,
+            };
+        });
+
         return {
             records,
             summary: {
@@ -815,6 +987,11 @@ export class AttendanceService {
                 isWorkingDay: isDefaultWorkingDay,
             },
             schedule: defaultSchedule,
+            absentRecords,
+            threeMonthSummary: {
+                months: lastThreeMonths,
+                employeeSummaries: employeeThreeMonthSummaries,
+            },
         };
     }
 

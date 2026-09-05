@@ -12,6 +12,7 @@ enum Role {
   DIRECTOR
   HR_ADMIN
   DEPARTMENT_HEAD
+  ACCOUNTANT
   EMPLOYEE
   RECRUITER
   CANDIDATE
@@ -100,6 +101,8 @@ model User {
   email         String            @unique
   password      String
   role          Role              @default(EMPLOYEE)
+  customRoleId  String?
+  customRole    CompanyRole?      @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   companyName   String?
   phone         String?
   createdAt     DateTime          @default(now())
@@ -107,6 +110,22 @@ model User {
   employee      Employee?
   notifications Notification[]
   deviceTokens  UserDeviceToken[]
+}
+
+model CompanyRole {
+  id          String   @id @default(uuid())
+  name        String
+  code        String
+  baseRole    Role     @default(EMPLOYEE)
+  description String?
+  color       String   @default("#6366f1")
+  isSystem    Boolean  @default(false)
+  companyName String?
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([code, companyName])
 }
 
 model Department {
@@ -181,6 +200,9 @@ model Employee {
   promotions          PromotionRequest[]      @relation("EmployeePromotion")
   careerHistories     CareerHistory[]
   targetedCourses     AcademyCourse[]         @relation("CourseTargetEmployee")
+  penalties           EmployeePenalty[]
+  advances            PayrollAdvance[]
+  paymentRecords      PayrollPaymentRecord[]
 }
 
 model EmployeeStatusConfig {
@@ -285,6 +307,99 @@ model Payroll {
   updatedAt  DateTime      @updatedAt
 
   @@unique([employeeId, month, year])
+}
+
+model PayrollPenaltyRule {
+  id          String            @id @default(uuid())
+  name        String
+  code        String
+  penaltyType String            @default("FIXED")
+  amount      Float             @default(0)
+  isAuto      Boolean           @default(false)
+  companyName String?
+  description String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  penalties   EmployeePenalty[]
+
+  @@unique([code, companyName])
+}
+
+model EmployeePenalty {
+  id          String              @id @default(uuid())
+  employeeId  String
+  employee    Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  ruleId      String?
+  rule        PayrollPenaltyRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  reason      String
+  amount      Float
+  month       Int
+  year        Int
+  date        DateTime            @default(now())
+  isAuto      Boolean             @default(false)
+  companyName String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model PayrollSchedule {
+  id                   String   @id @default(uuid())
+  companyName          String?  @unique
+  salaryPayDay         Int      @default(5)
+  advancePayDay        Int      @default(20)
+  advancePercentage    Float    @default(40)
+  isAdvanceEnabled     Boolean  @default(true)
+  notificationLeadDays Int      @default(2)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model PayrollAdvance {
+  id          String        @id @default(uuid())
+  employeeId  String
+  employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount      Float
+  month       Int
+  year        Int
+  dueDate     DateTime
+  paidDate    DateTime?
+  status      PayrollStatus @default(PENDING)
+  isEarly     Boolean       @default(false)
+  reason      String?
+  companyName String?
+  createdById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([employeeId])
+  @@index([month, year])
+  @@index([companyName])
+}
+
+model PayrollPaymentRecord {
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payrollId     String?
+  advanceId     String?
+  paymentType   String    @default("SALARY")
+  month         Int
+  year          Int
+  amount        Float
+  baseSalary    Float?
+  bonus         Float?    @default(0)
+  deductions    Float?    @default(0)
+  paymentMethod String    @default("BANK_CARD")
+  paidAt        DateTime  @default(now())
+  paidById      String?
+  note          String?
+  companyName   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([employeeId])
+  @@index([month, year])
+  @@index([companyName])
 }
 
 model PerformanceReview {
@@ -807,10 +922,10 @@ model OkrCheckIn {
   createdAt   DateTime  @default(now())
 }
 enum DiscType {
-  D // Dominance
-  I // Influence
-  S // Steadiness
-  C // Conscientiousness
+  D
+  I
+  S
+  C
 }
 
 model DiscQuestion {
@@ -916,7 +1031,7 @@ model FeedbackAnswer {
   assignment   FeedbackAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   questionId   String
   question     FeedbackQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  score        Int                // 1-5 mashtabida
+  score        Int
   comment      String?            @db.Text
   createdAt    DateTime           @default(now())
 
@@ -988,6 +1103,9 @@ enum NotificationType {
   OKR_CHECKIN_REMINDER
   COURSE_ASSIGNED
   OFFBOARDING_TASK
+  PAYROLL_DUE_REMINDER
+  ADVANCE_DUE_REMINDER
+  SALARY_PAID
   GENERAL
 }
 
@@ -1008,7 +1126,7 @@ model UserDeviceToken {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   fcmToken  String   @unique
-  deviceOs  String?  // "iOS" yoki "Android"
+  deviceOs  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

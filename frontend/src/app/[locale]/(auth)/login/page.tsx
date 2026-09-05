@@ -47,6 +47,8 @@ export default function LoginPage() {
                 router.push(`/${locale}/director/dashboard`);
             } else if (role === "HR_ADMIN") {
                 router.push(`/${locale}/hr/dashboard`);
+            } else if (role === "ACCOUNTANT") {
+                router.push(`/${locale}/profile?tab=payroll`);
             } else if (role === "MANAGER") {
                 router.push(`/${locale}/manager/okr`);
             } else if (role === "RECRUITER") {

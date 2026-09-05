@@ -11,17 +11,8 @@ export const updateUserSchema = z.object({
             password: z.string().optional(),
             departmentId: z.string().uuid().optional().nullable().or(z.literal("")),
             positionId: z.string().uuid().optional().nullable().or(z.literal("")),
-            role: z
-                .enum([
-                    "SUPER_ADMIN",
-                    "DIRECTOR",
-                    "HR_ADMIN",
-                    "DEPARTMENT_HEAD",
-                    "EMPLOYEE",
-                    "RECRUITER",
-                    "CANDIDATE",
-                ])
-                .optional(),
+            role: z.string().optional(),
+            customRoleId: z.string().optional().nullable().or(z.literal("")),
             leaveBalance: z.any().optional(),
             status: z.any().optional(),
             statusConfigId: z.any().optional(),

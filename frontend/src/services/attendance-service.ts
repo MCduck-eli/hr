@@ -106,10 +106,53 @@ export interface AttendanceSummary {
     isWorkingDay: boolean;
 }
 
+export interface AbsentRecord {
+    id: string;
+    employeeId: string;
+    date: string;
+    employeeName: string;
+    department: string;
+    position: string;
+    status: "SABABLI" | "SABABSIZ";
+    absenceReason: string | null;
+    reasonSubmittedBy: string | null;
+    employee: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        department: { id: string; name: string } | null;
+        position: { id: string; title: string } | null;
+    };
+}
+
+export interface ThreeMonthSummary {
+    months: {
+        month: number;
+        year: number;
+        monthName: string;
+        totalWorkingDays: number;
+        attendedCount: number;
+        absentCount: number;
+        lateCount: number;
+    }[];
+    employeeSummaries: {
+        employeeId: string;
+        name: string;
+        department: string;
+        position: string;
+        attendedCount: number;
+        absentCount: number;
+        lateCount: number;
+        attendanceRate: number;
+    }[];
+}
+
 export interface AllAttendanceResponse {
     records: AttendanceRecord[];
     summary: AttendanceSummary;
     schedule: WorkScheduleInfo;
+    absentRecords?: AbsentRecord[];
+    threeMonthSummary?: ThreeMonthSummary;
 }
 
 export const fetchTodayAttendanceStatus = async (

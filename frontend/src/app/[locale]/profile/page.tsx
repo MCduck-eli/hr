@@ -11,6 +11,7 @@ import { checkInKeyResult } from "@/src/services/okr-service";
 import { fetchOffboardingDetails } from "@/src/services/offboarding-service";
 import ExitInterviewModal from "@/src/components/offboarding/ExitInterviewModal";
 import EmployeePayslipsSection from "@/src/components/payroll/EmployeePayslipsSection";
+import PayrollManager from "@/src/components/payroll/PayrollManager";
 
 export default function EmployeeProfilePage() {
     const t = useTranslations("DashboardProfile");
@@ -20,6 +21,8 @@ export default function EmployeeProfilePage() {
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+
+    const [activeTab, setActiveTab] = useState<"profile" | "payroll">("profile");
 
     const [checkInKr, setCheckInKr] = useState<any>(null);
     const [checkInValue, setCheckInValue] = useState<number>(0);
@@ -34,6 +37,16 @@ export default function EmployeeProfilePage() {
 
     const [offboardingData, setOffboardingData] = useState<any>(null);
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const searchParams = new URLSearchParams(window.location.search);
+            const tabParam = searchParams.get("tab");
+            if (tabParam === "payroll") {
+                setActiveTab("payroll");
+            }
+        }
+    }, []);
 
     useEffect(() => {
         const userStr = localStorage.getItem("user");
@@ -192,7 +205,12 @@ export default function EmployeeProfilePage() {
         currentUser.email.split("@")[0];
 
     const roleData = dashboardData?.user?.role || currentUser.role;
-    const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData;
+    const isAccountant =
+        roleData === "ACCOUNTANT" ||
+        currentUser?.role === "ACCOUNTANT" ||
+        currentUser?.customRole?.baseRole === "ACCOUNTANT" ||
+        dashboardData?.user?.customRole?.baseRole === "ACCOUNTANT";
+    const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData === "ACCOUNTANT" ? "Bugalter / Hisobchi" : roleData;
 
     const grade = dashboardData?.grade || dashboardData?.user?.employee?.grade || null;
     const positionTitle = dashboardData?.position || dashboardData?.user?.employee?.position || null;
@@ -296,11 +314,11 @@ export default function EmployeeProfilePage() {
     };
 
     return (
-        <div className="flex flex-col gap-12 py-12 px-4 md:px-8 max-w-[1400px] mx-auto">
+        <div className="flex flex-col gap-10 py-10 px-4 md:px-8 max-w-[1400px] mx-auto">
             <div className="flex flex-col gap-4">
                 <button
                     onClick={() => router.back()}
-                    className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-4"
+                    className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-2"
                 >
                     &larr; {t("goBack") || "Orqaga"}
                 </button>
@@ -330,16 +348,72 @@ export default function EmployeeProfilePage() {
                         {grade ? `${grade.title} (Level ${grade.level})` : t("noGradeAssigned")}
                     </span>
                 </div>
+
+                {isAccountant && (
+                    <div className="flex border-b border-gray-200 gap-2 mt-4">
+                        <button
+                            onClick={() => setActiveTab("profile")}
+                            className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 ${
+                                activeTab === "profile"
+                                    ? "border-black text-black"
+                                    : "border-transparent text-gray-400 hover:text-black"
+                            }`}
+                        >
+                            <span>👤</span>
+                            <span>{t("employeeProfile") || "Xodim Profili"}</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("payroll")}
+                            className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 ${
+                                activeTab === "payroll"
+                                    ? "border-black text-black"
+                                    : "border-transparent text-gray-400 hover:text-black"
+                            }`}
+                        >
+                            <span>💵</span>
+                            <span>Moliya & Ish Haqi Boshqaruvi (Bugalteriya)</span>
+                        </button>
+                    </div>
+                )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-                {stats.map((stat, idx) => (
-                    <div
-                        key={idx}
-                        className="border border-gray-200 bg-white p-6 flex flex-col gap-4 hover:border-black transition-colors"
-                    >
-                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                            {stat.label}
-                        </span>
+
+            {isAccountant && activeTab === "payroll" ? (
+                <div className="flex flex-col gap-6">
+                    <PayrollManager />
+                </div>
+            ) : (
+                <>
+                    {isAccountant && (
+                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">💼</span>
+                                <div>
+                                    <div className="text-xs font-black uppercase tracking-wider text-emerald-900">
+                                        Bugalteriya va Moliya Boshqaruvi
+                                    </div>
+                                    <div className="text-[11px] font-semibold text-emerald-700">
+                                        Kompaniya xodimlari oylik maoshlari, avanslar, to'lovlar va jarimalarni to'liq nazorat qilish uchun moliya bo'limiga o'ting.
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setActiveTab("payroll")}
+                                className="px-4 py-2 bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-900 transition-colors shrink-0 rounded-sm shadow-xs"
+                            >
+                                Moliya & Oyliklarni Boshqarish &rarr;
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                        {stats.map((stat, idx) => (
+                            <div
+                                key={idx}
+                                className="border border-gray-200 bg-white p-6 flex flex-col gap-4 hover:border-black transition-colors"
+                            >
+                                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                                    {stat.label}
+                                </span>
                         <span className="text-3xl font-black tracking-tighter">
                             {stat.value}
                         </span>
@@ -901,6 +975,8 @@ export default function EmployeeProfilePage() {
                     employeeId={offboardingData.employeeId}
                     onSuccess={() => setRefreshKey((k) => k + 1)}
                 />
+            )}
+                </>
             )}
         </div>
     );

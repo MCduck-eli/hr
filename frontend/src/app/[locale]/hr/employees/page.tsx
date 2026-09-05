@@ -60,8 +60,7 @@ export default function HREmployeesPage() {
                 (user: any) =>
                     user.role !== "SUPER_ADMIN" &&
                     user.role !== "DIRECTOR" &&
-                    user.id !== currentUserId &&
-                    (currentUserRole === "HR_ADMIN" ? user.role !== "HR_ADMIN" : true),
+                    user.id !== currentUserId,
             );
             setUsers(filteredUsers);
         } catch (err: any) {

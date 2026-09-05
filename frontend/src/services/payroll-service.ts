@@ -128,3 +128,325 @@ export const deletePayroll = async (id: string) => {
     const json = await res.json();
     return json.data;
 };
+
+export const fetchPenaltyRules = async () => {
+    const res = await fetch(`${API_URL}/payroll/penalty-rules`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch penalty rules");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const createPenaltyRule = async (payload: {
+    name: string;
+    code: string;
+    penaltyType: string;
+    amount: number;
+    isAuto?: boolean;
+    description?: string;
+}) => {
+    const res = await fetch(`${API_URL}/payroll/penalty-rules`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to create penalty rule");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const updatePenaltyRule = async (
+    id: string,
+    payload: {
+        name?: string;
+        penaltyType?: string;
+        amount?: number;
+        isAuto?: boolean;
+        description?: string;
+    },
+) => {
+    const res = await fetch(`${API_URL}/payroll/penalty-rules/${id}`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to update penalty rule");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const deletePenaltyRule = async (id: string) => {
+    const res = await fetch(`${API_URL}/payroll/penalty-rules/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to delete penalty rule");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const fetchEmployeePenalties = async (params?: {
+    month?: number;
+    year?: number;
+    employeeId?: string;
+}) => {
+    const query = new URLSearchParams();
+    if (params?.month) query.set("month", params.month.toString());
+    if (params?.year) query.set("year", params.year.toString());
+    if (params?.employeeId) query.set("employeeId", params.employeeId);
+
+    const res = await fetch(`${API_URL}/payroll/employee-penalties?${query.toString()}`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch employee penalties");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const createEmployeePenalty = async (payload: {
+    employeeId: string;
+    ruleId?: string;
+    reason: string;
+    amount: number;
+    month: number;
+    year: number;
+    date?: string;
+}) => {
+    const res = await fetch(`${API_URL}/payroll/employee-penalties`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to create employee penalty");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const deleteEmployeePenalty = async (id: string) => {
+    const res = await fetch(`${API_URL}/payroll/employee-penalties/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to delete employee penalty");
+    }
+    const json = await res.json();
+    return json.data;
+};
+export const fetchPenaltiesSummary = async (params?: {
+    month?: number;
+    year?: number;
+}) => {
+    const query = new URLSearchParams();
+    if (params?.month) query.set("month", params.month.toString());
+    if (params?.year) query.set("year", params.year.toString());
+
+    const res = await fetch(`${API_URL}/payroll/penalties-summary?${query.toString()}`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch penalties summary");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const fetchPayrollSchedule = async () => {
+    const res = await fetch(`${API_URL}/payroll/schedule`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch payroll schedule");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const updatePayrollSchedule = async (payload: {
+    salaryPayDay?: number;
+    advancePayDay?: number;
+    advancePercentage?: number;
+    isAdvanceEnabled?: boolean;
+    notificationLeadDays?: number;
+}) => {
+    const res = await fetch(`${API_URL}/payroll/schedule`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to update payroll schedule");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const fetchDueReminders = async () => {
+    const res = await fetch(`${API_URL}/payroll/due-reminders`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch due reminders");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const fetchAdvances = async (params?: {
+    month?: number;
+    year?: number;
+    employeeId?: string;
+    status?: string;
+}) => {
+    const query = new URLSearchParams();
+    if (params?.month) query.set("month", params.month.toString());
+    if (params?.year) query.set("year", params.year.toString());
+    if (params?.employeeId) query.set("employeeId", params.employeeId);
+    if (params?.status) query.set("status", params.status);
+
+    const res = await fetch(`${API_URL}/payroll/advances?${query.toString()}`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch advances");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const createAdvance = async (payload: {
+    employeeId: string;
+    amount: number;
+    month: number;
+    year: number;
+    dueDate?: string;
+    isEarly?: boolean;
+    reason?: string;
+}) => {
+    const res = await fetch(`${API_URL}/payroll/advances`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to create advance");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const updateAdvanceStatus = async (
+    id: string,
+    payload: {
+        status: "PENDING" | "PAID" | "CANCELLED";
+        paidDate?: string;
+        paymentMethod?: string;
+        note?: string;
+    },
+) => {
+    const res = await fetch(`${API_URL}/payroll/advances/${id}/status`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to update advance status");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const deleteAdvance = async (id: string) => {
+    const res = await fetch(`${API_URL}/payroll/advances/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to delete advance");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const paySalary = async (
+    id: string,
+    payload?: { paymentMethod?: string; note?: string },
+) => {
+    const res = await fetch(`${API_URL}/payroll/pay/${id}`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload || {}),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to pay salary");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const fetchPaymentRecords = async (params?: {
+    month?: number;
+    year?: number;
+    paymentType?: string;
+    employeeId?: string;
+    search?: string;
+}) => {
+    const query = new URLSearchParams();
+    if (params?.month) query.set("month", params.month.toString());
+    if (params?.year) query.set("year", params.year.toString());
+    if (params?.paymentType) query.set("paymentType", params.paymentType);
+    if (params?.employeeId) query.set("employeeId", params.employeeId);
+    if (params?.search) query.set("search", params.search);
+
+    const res = await fetch(`${API_URL}/payroll/payment-records?${query.toString()}`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch payment records");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const deletePaymentRecord = async (id: string) => {
+    const res = await fetch(`${API_URL}/payroll/payment-records/${id}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to delete payment record");
+    }
+    const json = await res.json();
+    return json.data;
+};

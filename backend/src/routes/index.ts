@@ -21,6 +21,7 @@ import gradingRouter from "../modules/grading/grading-route";
 import notificationRouter from "../modules/notification/notification-route";
 import dashboardRouter from "../modules/dashboard/dashboard-routes";
 import employeeStatusRouter from "../modules/employee-status/employee-status-route";
+import roleRouter from "../modules/roles/role-route";
 
 const mainRouter = Router();
 
@@ -46,5 +47,7 @@ mainRouter.use("/v1/grading", gradingRouter);
 mainRouter.use("/v1/notifications", notificationRouter);
 mainRouter.use("/v1/employee", dashboardRouter);
 mainRouter.use("/v1/employee-statuses", employeeStatusRouter);
+mainRouter.use("/v1/roles", roleRouter);
+mainRouter.use("/roles", roleRouter);
 
 export default mainRouter;

@@ -8,6 +8,8 @@ import {
     AttendanceRecord,
     AttendanceSummary,
     WorkScheduleInfo,
+    AbsentRecord,
+    ThreeMonthSummary,
     fetchAllAttendance,
 } from "@/src/services/attendance-service";
 import WorkScheduleModal from "@/src/components/hr/attendance/work-schedule-modal";
@@ -19,7 +21,11 @@ export default function HRAttendancePage() {
     const router = useRouter();
     const locale = (params?.locale as string) || "uz";
 
+    const [mainTab, setMainTab] = useState<"daily" | "absent" | "threeMonth">("daily");
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
+    const [absentRecords, setAbsentRecords] = useState<AbsentRecord[]>([]);
+    const [threeMonthSummary, setThreeMonthSummary] = useState<ThreeMonthSummary | null>(null);
+
     const [summary, setSummary] = useState<AttendanceSummary>({
         totalEmployees: 0,
         todayPresent: 0,
@@ -34,6 +40,7 @@ export default function HRAttendancePage() {
     const [schedule, setSchedule] = useState<WorkScheduleInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
+    const [absentSearch, setAbsentSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [dateFilter, setDateFilter] = useState("");
 
@@ -41,6 +48,7 @@ export default function HRAttendancePage() {
     const [selectedEmployeeForReason, setSelectedEmployeeForReason] = useState<{
         employeeId: string;
         employeeName: string;
+        date?: string;
         initialReason?: string | null;
     } | null>(null);
 
@@ -52,6 +60,8 @@ export default function HRAttendancePage() {
                 endDate: dateFilter || undefined,
             });
             setRecords(data.records || []);
+            setAbsentRecords(data.absentRecords || []);
+            setThreeMonthSummary(data.threeMonthSummary || null);
             if (data.summary) {
                 setSummary(data.summary);
             }
@@ -101,6 +111,17 @@ export default function HRAttendancePage() {
         if (statusFilter === "SABABLI") return Boolean(r.absenceReason);
         if (statusFilter === "DAM_OLISH") return r.status === "DAM_OLISH";
         return true;
+    });
+
+    const filteredAbsentRecords = absentRecords.filter((ar) => {
+        if (!absentSearch.trim()) return true;
+        const q = absentSearch.toLowerCase();
+        return (
+            (ar.employeeName || "").toLowerCase().includes(q) ||
+            (ar.department || "").toLowerCase().includes(q) ||
+            (ar.position || "").toLowerCase().includes(q) ||
+            (ar.absenceReason || "").toLowerCase().includes(q)
+        );
     });
 
     const formatMinutes = (minutes: number) => {
@@ -276,282 +297,530 @@ export default function HRAttendancePage() {
                 </div>
             </div>
 
-            <div className="bg-white border border-gray-200 shadow-sm flex flex-col">
-                <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            onClick={() => setStatusFilter("ALL")}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
-                                statusFilter === "ALL"
-                                    ? "bg-[#1a1a1a] text-white"
-                                    : "bg-white border border-gray-200 text-gray-600 hover:text-black"
-                            }`}
-                        >
-                            {t("filterAll")} ({records.length})
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter("PRESENT")}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
-                                statusFilter === "PRESENT"
-                                    ? "bg-[#1a1a1a] text-white"
-                                    : "bg-white border border-gray-200 text-gray-600 hover:text-black"
-                            }`}
-                        >
-                            {t("filterPresent")} ({records.filter((r) => r.status === "PRESENT").length})
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter("LATE")}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
-                                statusFilter === "LATE"
-                                    ? "bg-[#1a1a1a] text-white"
-                                    : "bg-white border border-gray-200 text-gray-600 hover:text-black"
-                            }`}
-                        >
-                            {t("filterLate")} ({records.filter((r) => r.status === "LATE").length})
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter("EARLY")}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
-                                statusFilter === "EARLY"
-                                    ? "bg-[#1a1a1a] text-white"
-                                    : "bg-white border border-gray-200 text-gray-600 hover:text-black"
-                            }`}
-                        >
-                            {t("filterEarly")} ({records.filter((r) => r.earlyMinutes > 0).length})
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter("BELGILANMADI")}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
-                                statusFilter === "BELGILANMADI"
-                                    ? "bg-[#1a1a1a] text-white"
-                                    : "bg-white border border-gray-200 text-gray-600 hover:text-black"
-                            }`}
-                        >
-                            {t("filterUnmarked")} ({records.filter((r) => r.status === "BELGILANMADI").length})
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter("SABABLI")}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
-                                statusFilter === "SABABLI"
-                                    ? "bg-[#1a1a1a] text-white"
-                                    : "bg-white border border-gray-200 text-gray-600 hover:text-black"
-                            }`}
-                        >
-                            {t("filterWithReason")} ({records.filter((r) => Boolean(r.absenceReason)).length})
-                        </button>
+            <div className="flex items-center border-b border-gray-200 gap-2">
+                <button
+                    onClick={() => setMainTab("daily")}
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 ${
+                        mainTab === "daily"
+                            ? "border-black text-black bg-gray-50"
+                            : "border-transparent text-gray-500 hover:text-black"
+                    }`}
+                >
+                    <span>📅</span>
+                    <span>Kunlik Monitoring ({records.length})</span>
+                </button>
+                <button
+                    onClick={() => setMainTab("absent")}
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 ${
+                        mainTab === "absent"
+                            ? "border-black text-black bg-gray-50"
+                            : "border-transparent text-gray-500 hover:text-black"
+                    }`}
+                >
+                    <span>🚫</span>
+                    <span>Ishga Kelmaganlar Jurnali ({absentRecords.length})</span>
+                </button>
+                <button
+                    onClick={() => setMainTab("threeMonth")}
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 ${
+                        mainTab === "threeMonth"
+                            ? "border-black text-black bg-gray-50"
+                            : "border-transparent text-gray-500 hover:text-black"
+                    }`}
+                >
+                    <span>📊</span>
+                    <span>Oxirgi 3 Oylik Natijalar</span>
+                </button>
+            </div>
+
+            {mainTab === "daily" && (
+                <div className="bg-white border border-gray-200 shadow-sm flex flex-col">
+                    <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={() => setStatusFilter("ALL")}
+                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
+                                    statusFilter === "ALL"
+                                        ? "bg-[#1a1a1a] text-white"
+                                        : "bg-white border border-gray-200 text-gray-600 hover:text-black"
+                                }`}
+                            >
+                                {t("filterAll")} ({records.length})
+                            </button>
+                            <button
+                                onClick={() => setStatusFilter("PRESENT")}
+                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
+                                    statusFilter === "PRESENT"
+                                        ? "bg-[#1a1a1a] text-white"
+                                        : "bg-white border border-gray-200 text-gray-600 hover:text-black"
+                                }`}
+                            >
+                                {t("filterPresent")} ({records.filter((r) => r.status === "PRESENT").length})
+                            </button>
+                            <button
+                                onClick={() => setStatusFilter("LATE")}
+                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
+                                    statusFilter === "LATE"
+                                        ? "bg-[#1a1a1a] text-white"
+                                        : "bg-white border border-gray-200 text-gray-600 hover:text-black"
+                                }`}
+                            >
+                                {t("filterLate")} ({records.filter((r) => r.status === "LATE").length})
+                            </button>
+                            <button
+                                onClick={() => setStatusFilter("EARLY")}
+                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
+                                    statusFilter === "EARLY"
+                                        ? "bg-[#1a1a1a] text-white"
+                                        : "bg-white border border-gray-200 text-gray-600 hover:text-black"
+                                }`}
+                            >
+                                {t("filterEarly")} ({records.filter((r) => r.earlyMinutes > 0).length})
+                            </button>
+                            <button
+                                onClick={() => setStatusFilter("BELGILANMADI")}
+                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
+                                    statusFilter === "BELGILANMADI"
+                                        ? "bg-[#1a1a1a] text-white"
+                                        : "bg-white border border-gray-200 text-gray-600 hover:text-black"
+                                }`}
+                            >
+                                {t("filterUnmarked")} ({records.filter((r) => r.status === "BELGILANMADI").length})
+                            </button>
+                            <button
+                                onClick={() => setStatusFilter("SABABLI")}
+                                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${
+                                    statusFilter === "SABABLI"
+                                        ? "bg-[#1a1a1a] text-white"
+                                        : "bg-white border border-gray-200 text-gray-600 hover:text-black"
+                                }`}
+                            >
+                                {t("filterWithReason")} ({records.filter((r) => Boolean(r.absenceReason)).length})
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="date"
+                                value={dateFilter}
+                                onChange={(e) => setDateFilter(e.target.value)}
+                                className="p-2 border border-gray-200 bg-white text-xs font-bold text-black rounded-sm"
+                            />
+                            <input
+                                type="text"
+                                placeholder={t("searchPlaceholder")}
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="p-2 border border-gray-200 bg-white text-xs font-medium text-black rounded-sm w-48 sm:w-64"
+                            />
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <input
-                            type="date"
-                            value={dateFilter}
-                            onChange={(e) => setDateFilter(e.target.value)}
-                            className="p-2 border border-gray-200 bg-white text-xs font-bold text-black rounded-sm"
-                        />
-                        <input
-                            type="text"
-                            placeholder={t("searchPlaceholder")}
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="p-2 border border-gray-200 bg-white text-xs font-medium text-black rounded-sm w-48 sm:w-64"
-                        />
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-gray-200 bg-gray-100/60 text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                                <th className="py-3.5 px-4">{t("colEmployee")}</th>
-                                <th className="py-3.5 px-4">{t("colDepartment")}</th>
-                                <th className="py-3.5 px-4 min-w-[170px]">{t("colCheckIn")}</th>
-                                <th className="py-3.5 px-4 min-w-[170px]">{t("colCheckOut")}</th>
-                                <th className="py-3.5 px-4">{t("colWorkedHours")}</th>
-                                <th className="py-3.5 px-4">{t("colStatusReason")}</th>
-                                <th className="py-3.5 px-4">{t("colActions")}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 text-xs">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={7} className="py-12 text-center text-gray-400">
-                                        <div className="inline-block w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin mb-2" />
-                                        <div className="text-xs font-bold uppercase tracking-wider">
-                                            {t("loading")}
-                                        </div>
-                                    </td>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-gray-200 bg-gray-100/60 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                    <th className="py-3.5 px-4">{t("colEmployee")}</th>
+                                    <th className="py-3.5 px-4">{t("colDepartment")}</th>
+                                    <th className="py-3.5 px-4 min-w-[170px]">{t("colCheckIn")}</th>
+                                    <th className="py-3.5 px-4 min-w-[170px]">{t("colCheckOut")}</th>
+                                    <th className="py-3.5 px-4">{t("colWorkedHours")}</th>
+                                    <th className="py-3.5 px-4">{t("colStatusReason")}</th>
+                                    <th className="py-3.5 px-4">{t("colActions")}</th>
                                 </tr>
-                            ) : filteredRecords.length === 0 ? (
-                                <tr>
-                                    <td
-                                        colSpan={7}
-                                        className="py-12 text-center text-gray-400 font-bold uppercase tracking-wider"
-                                    >
-                                        {t("noRecords")}
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredRecords.map((record) => (
-                                    <tr
-                                        key={record.id}
-                                        className="hover:bg-gray-50/80 transition-colors"
-                                    >
-                                        <td className="py-3.5 px-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center font-black text-xs text-gray-700 uppercase shrink-0">
-                                                    {record.employee.firstName[0]}
-                                                    {record.employee.lastName[0]}
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-black">
-                                                        {record.employee.firstName}{" "}
-                                                        {record.employee.lastName}
-                                                    </span>
-                                                    <span className="text-[10px] text-gray-400 font-mono">
-                                                        {record.employee.user?.email}
-                                                    </span>
-                                                </div>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 text-xs">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={7} className="py-12 text-center text-gray-400">
+                                            <div className="inline-block w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin mb-2" />
+                                            <div className="text-xs font-bold uppercase tracking-wider">
+                                                {t("loading")}
                                             </div>
-                                        </td>
-                                        <td className="py-3.5 px-4">
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="font-semibold text-gray-700">
-                                                    {record.employee.department?.name || t("noDepartment")}
-                                                </span>
-                                                <span className="text-[10px] text-gray-400 font-medium">
-                                                    {record.scheduleName}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="py-3.5 px-4">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2 text-[11px]">
-                                                    <span className="text-gray-400 text-[10px] font-medium">
-                                                        {t("plan")}: <strong className="font-mono text-gray-600">{record.expectedCheckIn}</strong>
-                                                    </span>
-                                                    <span>&rarr;</span>
-                                                    <span className="font-mono font-bold text-black">
-                                                        {record.checkIn ? (
-                                                            new Date(record.checkIn).toLocaleTimeString([], {
-                                                                hour: "2-digit",
-                                                                minute: "2-digit",
-                                                            })
-                                                        ) : (
-                                                            <span className="text-red-500 font-medium text-[10px]">
-                                                                {t("notArrived")}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </div>
-
-                                                {record.checkIn ? (
-                                                    record.lateMinutes > 0 ? (
-                                                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 w-fit">
-                                                            {formatMinutes(record.lateMinutes)} {t("lateBadge")}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 w-fit">
-                                                            {t("onTimeBadge")}
-                                                        </span>
-                                                    )
-                                                ) : record.status === "DAM_OLISH" ? (
-                                                    <span className="text-[9px] font-bold text-gray-400 uppercase">
-                                                        {t("offDay")}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700 w-fit">
-                                                        {t("unmarkedBadge")}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="py-3.5 px-4">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2 text-[11px]">
-                                                    <span className="text-gray-400 text-[10px] font-medium">
-                                                        {t("plan")}: <strong className="font-mono text-gray-600">{record.expectedCheckOut}</strong>
-                                                    </span>
-                                                    <span>&rarr;</span>
-                                                    <span className="font-mono font-bold text-black">
-                                                        {record.checkOut ? (
-                                                            new Date(record.checkOut).toLocaleTimeString([], {
-                                                                hour: "2-digit",
-                                                                minute: "2-digit",
-                                                            })
-                                                        ) : record.checkIn ? (
-                                                            <span className="text-blue-600 font-bold text-[10px] flex items-center gap-1">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
-                                                                {t("atWork")}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-gray-300">-</span>
-                                                        )}
-                                                    </span>
-                                                </div>
-
-                                                {record.earlyMinutes > 0 ? (
-                                                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 w-fit">
-                                                        {formatMinutes(record.earlyMinutes)} {t("earlyBadge")}
-                                                    </span>
-                                                ) : record.checkOut ? (
-                                                    <span className="text-[9px] font-bold text-gray-500">
-                                                        {t("onTimeOutBadge")}
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                        </td>
-                                        <td className="py-3.5 px-4">
-                                            {record.durationHours !== null ? (
-                                                <span className="font-bold text-gray-800 font-mono">
-                                                    {record.durationHours} {t("hours")}
-                                                </span>
-                                            ) : (
-                                                <span className="text-gray-400 font-medium">
-                                                    -
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="py-3.5 px-4">
-                                            {record.absenceReason ? (
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="text-xs font-bold text-gray-900 bg-amber-50 border border-amber-200 px-2 py-1 rounded-sm">
-                                                        {record.absenceReason}
-                                                    </span>
-                                                    <span className="text-[9px] font-bold text-gray-400 uppercase">
-                                                        {t("submittedBy")}: {record.reasonSubmittedBy || "HR"}
-                                                    </span>
-                                                </div>
-                                            ) : record.status === "BELGILANMADI" ? (
-                                                <span className="text-[11px] text-red-600 font-bold">
-                                                    {t("noReason")}
-                                                </span>
-                                            ) : (
-                                                <span className="text-[11px] text-gray-500 font-medium">
-                                                    {record.note || t("recorded")}
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="py-3.5 px-4">
-                                            <button
-                                                onClick={() =>
-                                                    setSelectedEmployeeForReason({
-                                                        employeeId: record.employee.id,
-                                                        employeeName: `${record.employee.firstName} ${record.employee.lastName}`,
-                                                        initialReason: record.absenceReason,
-                                                    })
-                                                }
-                                                className="px-2.5 py-1 bg-white border border-gray-200 text-gray-700 hover:text-black hover:border-black text-[11px] font-bold uppercase tracking-wider rounded-sm transition-colors"
-                                            >
-                                                {record.absenceReason ? t("editReason") : t("addReason")}
-                                            </button>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : filteredRecords.length === 0 ? (
+                                    <tr>
+                                        <td
+                                            colSpan={7}
+                                            className="py-12 text-center text-gray-400 font-bold uppercase tracking-wider"
+                                        >
+                                            {t("noRecords")}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredRecords.map((record) => (
+                                        <tr
+                                            key={record.id}
+                                            className="hover:bg-gray-50/80 transition-colors"
+                                        >
+                                            <td className="py-3.5 px-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center font-black text-xs text-gray-700 uppercase shrink-0">
+                                                        {record.employee.firstName[0]}
+                                                        {record.employee.lastName[0]}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-black">
+                                                            {record.employee.firstName}{" "}
+                                                            {record.employee.lastName}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 font-mono">
+                                                            {record.employee.user?.email}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="py-3.5 px-4">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-semibold text-gray-700">
+                                                        {record.employee.department?.name || t("noDepartment")}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400 font-medium">
+                                                        {record.scheduleName}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="py-3.5 px-4">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2 text-[11px]">
+                                                        <span className="text-gray-400 text-[10px] font-medium">
+                                                            {t("plan")}: <strong className="font-mono text-gray-600">{record.expectedCheckIn}</strong>
+                                                        </span>
+                                                        <span>&rarr;</span>
+                                                        <span className="font-mono font-bold text-black">
+                                                            {record.checkIn ? (
+                                                                new Date(record.checkIn).toLocaleTimeString([], {
+                                                                    hour: "2-digit",
+                                                                    minute: "2-digit",
+                                                                })
+                                                            ) : (
+                                                                <span className="text-red-500 font-medium text-[10px]">
+                                                                    {t("notArrived")}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </div>
+
+                                                    {record.checkIn ? (
+                                                        record.lateMinutes > 0 ? (
+                                                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 w-fit">
+                                                                {formatMinutes(record.lateMinutes)} {t("lateBadge")}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 w-fit">
+                                                                {t("onTimeBadge")}
+                                                            </span>
+                                                        )
+                                                    ) : record.status === "DAM_OLISH" ? (
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                                            {t("offDay")}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700 w-fit">
+                                                            {t("unmarkedBadge")}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="py-3.5 px-4">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2 text-[11px]">
+                                                        <span className="text-gray-400 text-[10px] font-medium">
+                                                            {t("plan")}: <strong className="font-mono text-gray-600">{record.expectedCheckOut}</strong>
+                                                        </span>
+                                                        <span>&rarr;</span>
+                                                        <span className="font-mono font-bold text-black">
+                                                            {record.checkOut ? (
+                                                                new Date(record.checkOut).toLocaleTimeString([], {
+                                                                    hour: "2-digit",
+                                                                    minute: "2-digit",
+                                                                })
+                                                            ) : record.checkIn ? (
+                                                                <span className="text-blue-600 font-bold text-[10px] flex items-center gap-1">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                                                                    {t("atWork")}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-gray-300">-</span>
+                                                            )}
+                                                        </span>
+                                                    </div>
+
+                                                    {record.earlyMinutes > 0 ? (
+                                                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 w-fit">
+                                                            {formatMinutes(record.earlyMinutes)} {t("earlyBadge")}
+                                                        </span>
+                                                    ) : record.checkOut ? (
+                                                        <span className="text-[9px] font-bold text-gray-500">
+                                                            {t("onTimeOutBadge")}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+                                            <td className="py-3.5 px-4">
+                                                {record.durationHours !== null ? (
+                                                    <span className="font-bold text-gray-800 font-mono">
+                                                        {record.durationHours} {t("hours")}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400 font-medium">
+                                                        -
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-3.5 px-4">
+                                                {record.absenceReason ? (
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs font-bold text-gray-900 bg-amber-50 border border-amber-200 px-2 py-1 rounded-sm">
+                                                            {record.absenceReason}
+                                                        </span>
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                                            {t("submittedBy")}: {record.reasonSubmittedBy || "HR"}
+                                                        </span>
+                                                    </div>
+                                                ) : record.status === "BELGILANMADI" ? (
+                                                    <span className="text-[11px] text-red-600 font-bold">
+                                                        {t("noReason")}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[11px] text-gray-500 font-medium">
+                                                        {record.note || t("recorded")}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-3.5 px-4">
+                                                <button
+                                                    onClick={() =>
+                                                        setSelectedEmployeeForReason({
+                                                            employeeId: record.employee.id,
+                                                            employeeName: `${record.employee.firstName} ${record.employee.lastName}`,
+                                                            date: record.date ? record.date.split("T")[0] : undefined,
+                                                            initialReason: record.absenceReason,
+                                                        })
+                                                    }
+                                                    className="px-2.5 py-1 bg-white border border-gray-200 text-gray-700 hover:text-black hover:border-black text-[11px] font-bold uppercase tracking-wider rounded-sm transition-colors"
+                                                >
+                                                    {record.absenceReason ? t("editReason") : t("addReason")}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {mainTab === "absent" && (
+                <div className="bg-white border border-gray-200 shadow-sm flex flex-col">
+                    <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
+                        <div>
+                            <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">
+                                Qaysi xodim qaysi ish kuni ishga kelmaganlik jurnali ({filteredAbsentRecords.length})
+                            </span>
+                            <span className="text-[11px] text-gray-500 font-medium mt-0.5 block">
+                                Oxirgi 3 oylik ish kunlaridagi barcha sababsiz va sababli kelmagan holatlar
+                            </span>
+                        </div>
+                        <div>
+                            <input
+                                type="text"
+                                placeholder="Xodim ismi yoki bo'lim bo'yicha qidirish..."
+                                value={absentSearch}
+                                onChange={(e) => setAbsentSearch(e.target.value)}
+                                className="p-2 border border-gray-300 bg-white text-xs font-medium text-black rounded-sm w-64 md:w-80 outline-none focus:border-black"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-gray-200 bg-gray-100/60 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                    <th className="py-3.5 px-4">Sana</th>
+                                    <th className="py-3.5 px-4">Xodim</th>
+                                    <th className="py-3.5 px-4">Bo'lim / Lavozim</th>
+                                    <th className="py-3.5 px-4 text-center">Holati</th>
+                                    <th className="py-3.5 px-4">Sababi / Izoh</th>
+                                    <th className="py-3.5 px-4 text-center">Amal</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 text-xs">
+                                {filteredAbsentRecords.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="py-12 text-center text-gray-400 font-bold uppercase tracking-wider">
+                                            Ishga kelmaganlik holatlari topilmadi
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredAbsentRecords.map((item) => (
+                                        <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="py-3.5 px-4 font-mono font-bold text-gray-800">
+                                                {item.date ? new Date(item.date).toLocaleDateString("ru-RU") : "-"}
+                                            </td>
+                                            <td className="py-3.5 px-4 font-bold text-black">
+                                                {item.employeeName}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-gray-600">
+                                                <div>{item.department}</div>
+                                                <div className="text-[10px] text-gray-400">{item.position}</div>
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center">
+                                                {item.status === "SABABLI" ? (
+                                                    <span className="px-2.5 py-1 text-[10px] font-black uppercase rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                                        Sababli Kelmagan
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2.5 py-1 text-[10px] font-black uppercase rounded bg-rose-100 text-rose-800 border border-rose-200">
+                                                        Sababsiz Kelmagan
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-3.5 px-4">
+                                                {item.absenceReason ? (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="font-semibold text-gray-800">{item.absenceReason}</span>
+                                                        <span className="text-[10px] text-gray-400 font-medium uppercase">
+                                                            Kirituvchi: {item.reasonSubmittedBy || "HR"}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 font-medium italic">Sabab kiritilmagan</span>
+                                                )}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center">
+                                                <button
+                                                    onClick={() =>
+                                                        setSelectedEmployeeForReason({
+                                                            employeeId: item.employeeId,
+                                                            employeeName: item.employeeName,
+                                                            date: item.date,
+                                                            initialReason: item.absenceReason,
+                                                        })
+                                                    }
+                                                    className="px-3 py-1 bg-white border border-gray-300 text-gray-800 hover:text-black hover:border-black text-[11px] font-bold uppercase tracking-wider rounded-sm transition-colors"
+                                                >
+                                                    {item.absenceReason ? "Sababni Tahrirlash" : "Sabab Kiritish"}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {mainTab === "threeMonth" && (
+                <div className="flex flex-col gap-6">
+                    <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-sm flex items-center justify-between gap-4 text-xs font-semibold text-indigo-900">
+                        <div className="flex items-center gap-2">
+                            <span>⚡</span>
+                            <span>
+                                <strong>Avtomatik Tozalash:</strong> Tizim bazasi xotirasini tejash maqsadida davomat ma'lumotlari oxirgi 3 oy (90 kun) doirasida saqlanadi va 90 kundan eski yozuvlar avtomatik tozalanadi.
+                            </span>
+                        </div>
+                        <span className="text-[11px] px-2.5 py-1 bg-indigo-100 text-indigo-800 font-bold uppercase rounded shrink-0">
+                            Faol (90 kun)
+                        </span>
+                    </div>
+
+                    {threeMonthSummary && (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {threeMonthSummary.months.map((m) => (
+                                    <div key={`${m.year}-${m.month}`} className="p-5 border border-gray-200 bg-white shadow-sm flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-black uppercase tracking-wider text-black">
+                                                    {m.monthName} {m.year}
+                                                </span>
+                                                <span className="text-xs text-gray-400 font-bold">
+                                                    {m.totalWorkingDays} ish kuni
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+                                                <div className="p-2 bg-emerald-50 border border-emerald-100">
+                                                    <div className="text-lg font-black text-emerald-700">{m.attendedCount}</div>
+                                                    <div className="text-[10px] font-bold uppercase text-emerald-800 mt-0.5">Keldi</div>
+                                                </div>
+                                                <div className="p-2 bg-rose-50 border border-rose-100">
+                                                    <div className="text-lg font-black text-rose-700">{m.absentCount}</div>
+                                                    <div className="text-[10px] font-bold uppercase text-rose-800 mt-0.5">Kelmadi</div>
+                                                </div>
+                                                <div className="p-2 bg-amber-50 border border-amber-100">
+                                                    <div className="text-lg font-black text-amber-700">{m.lateCount}</div>
+                                                    <div className="text-[10px] font-bold uppercase text-amber-800 mt-0.5">Kechikdi</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="bg-white border border-gray-200 shadow-sm flex flex-col">
+                                <div className="p-4 border-b border-gray-200 bg-gray-50">
+                                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">
+                                        Xodimlar bo'yicha 3 oylik davomat ko'rsatkichlari ({threeMonthSummary.employeeSummaries.length})
+                                    </span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="border-b border-gray-200 bg-gray-100/60 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                                <th className="py-3.5 px-4">Xodim</th>
+                                                <th className="py-3.5 px-4">Bo'lim / Lavozim</th>
+                                                <th className="py-3.5 px-4 text-center">Kelgan Kunlari</th>
+                                                <th className="py-3.5 px-4 text-center">Kelmagan Kunlari</th>
+                                                <th className="py-3.5 px-4 text-center">Kechikishlar</th>
+                                                <th className="py-3.5 px-4 text-right">Davomat Foizi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 text-xs">
+                                            {threeMonthSummary.employeeSummaries.map((emp) => (
+                                                <tr key={emp.employeeId} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="py-3.5 px-4 font-bold text-black">
+                                                        {emp.name}
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-gray-600">
+                                                        <div>{emp.department}</div>
+                                                        <div className="text-[10px] text-gray-400">{emp.position}</div>
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-center font-bold text-emerald-700">
+                                                        {emp.attendedCount} kun
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-center font-bold text-rose-700">
+                                                        {emp.absentCount} kun
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-center font-bold text-amber-700">
+                                                        {emp.lateCount} marta
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-right font-black">
+                                                        <span
+                                                            className={`px-2 py-0.5 rounded text-[11px] ${
+                                                                emp.attendanceRate >= 90
+                                                                    ? "bg-emerald-100 text-emerald-800"
+                                                                    : emp.attendanceRate >= 75
+                                                                    ? "bg-amber-100 text-amber-800"
+                                                                    : "bg-rose-100 text-rose-800"
+                                                            }`}
+                                                        >
+                                                            {emp.attendanceRate}%
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
 
             <WorkScheduleModal
                 isOpen={isScheduleModalOpen}
@@ -564,7 +833,7 @@ export default function HRAttendancePage() {
                 onClose={() => setSelectedEmployeeForReason(null)}
                 employeeId={selectedEmployeeForReason?.employeeId}
                 employeeName={selectedEmployeeForReason?.employeeName}
-                date={dateFilter || undefined}
+                date={selectedEmployeeForReason?.date || dateFilter || undefined}
                 initialReason={selectedEmployeeForReason?.initialReason}
                 submittedBy="HR"
                 onSaved={loadData}

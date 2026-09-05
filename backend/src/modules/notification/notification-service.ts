@@ -96,17 +96,28 @@ export class NotificationService {
         targetRoles?: string[];
         companyName?: string;
     }) {
+        const whereClause: any = {
+            ...(payload.companyName ? { companyName: payload.companyName } : {}),
+            ...(payload.excludeUserId ? { id: { not: payload.excludeUserId } } : {}),
+        };
+
+        if (payload.excludeRoles && payload.excludeRoles.length > 0) {
+            whereClause.role = { notIn: payload.excludeRoles as any };
+        }
+
+        if (payload.targetRoles && payload.targetRoles.length > 0) {
+            whereClause.OR = [
+                { role: { in: payload.targetRoles as any } },
+                {
+                    customRole: {
+                        baseRole: { in: payload.targetRoles as any },
+                    },
+                },
+            ];
+        }
+
         const users = await prisma.user.findMany({
-            where: {
-                ...(payload.companyName ? { companyName: payload.companyName } : {}),
-                ...(payload.excludeUserId ? { id: { not: payload.excludeUserId } } : {}),
-                ...(payload.excludeRoles && payload.excludeRoles.length > 0
-                    ? { role: { notIn: payload.excludeRoles as any } }
-                    : {}),
-                ...(payload.targetRoles && payload.targetRoles.length > 0
-                    ? { role: { in: payload.targetRoles as any } }
-                    : {}),
-            },
+            where: whereClause,
             select: { id: true },
         });
 

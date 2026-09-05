@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import PayrollManager from "@/src/components/payroll/PayrollManager";
+import HRPenaltyManager from "@/src/components/payroll/HRPenaltyManager";
 
 export default function HRPayrollPage() {
     const router = useRouter();
@@ -14,10 +14,10 @@ export default function HRPayrollPage() {
                 onClick={() => router.back()}
                 className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-2"
             >
-                &larr; {t("goBack")}
+                &larr; {t("goBack") || "Orqaga"}
             </button>
 
-            <PayrollManager />
+            <HRPenaltyManager />
         </div>
     );
 }

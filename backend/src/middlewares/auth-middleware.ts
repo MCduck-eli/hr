@@ -6,6 +6,7 @@ export type Role =
     | "DIRECTOR"
     | "HR_ADMIN"
     | "DEPARTMENT_HEAD"
+    | "ACCOUNTANT"
     | "EMPLOYEE"
     | "RECRUITER"
     | "CANDIDATE";
