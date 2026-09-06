@@ -54,11 +54,7 @@ export default function HRAcademyManagementPage() {
                     allUsers.filter(
                         (u: any) =>
                             u.employee?.id &&
-                            u.role !== "SUPER_ADMIN" &&
-                            u.role !== "DIRECTOR" &&
-                            u.role !== "HR_ADMIN" &&
-                            u.id !== currentUserId &&
-                            u.employee?.id !== currentUserEmpId
+                            u.role !== "SUPER_ADMIN"
                     )
                 );
             }
@@ -279,7 +275,7 @@ export default function HRAcademyManagementPage() {
                             <option value="">-- Barcha xodimlar --</option>
                             {employees.map((u) => (
                                 <option key={u.employee.id} value={u.employee.id}>
-                                    {u.employee.firstName} {u.employee.lastName} ({u.email})
+                                    {u.employee.firstName} {u.employee.lastName} ({u.email}){u.role === "HR_ADMIN" ? " [HR Admin]" : ""}
                                 </option>
                             ))}
                         </select>

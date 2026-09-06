@@ -339,6 +339,18 @@ export const fetchAdvances = async (params?: {
     return json.data;
 };
 
+export const fetchMyAdvances = async () => {
+    const res = await fetch(`${API_URL}/payroll/advances/my`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch my advances");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
 export const createAdvance = async (payload: {
     employeeId: string;
     amount: number;
@@ -364,7 +376,7 @@ export const createAdvance = async (payload: {
 export const updateAdvanceStatus = async (
     id: string,
     payload: {
-        status: "PENDING" | "PAID" | "CANCELLED";
+        status: "PENDING" | "AWAITING_CONFIRMATION" | "PAID" | "CANCELLED";
         paidDate?: string;
         paymentMethod?: string;
         note?: string;
@@ -378,6 +390,19 @@ export const updateAdvanceStatus = async (
     if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to update advance status");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const confirmAdvanceReceipt = async (id: string) => {
+    const res = await fetch(`${API_URL}/payroll/advances/confirm-receipt/${id}`, {
+        method: "POST",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to confirm advance receipt");
     }
     const json = await res.json();
     return json.data;
@@ -408,6 +433,19 @@ export const paySalary = async (
     if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to pay salary");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const confirmSalaryReceipt = async (id: string) => {
+    const res = await fetch(`${API_URL}/payroll/confirm-receipt/${id}`, {
+        method: "POST",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to confirm salary receipt");
     }
     const json = await res.json();
     return json.data;
@@ -446,6 +484,19 @@ export const deletePaymentRecord = async (id: string) => {
     if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to delete payment record");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const clearAllPaymentRecords = async () => {
+    const res = await fetch(`${API_URL}/payroll/payment-records/clear-all`, {
+        method: "DELETE",
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to clear all payment records");
     }
     const json = await res.json();
     return json.data;

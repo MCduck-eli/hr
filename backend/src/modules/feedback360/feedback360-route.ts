@@ -16,7 +16,7 @@ feedback360Router.use(authenticate);
 
 feedback360Router.get(
     "/cycles",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "EMPLOYEE", "CEO"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "EMPLOYEE", "CEO", "ACCOUNTANT"),
     feedback360Controller.getCycles,
 );
 

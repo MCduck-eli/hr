@@ -9,13 +9,6 @@ import {
     createPayroll,
     updatePayrollStatus,
     deletePayroll,
-    fetchPenaltyRules,
-    createPenaltyRule,
-    updatePenaltyRule,
-    deletePenaltyRule,
-    fetchEmployeePenalties,
-    createEmployeePenalty,
-    deleteEmployeePenalty,
     fetchPayrollSchedule,
     updatePayrollSchedule,
     fetchDueReminders,
@@ -26,6 +19,8 @@ import {
     paySalary,
     fetchPaymentRecords,
     deletePaymentRecord,
+    clearAllPaymentRecords,
+    fetchPenaltiesSummary,
 } from "@/src/services/payroll-service";
 import { fetchAllUsers } from "@/src/services/user-service";
 import PayslipModal from "./PayslipModal";
@@ -40,6 +35,7 @@ export default function PayrollManager() {
 
     const [currentUserRole, setCurrentUserRole] = useState<string>("");
     const [payrolls, setPayrolls] = useState<any[]>([]);
+    const [penaltySummaries, setPenaltySummaries] = useState<Record<string, any>>({});
     const [employees, setEmployees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -58,31 +54,6 @@ export default function PayrollManager() {
         deductions: "0",
     });
 
-    const [isPenaltyRulesModalOpen, setIsPenaltyRulesModalOpen] = useState(false);
-    const [penaltyRules, setPenaltyRules] = useState<any[]>([]);
-    const [editingRule, setEditingRule] = useState<any | null>(null);
-    const [ruleForm, setRuleForm] = useState({
-        name: "",
-        code: "",
-        penaltyType: "FIXED",
-        amount: "",
-        isAuto: false,
-        description: "",
-    });
-
-    const [isAddPenaltyModalOpen, setIsAddPenaltyModalOpen] = useState(false);
-    const [penaltyForm, setPenaltyForm] = useState({
-        employeeId: "",
-        ruleId: "",
-        reason: "",
-        amount: "",
-        month: selectedMonth,
-        year: selectedYear,
-        date: new Date().toISOString().split("T")[0],
-    });
-
-    const [isPenaltiesListModalOpen, setIsPenaltiesListModalOpen] = useState(false);
-    const [employeePenalties, setEmployeePenalties] = useState<any[]>([]);
 
     const [dueReminders, setDueReminders] = useState<any | null>(null);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -146,7 +117,7 @@ export default function PayrollManager() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [payrollsData, usersData, rulesData, dueData] = await Promise.all([
+            const [payrollsData, usersData, dueData, advancesData, penaltiesData] = await Promise.all([
                 fetchAllPayrolls({
                     month: selectedMonth,
                     year: selectedYear,
@@ -154,33 +125,37 @@ export default function PayrollManager() {
                     search: searchQuery || undefined,
                 }),
                 fetchAllUsers(),
-                fetchPenaltyRules().catch(() => []),
                 fetchDueReminders().catch(() => null),
+                fetchAdvances({
+                    month: selectedMonth,
+                    year: selectedYear,
+                }).catch(() => []),
+                fetchPenaltiesSummary({
+                    month: selectedMonth,
+                    year: selectedYear,
+                }).catch(() => null),
             ]);
             setPayrolls(payrollsData || []);
+            setAdvancesList(advancesData || []);
+
+            const pMap: Record<string, any> = {};
+            if (penaltiesData?.employeeSummaries) {
+                penaltiesData.employeeSummaries.forEach((s: any) => {
+                    pMap[s.employeeId] = s;
+                });
+            }
+            setPenaltySummaries(pMap);
+
             const validEmployees = (usersData || [])
                 .filter((u: any) => u.role !== "DIRECTOR" && u.role !== "SUPER_ADMIN")
                 .map((u: any) => u.employee ? { ...u.employee, email: u.email } : null)
                 .filter(Boolean);
             setEmployees(validEmployees);
-            setPenaltyRules(rulesData || []);
             setDueReminders(dueData || null);
         } catch (err: any) {
             console.error("Failed to load payroll data", err);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const loadPenaltiesList = async () => {
-        try {
-            const data = await fetchEmployeePenalties({
-                month: selectedMonth,
-                year: selectedYear,
-            });
-            setEmployeePenalties(data || []);
-        } catch (err: any) {
-            console.error("Failed to load penalties", err);
         }
     };
 
@@ -275,15 +250,15 @@ export default function PayrollManager() {
                     paymentMethod: payForm.paymentMethod,
                     note: payForm.note,
                 });
-                alert(t("salaryPaidSuccess"));
+                alert(t("salaryDisbursedSuccess"));
             } else {
                 await updateAdvanceStatus(payModalTarget.id, {
-                    status: "PAID",
+                    status: "AWAITING_CONFIRMATION",
                     paidDate: new Date().toISOString(),
                     paymentMethod: payForm.paymentMethod,
                     note: payForm.note,
                 });
-                alert(t("advancePaidSuccess"));
+                alert(t("advanceDisbursedSuccess"));
                 if (isAdvancesListModalOpen) {
                     await loadAdvancesList();
                 }
@@ -304,14 +279,8 @@ export default function PayrollManager() {
                 name: empName,
                 amount: netSalary,
             });
-        } else {
-            const nextStatus = "PENDING";
-            try {
-                await updatePayrollStatus(payrollId, nextStatus as any);
-                await loadData();
-            } catch (err: any) {
-                alert(err.message || "Error");
-            }
+        } else if (currentStatus === "AWAITING_CONFIRMATION") {
+            alert(t("pendingSalaryConfirmAlert"));
         }
     };
 
@@ -383,15 +352,82 @@ export default function PayrollManager() {
         }
     };
 
-    const handleOpenAddAdvance = (preselectedEmpId?: string) => {
-        const empId = preselectedEmpId || (employees[0]?.id || "");
+    const getEmployeeAvailableAdvanceLimit = (empId: string, month: number, year: number) => {
         const emp = employees.find((e) => e.id === empId);
         const baseSal = emp?.salary || 5000000;
-        const defaultAmt = Math.round(baseSal * ((scheduleForm.advancePercentage || 40) / 100));
+        const targetPayroll = payrolls.find((p) => p.employeeId === empId && p.month === month && p.year === year);
+        const isSalaryPaid = targetPayroll?.status === "PAID";
+        let cutoffDay = 1;
+        if (isSalaryPaid) {
+            if (targetPayroll?.disbursedAt) {
+                cutoffDay = new Date(targetPayroll.disbursedAt).getDate();
+            } else if (targetPayroll?.confirmedAt) {
+                cutoffDay = Math.min(new Date(targetPayroll.confirmedAt).getDate(), 5);
+            } else {
+                cutoffDay = 5;
+            }
+        }
+
+        const startFromDay = isSalaryPaid && month === (new Date().getMonth() + 1) && year === new Date().getFullYear()
+            ? cutoffDay + 1
+            : 1;
+
+        const daysInMonthCount = new Date(year, month, 0).getDate();
+        let totalWorkingDays = 0;
+        let passedWorkingDays = 0;
+        const now = new Date();
+        const isTargetCurrent = year === now.getFullYear() && month === (now.getMonth() + 1);
+        const isWorkDayEnded = now.getHours() >= 18;
+
+        for (let d = 1; d <= daysInMonthCount; d++) {
+            const checkDate = new Date(year, month - 1, d);
+            const dow = checkDate.getDay();
+            if (dow !== 0 && dow !== 6) {
+                totalWorkingDays++;
+                if (d >= startFromDay) {
+                    if (isTargetCurrent) {
+                        if (d < now.getDate()) {
+                            passedWorkingDays++;
+                        } else if (d === now.getDate() && isWorkDayEnded) {
+                            passedWorkingDays++;
+                        }
+                    } else if (year < now.getFullYear() || (year === now.getFullYear() && month < (now.getMonth() + 1))) {
+                        passedWorkingDays++;
+                    }
+                }
+            }
+        }
+        if (totalWorkingDays === 0) totalWorkingDays = 22;
+
+        const dailyRate = Math.round(baseSal / totalWorkingDays);
+        const empAdvances = advancesList.filter((a) => a.employeeId === empId && a.month === month && a.year === year && a.status !== "CANCELLED");
+        const postBaselineAdvances = empAdvances.filter((a) => {
+            if (!isSalaryPaid) return true;
+            const aDate = new Date(a.paidDate || a.createdAt);
+            return aDate.getDate() > cutoffDay;
+        });
+        const alreadyTakenAdvancesTotal = postBaselineAdvances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+        const grossEarnedSoFar = passedWorkingDays * dailyRate;
+        const availableEarnedSalary = Math.max(0, grossEarnedSoFar - alreadyTakenAdvancesTotal);
+
+        return {
+            totalWorkingDays,
+            passedWorkingDays,
+            dailyRate,
+            grossEarnedSoFar,
+            alreadyTakenAdvancesTotal,
+            availableEarnedSalary,
+        };
+    };
+
+    const handleOpenAddAdvance = (preselectedEmpId?: string) => {
+        const empId = preselectedEmpId || (employees[0]?.id || "");
+        const limitInfo = getEmployeeAvailableAdvanceLimit(empId, selectedMonth, selectedYear);
+        const defaultAmt = limitInfo.availableEarnedSalary > 0 ? limitInfo.availableEarnedSalary : 0;
 
         setAdvanceForm({
             employeeId: empId,
-            amount: defaultAmt > 0 ? defaultAmt.toString() : "1000000",
+            amount: defaultAmt > 0 ? defaultAmt.toString() : "0",
             month: selectedMonth,
             year: selectedYear,
             dueDate: new Date().toISOString().split("T")[0],
@@ -405,17 +441,30 @@ export default function PayrollManager() {
         e.preventDefault();
         if (!advanceForm.employeeId || !advanceForm.amount) return;
 
+        const reqAmount = parseFloat(advanceForm.amount);
+        const targetM = Number(advanceForm.month || selectedMonth);
+        const targetY = Number(advanceForm.year || selectedYear);
+        const limitInfo = getEmployeeAvailableAdvanceLimit(advanceForm.employeeId, targetM, targetY);
+
+        if (reqAmount > limitInfo.availableEarnedSalary) {
+            alert(
+                `Xatolik: Avans miqdori hozirgi kungacha ishlangan to'plangan maoshdan (${formatMoney(limitInfo.availableEarnedSalary)}) oshmasligi kerak! Kunlik stavka: ${formatMoney(limitInfo.dailyRate)}/kun (${limitInfo.passedWorkingDays} ish kuni o'tgan).`
+            );
+            return;
+        }
+
         try {
             await createAdvance({
                 employeeId: advanceForm.employeeId,
-                amount: parseFloat(advanceForm.amount),
-                month: Number(advanceForm.month || selectedMonth),
-                year: Number(advanceForm.year || selectedYear),
+                amount: reqAmount,
+                month: targetM,
+                year: targetY,
                 dueDate: advanceForm.dueDate || undefined,
                 isEarly: advanceForm.isEarly,
                 reason: advanceForm.reason.trim() || undefined,
             });
             setIsAddAdvanceModalOpen(false);
+            alert("✅ Avans biriktirildi va tasdiqlandi! Xodim tasdiqlashi kutilmoqda.");
             await loadData();
             if (isAdvancesListModalOpen) {
                 await loadAdvancesList();
@@ -462,145 +511,207 @@ export default function PayrollManager() {
         }
     };
 
-    const handleOpenPenaltyRules = async () => {
-        try {
-            const rules = await fetchPenaltyRules();
-            setPenaltyRules(rules || []);
-            setEditingRule(null);
-            setRuleForm({
-                name: "",
-                code: "",
-                penaltyType: "FIXED",
-                amount: "",
-                isAuto: false,
-                description: "",
-            });
-            setIsPenaltyRulesModalOpen(true);
-        } catch (err: any) {
-            alert(err.message || "Error");
-        }
-    };
-
-    const handleSaveRule = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!ruleForm.name || !ruleForm.code || !ruleForm.amount) return;
-
-        try {
-            if (editingRule) {
-                await updatePenaltyRule(editingRule.id, {
-                    name: ruleForm.name,
-                    penaltyType: ruleForm.penaltyType,
-                    amount: parseFloat(ruleForm.amount),
-                    isAuto: ruleForm.isAuto,
-                    description: ruleForm.description,
-                });
-            } else {
-                await createPenaltyRule({
-                    name: ruleForm.name,
-                    code: ruleForm.code,
-                    penaltyType: ruleForm.penaltyType,
-                    amount: parseFloat(ruleForm.amount),
-                    isAuto: ruleForm.isAuto,
-                    description: ruleForm.description,
-                });
-            }
-            const updated = await fetchPenaltyRules();
-            setPenaltyRules(updated || []);
-            setEditingRule(null);
-            setRuleForm({
-                name: "",
-                code: "",
-                penaltyType: "FIXED",
-                amount: "",
-                isAuto: false,
-                description: "",
-            });
-        } catch (err: any) {
-            alert(err.message || "Error");
-        }
-    };
-
-    const handleDeleteRule = async (ruleId: string) => {
-        if (!confirm(t("deleteRuleConfirm"))) return;
-        try {
-            await deletePenaltyRule(ruleId);
-            const updated = await fetchPenaltyRules();
-            setPenaltyRules(updated || []);
-        } catch (err: any) {
-            alert(err.message || "Error");
-        }
-    };
-
-    const handleOpenAddPenalty = (preselectedEmpId?: string) => {
-        setPenaltyForm({
-            employeeId: preselectedEmpId || (employees[0]?.id || ""),
-            ruleId: "",
-            reason: "",
-            amount: "",
-            month: selectedMonth,
-            year: selectedYear,
-            date: new Date().toISOString().split("T")[0],
-        });
-        setIsAddPenaltyModalOpen(true);
-    };
-
-    const handleRuleSelectInPenaltyForm = (ruleId: string) => {
-        const found = penaltyRules.find((r) => r.id === ruleId);
-        if (found) {
-            setPenaltyForm({
-                ...penaltyForm,
-                ruleId,
-                reason: found.name,
-                amount: found.amount ? found.amount.toString() : penaltyForm.amount,
-            });
-        } else {
-            setPenaltyForm({
-                ...penaltyForm,
-                ruleId: "",
-            });
-        }
-    };
-
-    const handleSaveEmployeePenalty = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!penaltyForm.employeeId || !penaltyForm.reason || !penaltyForm.amount) {
+    const handleClearAllPaymentRecords = async () => {
+        if (currentUserRole !== "DIRECTOR" && currentUserRole !== "SUPER_ADMIN") {
+            alert(t("onlyDirectorCanDelete"));
             return;
         }
 
+        if (!confirm(t("clearHistoryConfirm"))) return;
+
         try {
-            await createEmployeePenalty({
-                employeeId: penaltyForm.employeeId,
-                ruleId: penaltyForm.ruleId && penaltyForm.ruleId.trim() !== "" ? penaltyForm.ruleId : undefined,
-                reason: penaltyForm.reason.trim(),
-                amount: parseFloat(penaltyForm.amount),
-                month: Number(penaltyForm.month || selectedMonth),
-                year: Number(penaltyForm.year || selectedYear),
-                date: penaltyForm.date || new Date().toISOString().split("T")[0],
+            await clearAllPaymentRecords();
+            await loadPaymentRecords();
+            alert(t("clearHistorySuccess"));
+        } catch (err: any) {
+            alert(err.message || "Error");
+        }
+    };
+
+    const generatePdfDocument = (title: string, subtitle: string, records: any[], isFromHistory: boolean = true) => {
+        const printWindow = window.open("", "_blank", "width=1100,height=850");
+        if (!printWindow) {
+            alert("Iltimos, brauzerda pop-up oynalarga ruxsat bering.");
+            return;
+        }
+
+        const totalAmount = records.reduce((sum, r) => sum + (isFromHistory ? (r.amount || 0) : (r.netSalary || 0)), 0);
+        const formattedTotal = totalAmount.toLocaleString("uz-UZ") + " UZS";
+        const dateStr = new Date().toLocaleDateString("uz-UZ");
+
+        const rowsHtml = records.map((r, idx) => {
+            const emp = r.employee || {};
+            const fullName = `${emp.firstName || ""} ${emp.lastName || ""}`.trim() || "-";
+            const email = emp.user?.email || "-";
+            const deptPos = `${emp.department?.name || "-"} / ${emp.position?.title || "-"}`;
+            const payType = isFromHistory
+                ? (r.paymentType === "SALARY" ? "Oylik Maosh" : "Avans")
+                : "Oylik Maosh";
+            const amountVal = (isFromHistory ? (r.amount || 0) : (r.netSalary || 0)).toLocaleString("uz-UZ") + " UZS";
+            const method = isFromHistory
+                ? (r.paymentMethod === "CASH" ? "Naqd Pulda" : r.paymentMethod === "TRANSFER" ? "Bank O'tkazmasi" : "Bank Kartasiga")
+                : (r.paymentMethod === "CASH" ? "Naqd Pulda" : r.paymentMethod === "TRANSFER" ? "Bank O'tkazmasi" : "Bank Kartasiga");
+            const paidDate = isFromHistory
+                ? (r.paidAt ? new Date(r.paidAt).toLocaleDateString("uz-UZ") : "-")
+                : (r.confirmedAt ? new Date(r.confirmedAt).toLocaleDateString("uz-UZ") : r.disbursedAt ? new Date(r.disbursedAt).toLocaleDateString("uz-UZ") : dateStr);
+            const note = r.note || r.paymentNote || "-";
+
+            return `
+                <tr>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #6b7280;">${idx + 1}</td>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; font-size: 12px; font-weight: bold; color: #111827;">${fullName}</td>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #4b5563;">${email}</td>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #4b5563;">${deptPos}</td>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-weight: 600; color: #374151;">${payType}</td>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; font-size: 12px; font-weight: bold; text-align: right; color: #047857;">${amountVal}</td>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #4b5563;">${method}</td>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-family: monospace; color: #374151;">${paidDate}</td>
+                    <td style="padding: 9px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">${note}</td>
+                </tr>
+            `;
+        }).join("");
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="uz">
+            <head>
+                <meta charset="UTF-8">
+                <title>${title}</title>
+                <style>
+                    @page { size: landscape; margin: 12mm; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 24px; background: #fff; }
+                    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 20px; }
+                    .title { font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0 0 6px 0; letter-spacing: 0.02em; }
+                    .subtitle { font-size: 12px; color: #6b7280; margin: 0; }
+                    .meta { text-align: right; font-size: 11px; color: #4b5563; }
+                    .summary-box { display: flex; gap: 24px; margin-bottom: 20px; background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px 18px; border-radius: 4px; }
+                    .summary-item { font-size: 12px; }
+                    .summary-item span { font-weight: bold; color: #111827; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                    th { background: #f3f4f6; color: #374151; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px; text-align: left; border-bottom: 2px solid #d1d5db; }
+                    .signatures { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 1px dashed #d1d5db; font-size: 12px; page-break-inside: avoid; }
+                    .sign-line { width: 220px; border-bottom: 1px solid #000; margin-top: 30px; }
+                    @media print {
+                        body { padding: 0; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div>
+                        <h1 class="title">${title}</h1>
+                        <p class="subtitle">${subtitle}</p>
+                    </div>
+                    <div class="meta">
+                        <div><strong>Hujjat sanasi:</strong> ${dateStr}</div>
+                        <div><strong>Tizim:</strong> HR & Payroll Management</div>
+                    </div>
+                </div>
+
+                <div class="summary-box">
+                    <div class="summary-item">Jami to'lovlar soni: <span>${records.length} ta</span></div>
+                    <div class="summary-item">Jami to'langan summa: <span style="color: #047857;">${formattedTotal}</span></div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; width: 35px;">№</th>
+                            <th>Xodim (F.I.SH)</th>
+                            <th>Elektron pochta</th>
+                            <th>Bo'lim / Lavozim</th>
+                            <th>To'lov turi</th>
+                            <th style="text-align: right;">To'langan Summa</th>
+                            <th>To'lov usuli</th>
+                            <th>To'langan sana</th>
+                            <th>Izoh</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+
+                <div class="signatures">
+                    <div>
+                        <div><strong>Rahbar (Direktor):</strong></div>
+                        <div class="sign-line"></div>
+                        <div style="font-size: 10px; color: #6b7280; margin-top: 4px;">(imzo / F.I.SH)</div>
+                    </div>
+                    <div>
+                        <div><strong>Bosh Buxgalter:</strong></div>
+                        <div class="sign-line"></div>
+                        <div style="font-size: 10px; color: #6b7280; margin-top: 4px;">(imzo / F.I.SH)</div>
+                    </div>
+                    <div>
+                        <div><strong>M.O'. (Muhr o'rni):</strong></div>
+                        <div style="width: 75px; height: 75px; border: 1px dashed #9ca3af; border-radius: 50%; margin-top: 8px;"></div>
+                    </div>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                        }, 250);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    const handleExportPaidListPdf = () => {
+        const paidItems: any[] = [];
+
+        payrolls.filter((p) => p.status === "PAID").forEach((p) => {
+            paidItems.push({
+                ...p,
+                paymentType: "SALARY",
+                amount: p.netSalary,
+                paidAt: p.confirmedAt || p.disbursedAt || p.updatedAt,
+                note: p.paymentNote || `${p.month}/${p.year} oylik maoshi to'lovi`,
             });
-            setIsAddPenaltyModalOpen(false);
-            await loadData();
-            if (isPenaltiesListModalOpen) {
-                await loadPenaltiesList();
-            }
-        } catch (err: any) {
-            alert(err.message || "Error");
+        });
+
+        advancesList.filter((a) => a.status === "PAID").forEach((a) => {
+            paidItems.push({
+                ...a,
+                paymentType: "ADVANCE",
+                amount: a.amount,
+                paidAt: a.paidDate || a.updatedAt,
+                note: a.reason ? `${a.isEarly ? "Muddatidan oldin avans" : "Avans"}: ${a.reason}` : (a.isEarly ? "Muddatidan oldin avans" : "Avans to'lovi"),
+            });
+        });
+
+        if (paidItems.length === 0) {
+            alert("To'langan to'lovlar mavjud emas.");
+            return;
         }
+
+        generatePdfDocument(
+            `TO'LANGAN TO'LOVLAR JADVALI (${getMonthName(selectedMonth)} ${selectedYear})`,
+            `${getMonthName(selectedMonth)} ${selectedYear} davri uchun rasmiy to'langan barcha oyliklar va avanslar ro'yxati`,
+            paidItems,
+            true
+        );
     };
 
-    const handleOpenPenaltiesList = async () => {
-        await loadPenaltiesList();
-        setIsPenaltiesListModalOpen(true);
-    };
-
-    const handleDeletePenalty = async (penaltyId: string) => {
-        if (!confirm(t("deletePenaltyConfirm"))) return;
-        try {
-            await deleteEmployeePenalty(penaltyId);
-            await loadPenaltiesList();
-            await loadData();
-        } catch (err: any) {
-            alert(err.message || "Error");
+    const handleExportHistoryPdf = () => {
+        if (paymentRecords.length === 0) {
+            alert("To'lovlar tarixi bo'yicha yozuvlar topilmadi.");
+            return;
         }
+        generatePdfDocument(
+            `TO'LANGAN TO'LOVLAR ARXIVI (${getMonthName(selectedMonth)} ${selectedYear})`,
+            `Barcha to'langan oyliklar va avanslar hisoboti`,
+            paymentRecords,
+            true
+        );
     };
 
     const formatMoney = (amount: number) => {
@@ -612,6 +723,11 @@ export default function PayrollManager() {
     const totalDeductions = payrolls.reduce((acc, p) => acc + (p.deductions || 0), 0);
     const totalNetSalary = payrolls.reduce((acc, p) => acc + (p.netSalary || 0), 0);
     const paidCount = payrolls.filter((p) => p.status === "PAID").length;
+    const pendingCount = payrolls.filter((p) => p.status === "PENDING").length;
+    const awaitingPayrollCount = payrolls.filter((p) => p.status === "AWAITING_CONFIRMATION").length;
+    const awaitingAdvancesCount = advancesList.filter((a) => a.status === "AWAITING_CONFIRMATION" || a.status === "PENDING").length;
+    const totalAwaitingCount = awaitingPayrollCount + awaitingAdvancesCount;
+    const unpaidTotalCount = pendingCount + awaitingPayrollCount;
 
     const hasDueSalaries = dueReminders?.salaryDue?.isDue && (dueReminders?.salaryDue?.pendingCount > 0);
     const hasDueAdvances = dueReminders?.advanceDue?.isDue && (dueReminders?.advanceDue?.pendingCount > 0);
@@ -691,26 +807,7 @@ export default function PayrollManager() {
                         {t("paymentHistoryBtn")}
                     </button>
 
-                    <button
-                        onClick={handleOpenPenaltyRules}
-                        className="px-3.5 py-2.5 bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold uppercase tracking-wider hover:bg-amber-100 transition-colors flex items-center gap-1.5"
-                    >
-                        {t("penaltyRulesBtn")}
-                    </button>
 
-                    <button
-                        onClick={() => handleOpenAddPenalty()}
-                        className="px-3.5 py-2.5 bg-rose-50 text-rose-900 border border-rose-300 text-xs font-bold uppercase tracking-wider hover:bg-rose-100 transition-colors flex items-center gap-1.5"
-                    >
-                        {t("addPenaltyBtn")}
-                    </button>
-
-                    <button
-                        onClick={handleOpenPenaltiesList}
-                        className="px-3.5 py-2.5 bg-gray-100 text-gray-800 border border-gray-300 text-xs font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors flex items-center gap-1.5"
-                    >
-                        {t("penaltiesListBtn")}
-                    </button>
 
                     <button
                         onClick={() => setIsManualModalOpen(true)}
@@ -828,12 +925,13 @@ export default function PayrollManager() {
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     {[
-                        { id: "ALL", label: t("all") },
-                        { id: "PENDING", label: t("pending") },
-                        { id: "PAID", label: t("paid") },
-                        { id: "CANCELLED", label: t("cancelled") },
+                        { id: "ALL", label: `Barchasi (${payrolls.length})` },
+                        { id: "PENDING", label: `⚠️ To'lanmagan (${pendingCount})` },
+                        { id: "AWAITING_CONFIRMATION", label: `⏳ Tasdiqlanmagan (${totalAwaitingCount})` },
+                        { id: "PAID", label: `✓ To'langan (${paidCount})` },
+                        { id: "CANCELLED", label: `Bekor qilingan (${payrolls.filter(p => p.status === "CANCELLED").length})` },
                     ].map((st) => (
                         <button
                             key={st.id}
@@ -849,21 +947,34 @@ export default function PayrollManager() {
                     ))}
                 </div>
 
-                <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-                    <input
-                        type="text"
-                        placeholder={t("searchPlaceholder")}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-1.5 bg-white border border-gray-300 text-xs font-medium focus:outline-none focus:border-black w-60"
-                    />
-                    <button
-                        type="submit"
-                        className="px-3 py-1.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
-                    >
-                        {t("search")}
-                    </button>
-                </form>
+                <div className="flex flex-wrap items-center gap-2">
+                    {statusFilter === "PAID" && (payrolls.some((p) => p.status === "PAID") || advancesList.some((a) => a.status === "PAID")) && (
+                        <button
+                            type="button"
+                            onClick={handleExportPaidListPdf}
+                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        >
+                            <span>📥</span>
+                            <span>{t("downloadPdfBtn")}</span>
+                        </button>
+                    )}
+
+                    <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            placeholder={t("searchPlaceholder")}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="px-3 py-1.5 bg-white border border-gray-300 text-xs font-medium focus:outline-none focus:border-black w-60"
+                        />
+                        <button
+                            type="submit"
+                            className="px-3 py-1.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
+                        >
+                            {t("search")}
+                        </button>
+                    </form>
+                </div>
             </div>
 
             {loading ? (
@@ -902,93 +1013,280 @@ export default function PayrollManager() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {payrolls.map((p) => {
+                            {payrolls.flatMap((p) => {
                                 const emp = p.employee || {};
-                                const empFullName = `${emp.firstName || ""} ${emp.lastName || ""}`.trim();
-                                return (
-                                    <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs uppercase">
-                                                    {emp.firstName ? emp.firstName[0] : "X"}
+                                const empAdvances = advancesList.filter((a) => a.employeeId === emp.id);
+
+                                type DateGroup = {
+                                    dateKey: string;
+                                    advances: any[];
+                                    hasSalary: boolean;
+                                };
+
+                                const dateGroupsMap: Record<string, DateGroup> = {};
+
+                                // 1. If salary is paid, record under its date
+                                if (p.status === "PAID") {
+                                    const sDate = p.confirmedAt
+                                        ? new Date(p.confirmedAt).toLocaleDateString()
+                                        : p.disbursedAt
+                                        ? new Date(p.disbursedAt).toLocaleDateString()
+                                        : p.updatedAt
+                                        ? new Date(p.updatedAt).toLocaleDateString()
+                                        : "default";
+                                    dateGroupsMap[sDate] = { dateKey: sDate, advances: [], hasSalary: true };
+                                }
+
+                                // 2. Map each advance to its date
+                                empAdvances.forEach((adv) => {
+                                    const advDate = adv.paidDate
+                                        ? new Date(adv.paidDate).toLocaleDateString()
+                                        : adv.updatedAt
+                                        ? new Date(adv.updatedAt).toLocaleDateString()
+                                        : adv.createdAt
+                                        ? new Date(adv.createdAt).toLocaleDateString()
+                                        : "default";
+                                    if (!dateGroupsMap[advDate]) {
+                                        dateGroupsMap[advDate] = { dateKey: advDate, advances: [adv], hasSalary: false };
+                                    } else {
+                                        dateGroupsMap[advDate].advances.push(adv);
+                                    }
+                                });
+
+                                let dateGroups = Object.values(dateGroupsMap);
+                                if (dateGroups.length === 0) {
+                                    dateGroups = [{ dateKey: "default", advances: [], hasSalary: p.status === "PAID" }];
+                                }
+
+                                const daysInMonthCount = new Date(selectedYear, selectedMonth, 0).getDate();
+                                let totalWorkingDaysInMonth = 0;
+                                let elapsedWorkingDaysInMonth = 0;
+                                const now = new Date();
+                                const isSelectedCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === (now.getMonth() + 1);
+                                const isWorkDayEnded = now.getHours() >= 18;
+
+                                for (let d = 1; d <= daysInMonthCount; d++) {
+                                    const checkDate = new Date(selectedYear, selectedMonth - 1, d);
+                                    const dow = checkDate.getDay();
+                                    if (dow !== 0 && dow !== 6) {
+                                        totalWorkingDaysInMonth++;
+                                        if (isSelectedCurrentMonth) {
+                                            if (d < now.getDate()) {
+                                                elapsedWorkingDaysInMonth++;
+                                            } else if (d === now.getDate() && isWorkDayEnded) {
+                                                elapsedWorkingDaysInMonth++;
+                                            }
+                                        } else if (selectedYear < now.getFullYear() || (selectedYear === now.getFullYear() && selectedMonth < (now.getMonth() + 1))) {
+                                            elapsedWorkingDaysInMonth++;
+                                        }
+                                    }
+                                }
+                                if (totalWorkingDaysInMonth === 0) totalWorkingDaysInMonth = 22;
+
+                                const dailyRate = Math.round(p.baseSalary / totalWorkingDaysInMonth);
+                                const dailyAccruedBase = elapsedWorkingDaysInMonth * dailyRate;
+                                const dailyAccruedNet = Math.max(0, dailyAccruedBase + p.bonus - p.deductions);
+
+                                return dateGroups.map((group, gIdx) => {
+                                    const groupAwaiting = group.advances.filter((a) => a.status === "AWAITING_CONFIRMATION" || a.status === "PENDING");
+                                    const groupPaid = group.advances.filter((a) => a.status === "PAID");
+                                    const groupAdvTotal = groupPaid.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+
+                                    const empPenaltyTotal = penaltySummaries[emp.id]?.totalFines || 0;
+                                    const rowDeductions = group.hasSalary
+                                        ? p.deductions
+                                        : (groupAdvTotal + empPenaltyTotal);
+                                    const rowNetSalary = group.hasSalary
+                                        ? p.netSalary
+                                        : Math.max(0, p.baseSalary + p.bonus - rowDeductions);
+
+                                    const limitInfo = getEmployeeAvailableAdvanceLimit(emp.id, selectedMonth, selectedYear);
+
+                                    return (
+                                        <tr key={`${p.id}-${group.dateKey}-${gIdx}`} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                                        {emp.firstName ? emp.firstName[0] : "X"}
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="font-bold text-black">
+                                                                {emp.firstName} {emp.lastName}
+                                                            </span>
+                                                            {p.status === "PENDING" && (
+                                                                <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-rose-100 text-rose-950 border border-rose-300">
+                                                                    ⚠️ To'lanmagan
+                                                                </span>
+                                                            )}
+                                                            {p.status === "AWAITING_CONFIRMATION" && (
+                                                                <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-orange-100 text-orange-950 border border-orange-300 animate-pulse">
+                                                                    ⏳ Tasdiqlanmagan
+                                                                </span>
+                                                            )}
+                                                            {p.status === "PAID" && (
+                                                                <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-emerald-100 text-emerald-950 border border-emerald-300">
+                                                                    ✓ To'langan
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] text-gray-400 block">
+                                                            {emp.user?.email || ""}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <span className="font-bold text-black block">
-                                                        {emp.firstName} {emp.lastName}
-                                                    </span>
-                                                    <span className="text-[10px] text-gray-400">
-                                                        {emp.user?.email || ""}
-                                                    </span>
+                                            </td>
+                                            <td className="p-4">
+                                                <span className="font-medium text-gray-700 block">
+                                                    {emp.department?.name || "-"}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400">
+                                                    {emp.position?.title || "-"}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 font-bold text-gray-800">
+                                                <div>{formatMoney(p.baseSalary)}</div>
+                                                <div className="text-[10px] font-normal text-blue-700 font-mono mt-0.5" title={`${totalWorkingDaysInMonth} ish kuni hisobida`}>
+                                                    ~{formatMoney(dailyRate)} / kun
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className="font-medium text-gray-700 block">
-                                                {emp.department?.name || "-"}
-                                            </span>
-                                            <span className="text-[10px] text-gray-400">
-                                                {emp.position?.title || "-"}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 font-bold text-gray-800">
-                                            {formatMoney(p.baseSalary)}
-                                        </td>
-                                        <td className="p-4 font-bold text-emerald-600">
-                                            +{formatMoney(p.bonus)}
-                                        </td>
-                                        <td className="p-4 font-bold text-rose-600">
-                                            -{formatMoney(p.deductions)}
-                                        </td>
-                                        <td className="p-4 font-black text-black text-sm">
-                                            {formatMoney(p.netSalary)}
-                                        </td>
-                                        <td className="p-4">
-                                            <button
-                                                onClick={() => handleStatusToggle(p.id, p.status, empFullName, p.netSalary)}
-                                                className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-xs border transition-transform active:scale-95 cursor-pointer ${
-                                                    p.status === "PAID"
-                                                        ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
-                                                        : p.status === "CANCELLED"
-                                                        ? "bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100"
-                                                        : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
-                                                }`}
-                                            >
-                                                {p.status === "PAID" ? t("statusPaid") : p.status === "CANCELLED" ? t("statusCancelled") : `💰 ${t("paySalaryBtn")}`}
-                                            </button>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleOpenAddAdvance(emp.id)}
-                                                    className="px-2 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold uppercase hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-200"
-                                                    title={t("addAdvanceBtn")}
-                                                >
-                                                    💳 {t("advanceBtn")}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleOpenAddPenalty(emp.id)}
-                                                    className="px-2 py-1 bg-rose-50 text-rose-800 text-[10px] font-bold uppercase hover:bg-rose-600 hover:text-white transition-colors border border-rose-200"
-                                                    title={t("addPenaltyBtn")}
-                                                >
-                                                    ✍️ {t("addPenaltyBtn")}
-                                                </button>
-                                                <button
-                                                    onClick={() => setSelectedPayslip(p)}
-                                                    className="px-2.5 py-1 bg-gray-100 text-black text-[11px] font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors border border-gray-300"
-                                                >
-                                                    🧾 {t("viewPayslip")}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeletePayroll(p.id)}
-                                                    className="px-2 py-1 text-gray-400 hover:text-rose-600 text-xs font-bold transition-colors"
-                                                    title={t("delete")}
-                                                >
-                                                    ✕
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
+                                            </td>
+                                            <td className="p-4 font-bold text-emerald-600">
+                                                +{formatMoney(p.bonus)}
+                                            </td>
+                                            <td className="p-4 font-bold text-rose-600">
+                                                <div>-{formatMoney(rowDeductions)}</div>
+                                                {empPenaltyTotal > 0 && !group.hasSalary && (
+                                                    <div className="text-[9px] font-normal text-rose-500 font-mono mt-0.5" title="Avanslar va Jarimalar jamlangan">
+                                                        {groupAdvTotal > 0 ? `Avans: -${formatMoney(groupAdvTotal)} | Jarima: -${formatMoney(empPenaltyTotal)}` : `Jarima: -${formatMoney(empPenaltyTotal)}`}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="p-4 font-black text-black text-sm">
+                                                {p.status === "PAID" && group.hasSalary ? (
+                                                    <div>
+                                                        <div className="text-gray-900 font-bold">{formatMoney(rowNetSalary)} <span className="text-[10px] text-gray-500 font-normal">(To'langan)</span></div>
+                                                        <div className="text-[10px] font-semibold text-emerald-700 font-mono mt-0.5">
+                                                            Faol shot: {formatMoney(limitInfo.availableEarnedSalary)} {limitInfo.passedWorkingDays === 0 ? "(0 dan to'planmoqda)" : `(+${limitInfo.passedWorkingDays} ish kuni)`}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <div>{formatMoney(rowNetSalary)}</div>
+                                                        {p.status !== "PAID" && isSelectedCurrentMonth && (
+                                                            <div className="text-[10px] font-semibold text-emerald-700 font-mono mt-0.5" title={`Yakunlangan (${elapsedWorkingDaysInMonth} ish kuni)`}>
+                                                                To'plandi: {formatMoney(dailyAccruedNet)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex flex-col items-start gap-1.5">
+                                                    {/* Salary Status */}
+                                                    {group.hasSalary && (
+                                                        <div className="flex flex-col items-start gap-0.5">
+                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-emerald-50 text-emerald-800 border-emerald-300">
+                                                                ✓ To'langan va Tasdiqlangan
+                                                            </span>
+                                                            <span className="text-[10px] font-mono text-gray-500">
+                                                                {group.dateKey !== "default" ? group.dateKey : ""} • {formatMoney(p.netSalary)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {p.status === "PENDING" && gIdx === 0 && (
+                                                        <div className="flex flex-col items-start gap-0.5">
+                                                            <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-rose-50 text-rose-950 border-rose-300 block">
+                                                                ⚠️ Oylik to'lanmagan
+                                                            </span>
+                                                            <span className="text-[10px] font-mono text-gray-500">
+                                                                Kutilayotgan: {formatMoney(rowNetSalary)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {p.status === "AWAITING_CONFIRMATION" && gIdx === 0 && (
+                                                        <div className="flex flex-col items-start gap-0.5">
+                                                            <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-orange-100 text-orange-950 border-orange-400 animate-pulse block">
+                                                                ⏳ TASDIQLANMAGAN (Xodim tasdiqlashi kutilmoqda)
+                                                            </span>
+                                                            <span className="text-[10px] font-mono text-gray-500">
+                                                                {formatMoney(rowNetSalary)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {p.status === "CANCELLED" && gIdx === 0 && (
+                                                        <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-rose-50 text-rose-800 border-rose-300">
+                                                            {t("statusCancelled")}
+                                                        </span>
+                                                    )}
+
+                                                    {/* Awaiting Advances */}
+                                                    {groupAwaiting.map((adv) => (
+                                                        <div key={adv.id} className="flex flex-col items-start gap-0.5">
+                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-amber-100 text-amber-950 border-amber-400 animate-pulse">
+                                                                ⏳ TASDIQLANMAGAN ({adv.isEarly ? "Muddatidan oldin avans" : "Avans"})
+                                                            </span>
+                                                            <span className="text-[10px] font-mono text-gray-500">
+                                                                {formatMoney(adv.amount)}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+
+                                                    {/* Paid Advances */}
+                                                    {groupPaid.map((adv) => (
+                                                        <div key={adv.id} className="flex flex-col items-start gap-0.5">
+                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-emerald-50 text-emerald-800 border-emerald-300">
+                                                                {adv.isEarly ? "⚡ Muddatidan oldin avans to'landi" : "✓ Avans to'landi"}
+                                                            </span>
+                                                            <span className="text-[10px] font-mono text-gray-500">
+                                                                {adv.paidDate ? new Date(adv.paidDate).toLocaleDateString() : (adv.updatedAt ? new Date(adv.updatedAt).toLocaleDateString() : "")} • {formatMoney(adv.amount)}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {groupAwaiting.map((adv) => (
+                                                        <button
+                                                            key={adv.id}
+                                                            type="button"
+                                                            onClick={() => setIsAdvancesListModalOpen(true)}
+                                                            className="px-2 py-1 bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-bold uppercase hover:bg-amber-100 transition-colors animate-pulse cursor-pointer"
+                                                            title="Xodim tasdiqlashi kutilmoqda"
+                                                        >
+                                                            ⏳ Tasdiq ({formatMoney(adv.amount)})
+                                                        </button>
+                                                    ))}
+                                                    <button
+                                                        onClick={() => handleOpenAddAdvance(emp.id)}
+                                                        className="px-2 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold uppercase hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-200 cursor-pointer"
+                                                        title={t("addAdvanceBtn")}
+                                                    >
+                                                        + 💳 {t("advanceBtn")}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSelectedPayslip(p)}
+                                                        className="px-2.5 py-1 bg-gray-100 text-black text-[11px] font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors border border-gray-300 cursor-pointer"
+                                                    >
+                                                        🧾 {t("viewPayslip")}
+                                                    </button>
+                                                    {(currentUserRole === "DIRECTOR" || currentUserRole === "SUPER_ADMIN") && (
+                                                        <button
+                                                            onClick={() => handleDeletePayroll(p.id)}
+                                                            className="px-2 py-1 text-gray-400 hover:text-rose-600 text-xs font-bold transition-colors cursor-pointer"
+                                                            title={t("delete")}
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                });
                             })}
                         </tbody>
                     </table>
@@ -1269,13 +1567,11 @@ export default function PayrollManager() {
                                     value={advanceForm.employeeId}
                                     onChange={(e) => {
                                         const empId = e.target.value;
-                                        const emp = employees.find((em) => em.id === empId);
-                                        const baseSal = emp?.salary || 5000000;
-                                        const defaultAmt = Math.round(baseSal * ((scheduleForm.advancePercentage || 40) / 100));
+                                        const limitInfo = getEmployeeAvailableAdvanceLimit(empId, Number(advanceForm.month || selectedMonth), Number(advanceForm.year || selectedYear));
                                         setAdvanceForm({
                                             ...advanceForm,
                                             employeeId: empId,
-                                            amount: defaultAmt > 0 ? defaultAmt.toString() : advanceForm.amount,
+                                            amount: limitInfo.availableEarnedSalary > 0 ? limitInfo.availableEarnedSalary.toString() : "0",
                                         });
                                     }}
                                     className="w-full p-2.5 bg-gray-50 border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
@@ -1290,13 +1586,38 @@ export default function PayrollManager() {
                                 </select>
                             </div>
 
+                            {advanceForm.employeeId && (() => {
+                                const limitInfo = getEmployeeAvailableAdvanceLimit(
+                                    advanceForm.employeeId,
+                                    Number(advanceForm.month || selectedMonth),
+                                    Number(advanceForm.year || selectedYear)
+                                );
+                                return (
+                                    <div className="bg-blue-50 border border-blue-200 p-3 rounded-xs text-[11px] text-blue-900 flex flex-col gap-1">
+                                        <div className="flex justify-between font-bold">
+                                            <span>Kunlik stavka:</span>
+                                            <span>{formatMoney(limitInfo.dailyRate)} / kun</span>
+                                        </div>
+                                        <div className="flex justify-between text-gray-600">
+                                            <span>Ishlangan kunlar (oy boshidan/to'lovdan):</span>
+                                            <span>{limitInfo.passedWorkingDays} / {limitInfo.totalWorkingDays} ish kuni</span>
+                                        </div>
+                                        <div className="flex justify-between font-black border-t border-blue-200 pt-1 text-emerald-800 text-xs">
+                                            <span>Mavjud to'plangan limit:</span>
+                                            <span className="font-mono">{formatMoney(limitInfo.availableEarnedSalary)}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block font-bold uppercase text-emerald-600 mb-1">{t("advanceAmount")}</label>
                                     <input
                                         type="number"
                                         required
-                                        placeholder="2000000"
+                                        min="1"
+                                        placeholder="500000"
                                         value={advanceForm.amount}
                                         onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })}
                                         className="w-full p-2.5 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
@@ -1437,17 +1758,23 @@ export default function PayrollManager() {
                                                         {adv.reason || "-"}
                                                     </td>
                                                     <td className="p-3">
-                                                        <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-xs ${
+                                                        <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-xs border ${
                                                             adv.status === "PAID"
-                                                                ? "bg-emerald-100 text-emerald-800"
-                                                                : "bg-amber-100 text-amber-800"
+                                                                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                                                : adv.status === "AWAITING_CONFIRMATION"
+                                                                ? "bg-amber-50 text-amber-800 border-amber-300 animate-pulse"
+                                                                : "bg-gray-100 text-gray-800 border-gray-300"
                                                         }`}>
-                                                            {adv.status === "PAID" ? t("statusPaid") : t("statusPending")}
+                                                            {adv.status === "PAID"
+                                                                ? t("statusPaid")
+                                                                : adv.status === "AWAITING_CONFIRMATION"
+                                                                ? t("statusAwaitingConfirmation")
+                                                                : t("statusPending")}
                                                         </span>
                                                     </td>
                                                     <td className="p-3 text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            {adv.status !== "PAID" && (
+                                                            {adv.status === "PENDING" && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleOpenPayModal({
@@ -1456,19 +1783,26 @@ export default function PayrollManager() {
                                                                         name: empFullName,
                                                                         amount: adv.amount,
                                                                     })}
-                                                                    className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold uppercase hover:bg-emerald-700"
+                                                                    className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold uppercase hover:bg-emerald-700 cursor-pointer"
                                                                 >
                                                                     💰 {t("markAsPaid")}
                                                                 </button>
                                                             )}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleDeleteAdvance(adv.id)}
-                                                                className="px-2 py-1 text-gray-400 hover:text-rose-600 font-bold"
-                                                                title={t("delete")}
-                                                            >
-                                                                ✕
-                                                            </button>
+                                                            {adv.status === "AWAITING_CONFIRMATION" && (
+                                                                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 border border-amber-200">
+                                                                    ⏳ {t("statusAwaitingConfirmation")}
+                                                                </span>
+                                                            )}
+                                                            {(currentUserRole === "DIRECTOR" || currentUserRole === "SUPER_ADMIN") && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteAdvance(adv.id)}
+                                                                    className="px-2 py-1 text-gray-400 hover:text-rose-600 font-bold cursor-pointer"
+                                                                    title={t("delete")}
+                                                                >
+                                                                    ✕
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1550,7 +1884,7 @@ export default function PayrollManager() {
                                 ))}
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <input
                                     type="text"
                                     placeholder={t("searchPlaceholder")}
@@ -1565,6 +1899,25 @@ export default function PayrollManager() {
                                 >
                                     {t("search")}
                                 </button>
+                                {paymentRecords.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleExportHistoryPdf}
+                                        className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                    >
+                                        <span>📥</span>
+                                        <span>{t("downloadPdfBtn")}</span>
+                                    </button>
+                                )}
+                                {(currentUserRole === "DIRECTOR" || currentUserRole === "SUPER_ADMIN") && paymentRecords.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleClearAllPaymentRecords}
+                                        className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase transition-colors"
+                                    >
+                                        {t("clearAllHistoryBtn")}
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -1603,9 +1956,15 @@ export default function PayrollManager() {
                                                         <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded-xs ${
                                                             rec.paymentType === "SALARY"
                                                                 ? "bg-indigo-100 text-indigo-900"
+                                                                : rec.note && rec.note.toLowerCase().includes("muddatidan oldin")
+                                                                ? "bg-amber-100 text-amber-900"
                                                                 : "bg-emerald-100 text-emerald-900"
                                                         }`}>
-                                                            {rec.paymentType === "SALARY" ? t("typeSalary") : t("typeAdvance")}
+                                                            {rec.paymentType === "SALARY"
+                                                                ? t("typeSalary")
+                                                                : rec.note && rec.note.toLowerCase().includes("muddatidan oldin")
+                                                                ? "⚡ Muddatidan oldin avans"
+                                                                : t("typeAdvance")}
                                                         </span>
                                                     </td>
                                                     <td className="p-3 font-mono text-gray-600">
@@ -1726,413 +2085,7 @@ export default function PayrollManager() {
                 </div>
             )}
 
-            {isPenaltyRulesModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b-2 border-black pb-3">
-                            <div>
-                                <h3 className="text-base font-black uppercase text-black flex items-center gap-2">
-                                    <span>⚠️</span> {t("penaltyRulesModalTitle")}
-                                </h3>
-                                <p className="text-xs text-gray-500">
-                                    {t("penaltyRulesModalDesc")}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setIsPenaltyRulesModalOpen(false)}
-                                className="text-sm font-bold text-gray-400 hover:text-black"
-                            >
-                                ✕
-                            </button>
-                        </div>
 
-                        <form onSubmit={handleSaveRule} className="p-4 bg-gray-50 border border-gray-200 flex flex-col gap-3">
-                            <h4 className="text-xs font-black uppercase text-black">
-                                {editingRule ? t("editRule") : t("addRuleBtn")}
-                            </h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                <div>
-                                    <label className="block font-bold uppercase text-gray-600 mb-1">{t("ruleName")} *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="Sababsiz kelmaslik"
-                                        value={ruleForm.name}
-                                        onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })}
-                                        className="w-full p-2 bg-white border border-gray-300 font-medium focus:outline-none focus:border-black"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold uppercase text-gray-600 mb-1">{t("ruleCode")} *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        disabled={!!editingRule}
-                                        placeholder="ABSENCE"
-                                        value={ruleForm.code}
-                                        onChange={(e) => setRuleForm({ ...ruleForm, code: e.target.value.toUpperCase() })}
-                                        className="w-full p-2 bg-white border border-gray-300 font-bold uppercase focus:outline-none focus:border-black disabled:bg-gray-100"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold uppercase text-gray-600 mb-1">{t("ruleType")} *</label>
-                                    <select
-                                        value={ruleForm.penaltyType}
-                                        onChange={(e) => setRuleForm({ ...ruleForm, penaltyType: e.target.value })}
-                                        className="w-full p-2 bg-white border border-gray-300 font-medium focus:outline-none focus:border-black"
-                                    >
-                                        <option value="FIXED">{t("typeFixed")}</option>
-                                        <option value="PERCENT">{t("typePercent")}</option>
-                                        <option value="PER_MINUTE">{t("typePerMinute")}</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs items-center">
-                                <div>
-                                    <label className="block font-bold uppercase text-gray-600 mb-1">{t("ruleAmount")} *</label>
-                                    <input
-                                        type="number"
-                                        required
-                                        placeholder="50000"
-                                        value={ruleForm.amount}
-                                        onChange={(e) => setRuleForm({ ...ruleForm, amount: e.target.value })}
-                                        className="w-full p-2 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold uppercase text-gray-600 mb-1">{t("ruleDesc")}</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Qoida tavsifi..."
-                                        value={ruleForm.description}
-                                        onChange={(e) => setRuleForm({ ...ruleForm, description: e.target.value })}
-                                        className="w-full p-2 bg-white border border-gray-300 font-medium focus:outline-none focus:border-black"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-2 pt-4">
-                                    <label className="flex items-center gap-2 cursor-pointer font-bold text-black">
-                                        <input
-                                            type="checkbox"
-                                            checked={ruleForm.isAuto}
-                                            onChange={(e) => setRuleForm({ ...ruleForm, isAuto: e.target.checked })}
-                                            className="w-4 h-4 accent-black"
-                                        />
-                                        <span>{t("ruleAuto")}</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-200">
-                                {editingRule && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setEditingRule(null);
-                                            setRuleForm({ name: "", code: "", penaltyType: "FIXED", amount: "", isAuto: false, description: "" });
-                                        }}
-                                        className="px-3 py-1.5 border border-gray-300 text-xs font-bold uppercase"
-                                    >
-                                        {t("cancel")}
-                                    </button>
-                                )}
-                                <button
-                                    type="submit"
-                                    className="px-4 py-1.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
-                                >
-                                    {t("save")}
-                                </button>
-                            </div>
-                        </form>
-
-                        <div className="overflow-x-auto border border-gray-200">
-                            <table className="w-full text-left border-collapse text-xs">
-                                <thead>
-                                    <tr className="bg-gray-100 text-[10px] font-black uppercase text-gray-600">
-                                        <th className="p-3">{t("ruleName")}</th>
-                                        <th className="p-3">{t("ruleCode")}</th>
-                                        <th className="p-3">{t("ruleType")}</th>
-                                        <th className="p-3">{t("ruleAmount")}</th>
-                                        <th className="p-3">{t("ruleAuto")}</th>
-                                        <th className="p-3 text-right">{t("actions")}</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {penaltyRules.map((rule) => (
-                                        <tr key={rule.id} className="hover:bg-gray-50">
-                                            <td className="p-3">
-                                                <span className="font-bold text-black block">{rule.name}</span>
-                                                {rule.description && <span className="text-[10px] text-gray-500">{rule.description}</span>}
-                                            </td>
-                                            <td className="p-3 font-mono font-bold text-gray-700">{rule.code}</td>
-                                            <td className="p-3 font-medium text-gray-700">
-                                                {rule.penaltyType === "PERCENT" ? t("typePercent") : rule.penaltyType === "PER_MINUTE" ? t("typePerMinute") : t("typeFixed")}
-                                            </td>
-                                            <td className="p-3 font-bold text-black">
-                                                {rule.penaltyType === "PERCENT" ? `${rule.amount}%` : formatMoney(rule.amount)}
-                                            </td>
-                                            <td className="p-3">
-                                                <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded-xs ${rule.isAuto ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-600"}`}>
-                                                    {rule.isAuto ? t("autoEnabled") : t("autoDisabled")}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-right">
-                                                <div className="flex items-center justify-end gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditingRule(rule);
-                                                            setRuleForm({
-                                                                name: rule.name,
-                                                                code: rule.code,
-                                                                penaltyType: rule.penaltyType,
-                                                                amount: rule.amount.toString(),
-                                                                isAuto: rule.isAuto,
-                                                                description: rule.description || "",
-                                                            });
-                                                        }}
-                                                        className="px-2 py-1 bg-gray-100 text-[10px] font-bold uppercase hover:bg-black hover:text-white"
-                                                    >
-                                                        {t("editRule")}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeleteRule(rule.id)}
-                                                        className="px-2 py-1 text-gray-400 hover:text-rose-600 font-bold"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                            <button
-                                type="button"
-                                onClick={() => setIsPenaltyRulesModalOpen(false)}
-                                className="px-5 py-2 bg-black text-white text-xs font-bold uppercase"
-                            >
-                                {t("close")}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isAddPenaltyModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-black pb-3">
-                            <h3 className="text-sm font-black uppercase text-black flex items-center gap-1.5">
-                                <span>✍️</span> {t("addPenaltyModalTitle")}
-                            </h3>
-                            <button
-                                onClick={() => setIsAddPenaltyModalOpen(false)}
-                                className="text-sm font-bold text-gray-400 hover:text-black"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSaveEmployeePenalty} className="flex flex-col gap-3 text-xs">
-                            <div>
-                                <label className="block font-bold uppercase text-gray-600 mb-1">{t("employee")} *</label>
-                                <select
-                                    value={penaltyForm.employeeId}
-                                    onChange={(e) => setPenaltyForm({ ...penaltyForm, employeeId: e.target.value })}
-                                    className="w-full p-2.5 bg-gray-50 border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
-                                    required
-                                >
-                                    <option value="">{t("selectEmployee")}</option>
-                                    {employees.map((emp) => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {emp.firstName} {emp.lastName} ({emp.department?.name || "-"})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block font-bold uppercase text-gray-600 mb-1">{t("selectRule")}</label>
-                                <select
-                                    value={penaltyForm.ruleId}
-                                    onChange={(e) => handleRuleSelectInPenaltyForm(e.target.value)}
-                                    className="w-full p-2.5 bg-white border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
-                                >
-                                    <option value="">{t("selectRule")}</option>
-                                    {penaltyRules.map((rule) => (
-                                        <option key={rule.id} value={rule.id}>
-                                            {rule.name} ({formatMoney(rule.amount)})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block font-bold uppercase text-gray-600 mb-1">{t("customReason")}</label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder={t("customReasonPlaceholder")}
-                                    value={penaltyForm.reason}
-                                    onChange={(e) => setPenaltyForm({ ...penaltyForm, reason: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block font-bold uppercase text-rose-600 mb-1">{t("penaltyAmount")}</label>
-                                    <input
-                                        type="number"
-                                        required
-                                        placeholder="100000"
-                                        value={penaltyForm.amount}
-                                        onChange={(e) => setPenaltyForm({ ...penaltyForm, amount: e.target.value })}
-                                        className="w-full p-2.5 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block font-bold uppercase text-gray-600 mb-1">{t("penaltyDate")}</label>
-                                    <input
-                                        type="date"
-                                        required
-                                        value={penaltyForm.date}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            let m = selectedMonth;
-                                            let y = selectedYear;
-                                            if (val) {
-                                                const parts = val.split("-");
-                                                if (parts.length === 3) {
-                                                    y = parseInt(parts[0], 10);
-                                                    m = parseInt(parts[1], 10);
-                                                }
-                                            }
-                                            setPenaltyForm({ ...penaltyForm, date: val, month: m, year: y });
-                                        }}
-                                        className="w-full p-2 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200 mt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAddPenaltyModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-black hover:bg-gray-100"
-                                >
-                                    {t("cancel")}
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:bg-neutral-800"
-                                >
-                                    {t("savePenalty")}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {isPenaltiesListModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b-2 border-black pb-3">
-                            <div>
-                                <h3 className="text-base font-black uppercase text-black flex items-center gap-2">
-                                    <span>📋</span> {t("penaltiesListModalTitle", { month: getMonthName(selectedMonth), year: selectedYear })}
-                                </h3>
-                                <p className="text-xs text-gray-500">
-                                    {t("penaltiesListModalDesc")}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setIsPenaltiesListModalOpen(false)}
-                                className="text-sm font-bold text-gray-400 hover:text-black"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        {employeePenalties.length === 0 ? (
-                            <div className="p-12 text-center border border-dashed border-gray-300 text-xs font-bold uppercase text-gray-400">
-                                {t("noPenalties")}
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto border border-gray-200">
-                                <table className="w-full text-left border-collapse text-xs">
-                                    <thead>
-                                        <tr className="bg-gray-100 text-[10px] font-black uppercase text-gray-600">
-                                            <th className="p-3">{t("employee")}</th>
-                                            <th className="p-3">{t("date")}</th>
-                                            <th className="p-3">{t("reason")}</th>
-                                            <th className="p-3">{t("amount")}</th>
-                                            <th className="p-3 text-right">{t("actions")}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {employeePenalties.map((pen) => (
-                                            <tr key={pen.id} className="hover:bg-gray-50">
-                                                <td className="p-3">
-                                                    <span className="font-bold text-black block">
-                                                        {pen.employee?.firstName} {pen.employee?.lastName}
-                                                    </span>
-                                                    <span className="text-[10px] text-gray-400">
-                                                        {pen.employee?.department?.name || "-"} • {pen.employee?.position?.title || "-"}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 font-mono text-gray-600">
-                                                    {pen.date ? new Date(pen.date).toISOString().split("T")[0] : "-"}
-                                                </td>
-                                                <td className="p-3 font-medium text-gray-800">
-                                                    {pen.reason}
-                                                    {pen.rule && <span className="block text-[10px] text-gray-400">({pen.rule.name})</span>}
-                                                </td>
-                                                <td className="p-3 font-black text-rose-600 text-sm">
-                                                    -{formatMoney(pen.amount)}
-                                                </td>
-                                                <td className="p-3 text-right">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeletePenalty(pen.id)}
-                                                        className="px-2 py-1 text-gray-400 hover:text-rose-600 font-bold"
-                                                        title={t("delete")}
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        <div className="flex justify-between items-center pt-2">
-                            <button
-                                type="button"
-                                onClick={() => handleOpenAddPenalty()}
-                                className="px-4 py-2 bg-rose-50 text-rose-900 border border-rose-300 text-xs font-bold uppercase hover:bg-rose-100"
-                            >
-                                + {t("addPenaltyBtn")}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setIsPenaltiesListModalOpen(false)}
-                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase"
-                            >
-                                {t("close")}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {isManualModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">

@@ -42,6 +42,7 @@ enum LeaveStatus {
 
 enum PayrollStatus {
   PENDING
+  AWAITING_CONFIRMATION
   PAID
   CANCELLED
 }
@@ -293,20 +294,27 @@ model LeaveRequest {
 }
 
 model Payroll {
-  id         String        @id @default(uuid())
-  employeeId String
-  employee   Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  month      Int
-  year       Int
-  baseSalary Float
-  bonus      Float         @default(0)
-  deductions Float         @default(0)
-  netSalary  Float
-  status     PayrollStatus @default(PENDING)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id            String        @id @default(uuid())
+  employeeId    String
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month         Int
+  year          Int
+  baseSalary    Float
+  bonus         Float         @default(0)
+  deductions    Float         @default(0)
+  netSalary     Float
+  status        PayrollStatus @default(PENDING)
+  paymentMethod String?
+  paymentNote   String?
+  disbursedAt   DateTime?
+  disbursedById String?
+  confirmedAt   DateTime?
+  companyName   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@unique([employeeId, month, year])
+  @@index([companyName])
 }
 
 model PayrollPenaltyRule {
@@ -392,6 +400,7 @@ model PayrollPaymentRecord {
   paymentMethod String    @default("BANK_CARD")
   paidAt        DateTime  @default(now())
   paidById      String?
+  confirmedAt   DateTime?
   note          String?
   companyName   String?
   createdAt     DateTime  @default(now())

@@ -37,6 +37,11 @@ payrollRouter.get(
     payrollController.getAdvances,
 );
 
+payrollRouter.get(
+    "/advances/my",
+    payrollController.getMyAdvances,
+);
+
 payrollRouter.post(
     "/advances",
     authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
@@ -49,9 +54,14 @@ payrollRouter.patch(
     payrollController.updateAdvanceStatus,
 );
 
+payrollRouter.post(
+    "/advances/confirm-receipt/:id",
+    payrollController.confirmAdvanceReceipt,
+);
+
 payrollRouter.delete(
     "/advances/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    authorize("SUPER_ADMIN", "DIRECTOR"),
     payrollController.deleteAdvance,
 );
 
@@ -61,6 +71,11 @@ payrollRouter.post(
     payrollController.paySalary,
 );
 
+payrollRouter.post(
+    "/confirm-receipt/:id",
+    payrollController.confirmSalaryReceipt,
+);
+
 payrollRouter.get(
     "/payment-records",
     authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
@@ -68,8 +83,14 @@ payrollRouter.get(
 );
 
 payrollRouter.delete(
+    "/payment-records/clear-all",
+    authorize("SUPER_ADMIN", "DIRECTOR"),
+    payrollController.clearAllPaymentRecords,
+);
+
+payrollRouter.delete(
     "/payment-records/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    authorize("SUPER_ADMIN", "DIRECTOR"),
     payrollController.deletePaymentRecord,
 );
 
@@ -155,7 +176,7 @@ payrollRouter.patch(
 
 payrollRouter.delete(
     "/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    authorize("SUPER_ADMIN", "DIRECTOR"),
     payrollController.deletePayroll,
 );
 

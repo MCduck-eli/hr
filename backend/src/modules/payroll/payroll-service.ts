@@ -633,27 +633,7 @@ export class PayrollService {
             },
         });
 
-        const existingPayroll = await prisma.payroll.findUnique({
-            where: {
-                employeeId_month_year: {
-                    employeeId: payload.employeeId,
-                    month: targetMonth,
-                    year: targetYear,
-                },
-            },
-        });
-
-        if (existingPayroll) {
-            const newDeductions = existingPayroll.deductions + penaltyAmount;
-            const newNet = Math.max(0, existingPayroll.baseSalary + existingPayroll.bonus - newDeductions);
-            await prisma.payroll.update({
-                where: { id: existingPayroll.id },
-                data: {
-                    deductions: newDeductions,
-                    netSalary: newNet,
-                },
-            });
-        }
+        await this.syncPayrollDeductionsAndNet(payload.employeeId, targetMonth, targetYear);
 
         return penalty;
     }
@@ -690,31 +670,13 @@ export class PayrollService {
             throw new AppError("Ruxsat berilmadi", 403);
         }
 
-        const existingPayroll = await prisma.payroll.findUnique({
-            where: {
-                employeeId_month_year: {
-                    employeeId: penalty.employeeId,
-                    month: penalty.month,
-                    year: penalty.year,
-                },
-            },
-        });
-
-        if (existingPayroll) {
-            const newDeductions = Math.max(0, existingPayroll.deductions - penalty.amount);
-            const newNet = Math.max(0, existingPayroll.baseSalary + existingPayroll.bonus - newDeductions);
-            await prisma.payroll.update({
-                where: { id: existingPayroll.id },
-                data: {
-                    deductions: newDeductions,
-                    netSalary: newNet,
-                },
-            });
-        }
-
-        return prisma.employeePenalty.delete({
+        const deleted = await prisma.employeePenalty.delete({
             where: { id },
         });
+
+        await this.syncPayrollDeductionsAndNet(penalty.employeeId, penalty.month, penalty.year);
+
+        return deleted;
     }
 
     async getPayrollSchedule(currentUser?: any) {
@@ -868,7 +830,7 @@ export class PayrollService {
 
         const employee = await prisma.employee.findUnique({
             where: { id: payload.employeeId },
-            include: { user: { select: { companyName: true, role: true } } },
+            include: { user: { select: { id: true, companyName: true, role: true } } },
         });
 
         if (!employee) {
@@ -888,6 +850,92 @@ export class PayrollService {
         const targetMonth = Number(payload.month);
         const targetYear = Number(payload.year);
         const amount = Number(payload.amount);
+        const baseSalary = employee.salary && employee.salary > 0 ? employee.salary : 5000000;
+
+        // Calculate working days in month (excluding weekends)
+        const daysInMonthCount = new Date(targetYear, targetMonth, 0).getDate();
+        let workingDaysInMonth = 0;
+        let passedWorkingDays = 0;
+        const now = new Date();
+        const isTargetCurrentMonth = targetYear === now.getFullYear() && targetMonth === (now.getMonth() + 1);
+
+        // Check if salary for targetMonth was already paid
+        const existingPayroll = await prisma.payroll.findUnique({
+            where: {
+                employeeId_month_year: {
+                    employeeId: payload.employeeId,
+                    month: targetMonth,
+                    year: targetYear,
+                },
+            },
+        });
+
+        const isSalaryPaid = existingPayroll?.status === PayrollStatus.PAID;
+        let cutoffDay = 1;
+        if (isSalaryPaid) {
+            if (existingPayroll?.disbursedAt) {
+                cutoffDay = new Date(existingPayroll.disbursedAt).getDate();
+            } else if (existingPayroll?.confirmedAt) {
+                cutoffDay = Math.min(new Date(existingPayroll.confirmedAt).getDate(), 5);
+            } else {
+                cutoffDay = 5;
+            }
+        }
+
+        const startFromDay = isSalaryPaid && targetMonth === (now.getMonth() + 1) && targetYear === now.getFullYear()
+            ? cutoffDay + 1
+            : 1;
+
+        const isWorkDayEnded = now.getHours() >= 18;
+
+        for (let d = 1; d <= daysInMonthCount; d++) {
+            const checkDate = new Date(targetYear, targetMonth - 1, d);
+            const dow = checkDate.getDay();
+            if (dow !== 0 && dow !== 6) {
+                workingDaysInMonth++;
+                if (d >= startFromDay) {
+                    if (isTargetCurrentMonth) {
+                        if (d < now.getDate()) {
+                            passedWorkingDays++;
+                        } else if (d === now.getDate() && isWorkDayEnded) {
+                            passedWorkingDays++;
+                        }
+                    } else if (targetYear < now.getFullYear() || (targetYear === now.getFullYear() && targetMonth < (now.getMonth() + 1))) {
+                        passedWorkingDays++;
+                    }
+                }
+            }
+        }
+        if (workingDaysInMonth === 0) workingDaysInMonth = 22;
+
+        const dailyRate = Math.round(baseSalary / workingDaysInMonth);
+
+        // Check already taken advances after baseline
+        const existingAdvances = await prisma.payrollAdvance.findMany({
+            where: {
+                employeeId: payload.employeeId,
+                month: targetMonth,
+                year: targetYear,
+                status: { not: PayrollStatus.CANCELLED },
+            },
+        });
+
+        const postBaselineAdvances = existingAdvances.filter((a) => {
+            if (!isSalaryPaid) return true;
+            const aDate = new Date(a.paidDate || a.createdAt);
+            return aDate.getDate() > cutoffDay;
+        });
+
+        const alreadyTakenAdvancesTotal = postBaselineAdvances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+        const grossEarnedSoFar = passedWorkingDays * dailyRate;
+        const availableEarnedSalary = Math.max(0, grossEarnedSoFar - alreadyTakenAdvancesTotal);
+
+        if (amount > availableEarnedSalary) {
+            throw new AppError(
+                `Avans miqdori hozirgi kungacha ishlangan to'plangan maoshdan (${availableEarnedSalary.toLocaleString()} UZS) oshmasligi kerak. Kunlik stavka: ${dailyRate.toLocaleString()} UZS/kun (${passedWorkingDays} ish kuni o'tdi).`,
+                400
+            );
+        }
 
         let dueDate: Date;
         if (payload.dueDate && !isNaN(new Date(payload.dueDate).getTime())) {
@@ -911,7 +959,7 @@ export class PayrollService {
                 reason: payload.reason?.trim() || null,
                 companyName,
                 createdById: currentUser?.id || null,
-                status: PayrollStatus.PENDING,
+                status: PayrollStatus.AWAITING_CONFIRMATION,
             },
             include: {
                 employee: {
@@ -925,6 +973,22 @@ export class PayrollService {
                 },
             },
         });
+
+        if (employee.user?.id) {
+            try {
+                await notificationService.createAndSendNotification({
+                    userId: employee.user.id,
+                    title: "Avans to'lovi o'tkazildi (Tasdiqlash kutilmoqda)",
+                    message: `${targetMonth}-oy uchun ${amount.toLocaleString()} UZS miqdorida avans to'lovi o'tkazildi. Iltimos, profilingizda avansni qabul qilganingizni tasdiqlang.`,
+                    type: "SALARY_PAID" as any,
+                    metadata: { link: "/profile?tab=payroll", advanceId: advance.id },
+                });
+            } catch (notifErr) {
+                console.error("Failed to send advance creation notification:", notifErr);
+            }
+        }
+
+        await this.syncPayrollDeductionsAndNet(payload.employeeId, targetMonth, targetYear);
 
         return advance;
     }
@@ -983,13 +1047,150 @@ export class PayrollService {
                         id: true,
                         firstName: true,
                         lastName: true,
-                        user: { select: { id: true } },
+                        user: { select: { id: true, email: true } },
                     },
                 },
             },
         });
 
+        if (targetStatus === PayrollStatus.AWAITING_CONFIRMATION) {
+            if (advance.employee?.user?.id) {
+                try {
+                    await notificationService.createAndSendNotification({
+                        userId: advance.employee.user.id,
+                        title: "Avans to'lovi o'tkazildi (Tasdiqlash kutilmoqda)",
+                        message: `${advance.month}-oy uchun ${advance.amount.toLocaleString()} UZS miqdorida avans to'lovi o'tkazildi. Iltimos, profilingizda avansni qabul qilganingizni tasdiqlang.`,
+                        type: "SALARY_PAID" as any,
+                        metadata: { link: "/profile?tab=payroll", advanceId: advance.id },
+                    });
+                } catch (notifErr) {
+                    console.error("Failed to send advance notification:", notifErr);
+                }
+            }
+        }
+
         if (targetStatus === PayrollStatus.PAID) {
+            const existingRecord = await prisma.payrollPaymentRecord.findFirst({
+                where: { advanceId: advance.id },
+            });
+            if (!existingRecord) {
+                await prisma.payrollPaymentRecord.create({
+                    data: {
+                        employeeId: advance.employeeId,
+                        advanceId: advance.id,
+                        paymentType: "ADVANCE",
+                        month: advance.month,
+                        year: advance.year,
+                        amount: advance.amount,
+                        paymentMethod: payload.paymentMethod || "BANK_CARD",
+                        paidAt: paidDate || new Date(),
+                        paidById: currentUser?.id || null,
+                        confirmedAt: new Date(),
+                        note: payload.note || advance.reason || `${advance.month}/${advance.year} avans to'lovi`,
+                        companyName: advance.employee?.user?.companyName || advance.companyName || callerCompany,
+                    },
+                });
+            }
+
+            await this.syncPayrollDeductionsAndNet(advance.employeeId, advance.month, advance.year);
+
+            if (advance.employee?.user?.id) {
+                try {
+                    await notificationService.createAndSendNotification({
+                        userId: advance.employee.user.id,
+                        title: "Avans to'landi",
+                        message: `${advance.month}-oy uchun ${advance.amount.toLocaleString()} UZS miqdorida avans to'landi.`,
+                        type: "SALARY_PAID" as any,
+                    });
+                } catch (notifErr) {
+                    console.error("Failed to send advance paid notification:", notifErr);
+                }
+            }
+        }
+
+        return updated;
+    }
+
+    async confirmAdvanceReceipt(advanceId: string, currentUser?: any) {
+        if (!currentUser?.id) {
+            throw new AppError("Avtorizatsiyadan o'tilmagan", 401);
+        }
+
+        const advance = await prisma.payrollAdvance.findUnique({
+            where: { id: advanceId },
+            include: {
+                employee: {
+                    include: {
+                        user: { select: { id: true, email: true, companyName: true } },
+                    },
+                },
+            },
+        });
+
+        if (!advance) {
+            throw new AppError("Avans topilmadi", 404);
+        }
+
+        const employeeRecord = await prisma.employee.findFirst({
+            where: {
+                OR: [
+                    { id: advance.employeeId },
+                    { userId: currentUser.id },
+                ],
+            },
+            select: { id: true, userId: true },
+        });
+
+        const isRecipient =
+            advance.employee?.userId === currentUser.id ||
+            advance.employee?.user?.id === currentUser.id ||
+            (employeeRecord && employeeRecord.userId === currentUser.id) ||
+            (employeeRecord && employeeRecord.id === advance.employeeId);
+
+        const isPrivileged =
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "ACCOUNTANT";
+
+        if (!isRecipient && !isPrivileged) {
+            throw new AppError("Faqat avans egasi yoki mas'ul xodim to'lovni tasdiqlashi mumkin", 403);
+        }
+
+        if (advance.status === PayrollStatus.PAID) {
+            return advance;
+        }
+
+        const company =
+            advance.employee?.user?.companyName ||
+            advance.companyName ||
+            currentUser?.companyName ||
+            null;
+
+        const updated = await prisma.payrollAdvance.update({
+            where: { id: advanceId },
+            data: {
+                status: PayrollStatus.PAID,
+                paidDate: new Date(),
+            },
+            include: {
+                employee: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        department: { select: { name: true } },
+                        position: { select: { title: true } },
+                    },
+                },
+            },
+        });
+
+        const existingRecord = await prisma.payrollPaymentRecord.findFirst({
+            where: { advanceId: advance.id },
+        });
+
+        if (!existingRecord) {
             await prisma.payrollPaymentRecord.create({
                 data: {
                     employeeId: advance.employeeId,
@@ -998,47 +1199,97 @@ export class PayrollService {
                     month: advance.month,
                     year: advance.year,
                     amount: advance.amount,
-                    paymentMethod: payload.paymentMethod || "BANK_CARD",
-                    paidAt: paidDate || new Date(),
-                    paidById: currentUser?.id || null,
-                    note: payload.note || advance.reason || `${advance.month}/${advance.year} avans to'lovi`,
-                    companyName: advance.companyName,
+                    paymentMethod: "BANK_CARD",
+                    paidAt: new Date(),
+                    paidById: advance.createdById || null,
+                    confirmedAt: new Date(),
+                    note: advance.reason || `${advance.month}/${advance.year} avans to'lovi`,
+                    companyName: company,
                 },
             });
+        }
 
-            const existingPayroll = await prisma.payroll.findUnique({
-                where: {
-                    employeeId_month_year: {
-                        employeeId: advance.employeeId,
-                        month: advance.month,
-                        year: advance.year,
-                    },
-                },
-            });
+        await this.syncPayrollDeductionsAndNet(advance.employeeId, advance.month, advance.year);
 
-            if (existingPayroll) {
-                const newDeductions = existingPayroll.deductions + advance.amount;
-                const newNet = Math.max(0, existingPayroll.baseSalary + existingPayroll.bonus - newDeductions);
-                await prisma.payroll.update({
-                    where: { id: existingPayroll.id },
-                    data: {
-                        deductions: newDeductions,
-                        netSalary: newNet,
-                    },
-                });
-            }
-
-            if (advance.employee?.user?.id) {
+        if (advance.createdById && advance.createdById !== currentUser.id) {
+            try {
+                const empName = advance.employee
+                    ? `${advance.employee.firstName || ""} ${advance.employee.lastName || ""}`.trim()
+                    : "Xodim";
                 await notificationService.createAndSendNotification({
-                    userId: advance.employee.user.id,
-                    title: "Avans to'landi",
-                    message: `${advance.month}-oy uchun ${advance.amount.toLocaleString()} UZS miqdorida avans to'landi.`,
+                    userId: advance.createdById,
+                    title: "Avans to'lovi tasdiqlandi",
+                    message: `${empName} ${advance.month}-oy uchun ${advance.amount.toLocaleString()} UZS miqdoridagi avansni qabul qilganini tasdiqladi.`,
                     type: "SALARY_PAID" as any,
                 });
+            } catch (notifErr) {
+                console.error("Failed to send advance confirmation notification to accountant:", notifErr);
             }
         }
 
         return updated;
+    }
+
+    async getMyAdvances(userId: string) {
+        const employee = await prisma.employee.findUnique({
+            where: { userId },
+            include: { user: { select: { companyName: true } } },
+        });
+
+        if (!employee) {
+            throw new AppError("Xodim profili topilmadi", 404);
+        }
+
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        const pastPaidAdvances = await prisma.payrollAdvance.findMany({
+            where: {
+                employeeId: employee.id,
+                status: PayrollStatus.PAID,
+                OR: [
+                    { year: { lt: currentYear } },
+                    { year: currentYear, month: { lt: currentMonth } },
+                ],
+            },
+        });
+
+        for (const pa of pastPaidAdvances) {
+            const existingRec = await prisma.payrollPaymentRecord.findFirst({
+                where: { advanceId: pa.id },
+            });
+            if (!existingRec) {
+                await prisma.payrollPaymentRecord.create({
+                    data: {
+                        employeeId: pa.employeeId,
+                        advanceId: pa.id,
+                        paymentType: "ADVANCE",
+                        month: pa.month,
+                        year: pa.year,
+                        amount: pa.amount,
+                        paymentMethod: "BANK_CARD",
+                        paidAt: pa.paidDate || new Date(),
+                        confirmedAt: pa.paidDate || new Date(),
+                        note: pa.reason || `${pa.month}/${pa.year} avans to'lovi`,
+                        companyName: employee.user?.companyName || pa.companyName || null,
+                    },
+                });
+            }
+        }
+
+        if (pastPaidAdvances.length > 0) {
+            await prisma.payrollAdvance.deleteMany({
+                where: {
+                    id: { in: pastPaidAdvances.map((a) => a.id) },
+                },
+            });
+        }
+
+        return prisma.payrollAdvance.findMany({
+            where: { employeeId: employee.id },
+            orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
+        });
     }
 
     async deleteAdvance(id: string, currentUser?: any) {
@@ -1081,33 +1332,58 @@ export class PayrollService {
             await prisma.payrollPaymentRecord.deleteMany({
                 where: { advanceId: advance.id },
             });
+        }
 
-            const existingPayroll = await prisma.payroll.findUnique({
-                where: {
-                    employeeId_month_year: {
-                        employeeId: advance.employeeId,
-                        month: advance.month,
-                        year: advance.year,
-                    },
+        const deleted = await prisma.payrollAdvance.delete({
+            where: { id },
+        });
+
+        await this.syncPayrollDeductionsAndNet(advance.employeeId, advance.month, advance.year);
+
+        return deleted;
+    }
+
+    async syncPayrollDeductionsAndNet(employeeId: string, month: number, year: number) {
+        const results = await this.calculateAutoPayroll({ month, year, employeeId });
+        if (!results || results.length === 0) return;
+        const item = results[0];
+
+        const existing = await prisma.payroll.findUnique({
+            where: {
+                employeeId_month_year: {
+                    employeeId,
+                    month,
+                    year,
                 },
-            });
+            },
+        });
 
-            if (existingPayroll) {
-                const newDeductions = Math.max(0, existingPayroll.deductions - advance.amount);
-                const newNet = Math.max(0, existingPayroll.baseSalary + existingPayroll.bonus - newDeductions);
+        if (existing) {
+            if (existing.status !== PayrollStatus.PAID) {
                 await prisma.payroll.update({
-                    where: { id: existingPayroll.id },
+                    where: { id: existing.id },
                     data: {
-                        deductions: newDeductions,
-                        netSalary: newNet,
+                        deductions: item.deductions,
+                        netSalary: item.netSalary,
+                        baseSalary: item.baseSalary,
+                        bonus: item.bonus,
                     },
                 });
             }
+        } else {
+            await prisma.payroll.create({
+                data: {
+                    employeeId,
+                    month,
+                    year,
+                    baseSalary: item.baseSalary,
+                    bonus: item.bonus,
+                    deductions: item.deductions,
+                    netSalary: item.netSalary,
+                    status: PayrollStatus.PENDING,
+                },
+            });
         }
-
-        return prisma.payrollAdvance.delete({
-            where: { id },
-        });
     }
 
     async calculateAutoPayroll(payload: {
@@ -1387,7 +1663,7 @@ export class PayrollService {
                     year: payload.year,
                     baseSalary,
                     attendanceStats: {
-                        workingDays,
+                        workingDays: workingDaysInMonth,
                         attendedDays,
                         lateDays,
                         totalLateMinutes,
@@ -1559,7 +1835,68 @@ export class PayrollService {
             throw new AppError("Xodim profili topilmadi", 404);
         }
 
-        const payrolls = await prisma.payroll.findMany({
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        // 1. Find past months' PAID payrolls
+        const pastPaidPayrolls = await prisma.payroll.findMany({
+            where: {
+                employeeId: employee.id,
+                status: PayrollStatus.PAID,
+                OR: [
+                    { year: { lt: currentYear } },
+                    { year: currentYear, month: { lt: currentMonth } },
+                ],
+            },
+        });
+
+        // 2. Ensure each past paid payroll is permanently archived in PayrollPaymentRecord for Accountant & Director
+        for (const pp of pastPaidPayrolls) {
+            const existingRec = await prisma.payrollPaymentRecord.findFirst({
+                where: { payrollId: pp.id },
+            });
+            if (!existingRec) {
+                await prisma.payrollPaymentRecord.create({
+                    data: {
+                        employeeId: pp.employeeId,
+                        payrollId: pp.id,
+                        paymentType: "SALARY",
+                        month: pp.month,
+                        year: pp.year,
+                        amount: pp.netSalary,
+                        baseSalary: pp.baseSalary,
+                        bonus: pp.bonus,
+                        deductions: pp.deductions,
+                        paymentMethod: pp.paymentMethod || "BANK_CARD",
+                        paidAt: pp.confirmedAt || pp.disbursedAt || new Date(),
+                        paidById: pp.disbursedById || null,
+                        confirmedAt: pp.confirmedAt || new Date(),
+                        note: pp.paymentNote || `${pp.month}/${pp.year} oylik maosh to'lovi`,
+                        companyName: employee.user?.companyName || pp.companyName || null,
+                    },
+                });
+            }
+        }
+
+        // 3. Clean up past months' paid payrolls from active table (only keeps current month for employee profile)
+        if (pastPaidPayrolls.length > 0) {
+            await prisma.payroll.deleteMany({
+                where: {
+                    id: { in: pastPaidPayrolls.map((p) => p.id) },
+                },
+            });
+        }
+
+        // Check if there is any advance or activity for current month, ensure payroll is synced
+        await this.syncPayrollDeductionsAndNet(employee.id, currentMonth, currentYear);
+
+        // Check company schedule
+        const sched = await this.getPayrollSchedule({ companyName: employee.user?.companyName });
+        const salaryPayDay = sched.salaryPayDay || 5;
+        const isSalaryDue = now.getDate() >= salaryPayDay;
+
+        let payrolls = await prisma.payroll.findMany({
             where: { employeeId: employee.id },
             include: {
                 employee: {
@@ -1575,7 +1912,84 @@ export class PayrollService {
             orderBy: [{ year: "desc" }, { month: "desc" }],
         });
 
-        return payrolls;
+        // If salary payment day has arrived for current month, auto-transition PENDING to AWAITING_CONFIRMATION
+        if (isSalaryDue) {
+            for (const p of payrolls) {
+                if (p.year === currentYear && p.month === currentMonth && (p.status === PayrollStatus.PENDING || (p.status as any) === "DRAFT")) {
+                    await prisma.payroll.update({
+                        where: { id: p.id },
+                        data: { status: PayrollStatus.AWAITING_CONFIRMATION },
+                    });
+                    p.status = PayrollStatus.AWAITING_CONFIRMATION;
+                }
+            }
+        }
+
+        const enrichedPayrolls = await Promise.all(
+            payrolls.map(async (p) => {
+                const penaltiesSummary = await this.getPenaltiesSummary({
+                    month: p.month,
+                    year: p.year,
+                }, { id: employee.userId });
+
+                const empSummary = penaltiesSummary?.employeeSummaries?.find((s: any) => s.employeeId === employee.id);
+                const totalPenalties = empSummary ? empSummary.totalFines : 0;
+
+                const penalties = await prisma.employeePenalty.findMany({
+                    where: {
+                        employeeId: employee.id,
+                        month: p.month,
+                        year: p.year,
+                    },
+                    include: {
+                        rule: { select: { id: true, name: true, code: true, penaltyType: true } },
+                    },
+                    orderBy: { date: "asc" },
+                });
+
+                const advances = await prisma.payrollAdvance.findMany({
+                    where: {
+                        employeeId: employee.id,
+                        month: p.month,
+                        year: p.year,
+                        status: { not: PayrollStatus.CANCELLED },
+                    },
+                    orderBy: { dueDate: "asc" },
+                });
+
+                const paidAdvances = advances.filter((a) => a.status === PayrollStatus.PAID);
+                const advancesTotal = paidAdvances.reduce((sum, adv) => sum + adv.amount, 0);
+
+                let deductions = p.status === PayrollStatus.PAID ? p.deductions : (totalPenalties + advancesTotal);
+                let netSalary = p.status === PayrollStatus.PAID ? p.netSalary : Math.max(0, p.baseSalary + p.bonus - deductions);
+
+                if (p.status !== PayrollStatus.PAID) {
+                    if (deductions !== p.deductions || netSalary !== p.netSalary) {
+                        await prisma.payroll.update({
+                            where: { id: p.id },
+                            data: { deductions, netSalary },
+                        });
+                    }
+                }
+
+                return {
+                    ...p,
+                    deductions,
+                    netSalary,
+                    breakdown: {
+                        penalties,
+                        advances,
+                        penaltySummary: empSummary,
+                        baseSalary: p.baseSalary,
+                        bonus: p.bonus,
+                        deductions,
+                        netSalary,
+                    },
+                };
+            })
+        );
+
+        return enrichedPayrolls;
     }
 
     async getAllPayrolls(query: {
@@ -1605,7 +2019,58 @@ export class PayrollService {
 
         if (query.month) where.month = Number(query.month);
         if (query.year) where.year = Number(query.year);
-        if (query.status) where.status = query.status;
+
+        if (query.status) {
+            if (query.status === PayrollStatus.AWAITING_CONFIRMATION) {
+                const advanceWhere: any = {
+                    status: PayrollStatus.AWAITING_CONFIRMATION,
+                };
+                if (query.month) advanceWhere.month = Number(query.month);
+                if (query.year) advanceWhere.year = Number(query.year);
+                if (companyFilter) {
+                    advanceWhere.employee = { user: { companyName: companyFilter } };
+                }
+
+                const awaitingAdvanceEmployeeIds = (
+                    await prisma.payrollAdvance.findMany({
+                        where: advanceWhere,
+                        select: { employeeId: true },
+                    })
+                ).map((a) => a.employeeId);
+
+                where.OR = [
+                    { status: PayrollStatus.AWAITING_CONFIRMATION },
+                    ...(awaitingAdvanceEmployeeIds.length > 0
+                        ? [{ employeeId: { in: awaitingAdvanceEmployeeIds } }]
+                        : []),
+                ];
+            } else if (query.status === PayrollStatus.PAID) {
+                const advanceWhere: any = {
+                    status: PayrollStatus.PAID,
+                };
+                if (query.month) advanceWhere.month = Number(query.month);
+                if (query.year) advanceWhere.year = Number(query.year);
+                if (companyFilter) {
+                    advanceWhere.employee = { user: { companyName: companyFilter } };
+                }
+
+                const paidAdvanceEmployeeIds = (
+                    await prisma.payrollAdvance.findMany({
+                        where: advanceWhere,
+                        select: { employeeId: true },
+                    })
+                ).map((a) => a.employeeId);
+
+                where.OR = [
+                    { status: PayrollStatus.PAID },
+                    ...(paidAdvanceEmployeeIds.length > 0
+                        ? [{ employeeId: { in: paidAdvanceEmployeeIds } }]
+                        : []),
+                ];
+            } else {
+                where.status = query.status;
+            }
+        }
 
         if (companyFilter) {
             where.employee.user.companyName = companyFilter;
@@ -1636,7 +2101,60 @@ export class PayrollService {
             orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
         });
 
-        return payrolls;
+        const penaltiesSummary = await this.getPenaltiesSummary({
+            month: query.month || (new Date().getMonth() + 1),
+            year: query.year || new Date().getFullYear(),
+        }, currentUser);
+
+        const summaryMap: Record<string, any> = {};
+        if (penaltiesSummary?.employeeSummaries) {
+            penaltiesSummary.employeeSummaries.forEach((s: any) => {
+                summaryMap[s.employeeId] = s;
+            });
+        }
+
+        const syncedPayrolls = await Promise.all(
+            payrolls.map(async (p) => {
+                if (p.status === PayrollStatus.PAID) {
+                    return p;
+                }
+                const advances = await prisma.payrollAdvance.findMany({
+                    where: {
+                        employeeId: p.employeeId,
+                        month: p.month,
+                        year: p.year,
+                        status: PayrollStatus.PAID,
+                    },
+                });
+                const totalAdvances = advances.reduce((sum, a) => sum + a.amount, 0);
+                const empSummary = summaryMap[p.employeeId];
+                const totalPenalties = empSummary ? empSummary.totalFines : 0;
+                const newDeductions = totalAdvances + totalPenalties;
+                const newNet = Math.max(0, p.baseSalary + p.bonus - newDeductions);
+
+                if (newDeductions !== p.deductions || newNet !== p.netSalary) {
+                    await prisma.payroll.update({
+                        where: { id: p.id },
+                        data: {
+                            deductions: newDeductions,
+                            netSalary: newNet,
+                        },
+                    });
+                    return {
+                        ...p,
+                        deductions: newDeductions,
+                        netSalary: newNet,
+                        penaltyDetails: empSummary,
+                    };
+                }
+                return {
+                    ...p,
+                    penaltyDetails: empSummary,
+                };
+            })
+        );
+
+        return syncedPayrolls;
     }
 
     async updateStatus(id: string, status: PayrollStatus, currentUser?: any) {
@@ -1756,37 +2274,167 @@ export class PayrollService {
             throw new AppError("Ruxsat berilmadi", 403);
         }
 
+        const company = payroll.employee?.user?.companyName || callerCompany || null;
+
+        // Accountant marks payment as disbursed/awaiting employee receipt confirmation
         const updated = await prisma.payroll.update({
             where: { id: payrollId },
-            data: { status: PayrollStatus.PAID },
-        });
-
-        await prisma.payrollPaymentRecord.create({
             data: {
-                employeeId: payroll.employeeId,
-                payrollId: payroll.id,
-                paymentType: "SALARY",
-                month: payroll.month,
-                year: payroll.year,
-                amount: payroll.netSalary,
-                baseSalary: payroll.baseSalary,
-                bonus: payroll.bonus,
-                deductions: payroll.deductions,
+                status: PayrollStatus.AWAITING_CONFIRMATION,
                 paymentMethod: payload.paymentMethod || "BANK_CARD",
-                paidAt: new Date(),
-                paidById: currentUser?.id || null,
-                note: payload.note || `${payroll.month}/${payroll.year} oylik maoshi to'lovi`,
-                companyName: payroll.employee.user?.companyName || callerCompany || null,
+                paymentNote: payload.note || `${payroll.month}/${payroll.year} oylik maoshi to'lovi`,
+                disbursedAt: new Date(),
+                disbursedById: currentUser?.id || null,
+                companyName: company,
+            },
+            include: {
+                employee: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        department: { select: { name: true } },
+                        position: { select: { title: true } },
+                    },
+                },
             },
         });
 
         if (payroll.employee?.user?.id) {
-            await notificationService.createAndSendNotification({
-                userId: payroll.employee.user.id,
-                title: "Oylik maosh to'landi",
-                message: `${payroll.month}-oy uchun ${payroll.netSalary.toLocaleString()} UZS miqdorida ish haqi to'landi.`,
-                type: "SALARY_PAID" as any,
+            try {
+                await notificationService.createAndSendNotification({
+                    userId: payroll.employee.user.id,
+                    title: "Oylik maosh o'tkazildi (Tasdiqlash kutilmoqda)",
+                    message: `${payroll.month}-oy uchun ${payroll.netSalary.toLocaleString()} UZS miqdorida ish haqi o'tkazildi. Iltimos, profilingizda maoshni qabul qilganingizni tasdiqlang.`,
+                    type: "SALARY_PAID" as any,
+                    metadata: { link: "/profile", payrollId: payroll.id },
+                });
+            } catch (notifErr) {
+                console.error("Failed to send salary payment notification:", notifErr);
+            }
+        }
+
+        return updated;
+    }
+
+    async confirmSalaryReceipt(payrollId: string, currentUser?: any) {
+        if (!currentUser?.id) {
+            throw new AppError("Avtorizatsiyadan o'tilmagan", 401);
+        }
+
+        const payroll = await prisma.payroll.findUnique({
+            where: { id: payrollId },
+            include: {
+                employee: {
+                    include: {
+                        user: { select: { id: true, email: true, companyName: true } },
+                    },
+                },
+            },
+        });
+
+        if (!payroll) {
+            throw new AppError("Ish haqi varaqasi topilmadi", 404);
+        }
+
+        // Find employee record if current user is linked
+        const employeeRecord = await prisma.employee.findFirst({
+            where: {
+                OR: [
+                    { id: payroll.employeeId },
+                    { userId: currentUser.id },
+                ],
+            },
+            select: { id: true, userId: true },
+        });
+
+        const isRecipient =
+            payroll.employee?.userId === currentUser.id ||
+            payroll.employee?.user?.id === currentUser.id ||
+            (employeeRecord && employeeRecord.userId === currentUser.id) ||
+            (employeeRecord && employeeRecord.id === payroll.employeeId);
+
+        const isPrivileged =
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "ACCOUNTANT";
+
+        if (!isRecipient && !isPrivileged) {
+            throw new AppError("Faqat maosh egasi yoki mas'ul xodim to'lovni tasdiqlashi mumkin", 403);
+        }
+
+        if (payroll.status === PayrollStatus.PAID) {
+            return payroll;
+        }
+
+        const company =
+            payroll.employee?.user?.companyName ||
+            payroll.companyName ||
+            currentUser?.companyName ||
+            null;
+
+        const updated = await prisma.payroll.update({
+            where: { id: payrollId },
+            data: {
+                status: PayrollStatus.PAID,
+                confirmedAt: new Date(),
+            },
+            include: {
+                employee: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        department: { select: { name: true } },
+                        position: { select: { title: true } },
+                    },
+                },
+            },
+        });
+
+        // Ensure single payment record is created in history
+        const existingRecord = await prisma.payrollPaymentRecord.findFirst({
+            where: { payrollId: payroll.id },
+        });
+
+        if (!existingRecord) {
+            await prisma.payrollPaymentRecord.create({
+                data: {
+                    employeeId: payroll.employeeId,
+                    payrollId: payroll.id,
+                    paymentType: "SALARY",
+                    month: payroll.month,
+                    year: payroll.year,
+                    amount: payroll.netSalary,
+                    baseSalary: payroll.baseSalary,
+                    bonus: payroll.bonus,
+                    deductions: payroll.deductions,
+                    paymentMethod: payroll.paymentMethod || "BANK_CARD",
+                    paidAt: payroll.disbursedAt || new Date(),
+                    paidById: payroll.disbursedById || null,
+                    confirmedAt: new Date(),
+                    note: payroll.paymentNote || `${payroll.month}/${payroll.year} oylik maosh to'lovi`,
+                    companyName: company,
+                },
             });
+        }
+
+        if (payroll.disbursedById && payroll.disbursedById !== currentUser.id) {
+            try {
+                const empName = payroll.employee
+                    ? `${payroll.employee.firstName || ""} ${payroll.employee.lastName || ""}`.trim()
+                    : "Xodim";
+                await notificationService.createAndSendNotification({
+                    userId: payroll.disbursedById,
+                    title: "Oylik maosh qabul qilindi",
+                    message: `${empName} ${payroll.month}-oy maoshini (${payroll.netSalary.toLocaleString()} UZS) qabul qilganini tasdiqladi.`,
+                    type: "SALARY_PAID" as any,
+                    metadata: { link: "/profile?tab=payroll", payrollId: payroll.id },
+                });
+            } catch (notifErr) {
+                console.error("Failed to send salary confirmation notification:", notifErr);
+            }
         }
 
         return updated;
@@ -1817,9 +2465,10 @@ export class PayrollService {
         if (query.employeeId) where.employeeId = query.employeeId;
 
         if (companyFilter) {
-            where.employee = {
-                user: { companyName: companyFilter },
-            };
+            where.OR = [
+                { companyName: companyFilter },
+                { employee: { user: { companyName: companyFilter } } },
+            ];
         }
 
         if (query.search) {
@@ -1877,11 +2526,13 @@ export class PayrollService {
             throw new AppError("To'lov yozuvi topilmadi", 404);
         }
 
+        const recordCompany = record.companyName || record.employee?.user?.companyName;
+
         if (
             callerCompany &&
-            record.employee?.user?.companyName &&
+            recordCompany &&
             callerRole !== "SUPER_ADMIN" &&
-            record.employee.user.companyName !== callerCompany
+            recordCompany !== callerCompany
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
         }
@@ -1889,6 +2540,42 @@ export class PayrollService {
         return prisma.payrollPaymentRecord.delete({
             where: { id },
         });
+    }
+
+    async clearAllPaymentRecords(currentUser?: any) {
+        let callerRole = currentUser?.role;
+        let callerCompany: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller) {
+                callerRole = caller.role;
+                callerCompany = caller.companyName || null;
+            }
+        }
+
+        if (callerRole !== "DIRECTOR" && callerRole !== "SUPER_ADMIN") {
+            throw new AppError("To'lovlar tarixini faqat Direktor tozalash huquqiga ega", 403);
+        }
+
+        const whereClause: any = {};
+        if (callerRole !== "SUPER_ADMIN") {
+            if (!callerCompany) {
+                throw new AppError("Kompaniya aniqlanmadi", 400);
+            }
+            whereClause.OR = [
+                { companyName: callerCompany },
+                { employee: { user: { companyName: callerCompany } } },
+            ];
+        }
+
+        const result = await prisma.payrollPaymentRecord.deleteMany({
+            where: whereClause,
+        });
+
+        return { count: result.count };
     }
 
     async checkAndNotifyDuePayments(currentUser?: any) {

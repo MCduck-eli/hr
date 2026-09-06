@@ -267,6 +267,31 @@ export class PayrollController {
         }
     }
 
+    async confirmAdvanceReceipt(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.confirmAdvanceReceipt(req.params.id, (req as any).user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+                message: "Advance receipt confirmed",
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getMyAdvances(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.getMyAdvances((req as any).user.id);
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async deleteAdvance(req: Request<{ id: string }>, res: Response, next: NextFunction) {
         try {
             await payrollService.deleteAdvance(req.params.id, (req as any).user);
@@ -291,6 +316,19 @@ export class PayrollController {
         }
     }
 
+    async confirmSalaryReceipt(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.confirmSalaryReceipt(req.params.id, (req as any).user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+                message: "Salary payment receipt confirmed",
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async getPaymentRecords(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await payrollService.getPaymentRecords(req.query as any, (req as any).user);
@@ -309,6 +347,19 @@ export class PayrollController {
             res.status(200).json({
                 status: "success",
                 message: "Payment record deleted",
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async clearAllPaymentRecords(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.clearAllPaymentRecords((req as any).user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+                message: "All payment records cleared",
             });
         } catch (error) {
             next(error);

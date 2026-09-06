@@ -210,6 +210,13 @@ export default function EmployeeProfilePage() {
         currentUser?.role === "ACCOUNTANT" ||
         currentUser?.customRole?.baseRole === "ACCOUNTANT" ||
         dashboardData?.user?.customRole?.baseRole === "ACCOUNTANT";
+    const isDirector =
+        roleData === "DIRECTOR" ||
+        currentUser?.role === "DIRECTOR" ||
+        roleData === "SUPER_ADMIN" ||
+        currentUser?.role === "SUPER_ADMIN" ||
+        currentUser?.customRole?.baseRole === "DIRECTOR";
+    const canManagePayroll = isAccountant || isDirector;
     const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData === "ACCOUNTANT" ? "Bugalter / Hisobchi" : roleData;
 
     const grade = dashboardData?.grade || dashboardData?.user?.employee?.grade || null;
@@ -349,7 +356,7 @@ export default function EmployeeProfilePage() {
                     </span>
                 </div>
 
-                {isAccountant && (
+                {canManagePayroll && (
                     <div className="flex border-b border-gray-200 gap-2 mt-4">
                         <button
                             onClick={() => setActiveTab("profile")}
@@ -371,19 +378,19 @@ export default function EmployeeProfilePage() {
                             }`}
                         >
                             <span>💵</span>
-                            <span>Moliya & Ish Haqi Boshqaruvi (Bugalteriya)</span>
+                            <span>Moliya & Ish Haqi Boshqaruvi</span>
                         </button>
                     </div>
                 )}
             </div>
 
-            {isAccountant && activeTab === "payroll" ? (
+            {canManagePayroll && activeTab === "payroll" ? (
                 <div className="flex flex-col gap-6">
                     <PayrollManager />
                 </div>
             ) : (
                 <>
-                    {isAccountant && (
+                    {canManagePayroll && (
                         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
                             <div className="flex items-center gap-3">
                                 <span className="text-2xl">💼</span>
@@ -392,7 +399,7 @@ export default function EmployeeProfilePage() {
                                         Bugalteriya va Moliya Boshqaruvi
                                     </div>
                                     <div className="text-[11px] font-semibold text-emerald-700">
-                                        Kompaniya xodimlari oylik maoshlari, avanslar, to'lovlar va jarimalarni to'liq nazorat qilish uchun moliya bo'limiga o'ting.
+                                        Kompaniya xodimlari oylik maoshlari, avanslar va to'lovlarni to'liq nazorat qilish uchun moliya bo'limiga o'ting.
                                     </div>
                                 </div>
                             </div>

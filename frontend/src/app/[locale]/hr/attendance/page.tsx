@@ -307,7 +307,7 @@ export default function HRAttendancePage() {
                     }`}
                 >
                     <span>📅</span>
-                    <span>Kunlik Monitoring ({records.length})</span>
+                    <span>{t("dailyTab")} ({records.length})</span>
                 </button>
                 <button
                     onClick={() => setMainTab("absent")}
@@ -318,7 +318,7 @@ export default function HRAttendancePage() {
                     }`}
                 >
                     <span>🚫</span>
-                    <span>Ishga Kelmaganlar Jurnali ({absentRecords.length})</span>
+                    <span>{t("absentTab")} ({absentRecords.length})</span>
                 </button>
                 <button
                     onClick={() => setMainTab("threeMonth")}
@@ -329,7 +329,7 @@ export default function HRAttendancePage() {
                     }`}
                 >
                     <span>📊</span>
-                    <span>Oxirgi 3 Oylik Natijalar</span>
+                    <span>{t("threeMonthTab")}</span>
                 </button>
             </div>
 
@@ -618,16 +618,16 @@ export default function HRAttendancePage() {
                     <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
                         <div>
                             <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">
-                                Qaysi xodim qaysi ish kuni ishga kelmaganlik jurnali ({filteredAbsentRecords.length})
+                                {t("absentJournalTitle")} ({filteredAbsentRecords.length})
                             </span>
                             <span className="text-[11px] text-gray-500 font-medium mt-0.5 block">
-                                Oxirgi 3 oylik ish kunlaridagi barcha sababsiz va sababli kelmagan holatlar
+                                {t("absentJournalSubtitle")}
                             </span>
                         </div>
                         <div>
                             <input
                                 type="text"
-                                placeholder="Xodim ismi yoki bo'lim bo'yicha qidirish..."
+                                placeholder={t("absentSearchPlaceholder")}
                                 value={absentSearch}
                                 onChange={(e) => setAbsentSearch(e.target.value)}
                                 className="p-2 border border-gray-300 bg-white text-xs font-medium text-black rounded-sm w-64 md:w-80 outline-none focus:border-black"
@@ -639,42 +639,42 @@ export default function HRAttendancePage() {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-gray-200 bg-gray-100/60 text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                                    <th className="py-3.5 px-4">Sana</th>
-                                    <th className="py-3.5 px-4">Xodim</th>
-                                    <th className="py-3.5 px-4">Bo'lim / Lavozim</th>
-                                    <th className="py-3.5 px-4 text-center">Holati</th>
-                                    <th className="py-3.5 px-4">Sababi / Izoh</th>
-                                    <th className="py-3.5 px-4 text-center">Amal</th>
+                                    <th className="py-3.5 px-4">{t("colDate")}</th>
+                                    <th className="py-3.5 px-4">{t("colEmployee")}</th>
+                                    <th className="py-3.5 px-4">{t("colDepartmentPosition")}</th>
+                                    <th className="py-3.5 px-4 text-center">{t("colStatus")}</th>
+                                    <th className="py-3.5 px-4">{t("colReasonNote")}</th>
+                                    <th className="py-3.5 px-4 text-center">{t("colAction")}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 text-xs">
                                 {filteredAbsentRecords.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="py-12 text-center text-gray-400 font-bold uppercase tracking-wider">
-                                            Ishga kelmaganlik holatlari topilmadi
+                                            {t("noAbsentRecords")}
                                         </td>
                                     </tr>
                                 ) : (
                                     filteredAbsentRecords.map((item) => (
                                         <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="py-3.5 px-4 font-mono font-bold text-gray-800">
-                                                {item.date ? new Date(item.date).toLocaleDateString("ru-RU") : "-"}
+                                                {item.date ? new Date(item.date).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US") : "-"}
                                             </td>
                                             <td className="py-3.5 px-4 font-bold text-black">
                                                 {item.employeeName}
                                             </td>
                                             <td className="py-3.5 px-4 text-gray-600">
-                                                <div>{item.department}</div>
-                                                <div className="text-[10px] text-gray-400">{item.position}</div>
+                                                <div>{item.department || t("noDepartment")}</div>
+                                                <div className="text-[10px] text-gray-400">{item.position || t("noPosition")}</div>
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
                                                 {item.status === "SABABLI" ? (
                                                     <span className="px-2.5 py-1 text-[10px] font-black uppercase rounded bg-amber-100 text-amber-800 border border-amber-200">
-                                                        Sababli Kelmagan
+                                                        {t("statusExcusedAbsent")}
                                                     </span>
                                                 ) : (
                                                     <span className="px-2.5 py-1 text-[10px] font-black uppercase rounded bg-rose-100 text-rose-800 border border-rose-200">
-                                                        Sababsiz Kelmagan
+                                                        {t("statusUnexcusedAbsent")}
                                                     </span>
                                                 )}
                                             </td>
@@ -683,11 +683,11 @@ export default function HRAttendancePage() {
                                                     <div className="flex flex-col gap-0.5">
                                                         <span className="font-semibold text-gray-800">{item.absenceReason}</span>
                                                         <span className="text-[10px] text-gray-400 font-medium uppercase">
-                                                            Kirituvchi: {item.reasonSubmittedBy || "HR"}
+                                                            {t("submittedBy")}: {item.reasonSubmittedBy || "HR"}
                                                         </span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-gray-400 font-medium italic">Sabab kiritilmagan</span>
+                                                    <span className="text-gray-400 font-medium italic">{t("noReasonEntered")}</span>
                                                 )}
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
@@ -702,7 +702,7 @@ export default function HRAttendancePage() {
                                                     }
                                                     className="px-3 py-1 bg-white border border-gray-300 text-gray-800 hover:text-black hover:border-black text-[11px] font-bold uppercase tracking-wider rounded-sm transition-colors"
                                                 >
-                                                    {item.absenceReason ? "Sababni Tahrirlash" : "Sabab Kiritish"}
+                                                    {item.absenceReason ? t("editReason") : t("addReason")}
                                                 </button>
                                             </td>
                                         </tr>
@@ -720,11 +720,11 @@ export default function HRAttendancePage() {
                         <div className="flex items-center gap-2">
                             <span>⚡</span>
                             <span>
-                                <strong>Avtomatik Tozalash:</strong> Tizim bazasi xotirasini tejash maqsadida davomat ma'lumotlari oxirgi 3 oy (90 kun) doirasida saqlanadi va 90 kundan eski yozuvlar avtomatik tozalanadi.
+                                <strong>{t("autoCleanupTitle")}</strong> {t("autoCleanupNotice")}
                             </span>
                         </div>
                         <span className="text-[11px] px-2.5 py-1 bg-indigo-100 text-indigo-800 font-bold uppercase rounded shrink-0">
-                            Faol (90 kun)
+                            {t("activeRetentionBadge")}
                         </span>
                     </div>
 
@@ -739,21 +739,21 @@ export default function HRAttendancePage() {
                                                     {m.monthName} {m.year}
                                                 </span>
                                                 <span className="text-xs text-gray-400 font-bold">
-                                                    {m.totalWorkingDays} ish kuni
+                                                    {m.totalWorkingDays} {t("workingDaysSuffix")}
                                                 </span>
                                             </div>
                                             <div className="grid grid-cols-3 gap-2 mt-4 text-center">
                                                 <div className="p-2 bg-emerald-50 border border-emerald-100">
                                                     <div className="text-lg font-black text-emerald-700">{m.attendedCount}</div>
-                                                    <div className="text-[10px] font-bold uppercase text-emerald-800 mt-0.5">Keldi</div>
+                                                    <div className="text-[10px] font-bold uppercase text-emerald-800 mt-0.5">{t("attendedLabel")}</div>
                                                 </div>
                                                 <div className="p-2 bg-rose-50 border border-rose-100">
                                                     <div className="text-lg font-black text-rose-700">{m.absentCount}</div>
-                                                    <div className="text-[10px] font-bold uppercase text-rose-800 mt-0.5">Kelmadi</div>
+                                                    <div className="text-[10px] font-bold uppercase text-rose-800 mt-0.5">{t("absentLabel")}</div>
                                                 </div>
                                                 <div className="p-2 bg-amber-50 border border-amber-100">
                                                     <div className="text-lg font-black text-amber-700">{m.lateCount}</div>
-                                                    <div className="text-[10px] font-bold uppercase text-amber-800 mt-0.5">Kechikdi</div>
+                                                    <div className="text-[10px] font-bold uppercase text-amber-800 mt-0.5">{t("lateLabel")}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -764,19 +764,19 @@ export default function HRAttendancePage() {
                             <div className="bg-white border border-gray-200 shadow-sm flex flex-col">
                                 <div className="p-4 border-b border-gray-200 bg-gray-50">
                                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">
-                                        Xodimlar bo'yicha 3 oylik davomat ko'rsatkichlari ({threeMonthSummary.employeeSummaries.length})
+                                        {t("threeMonthEmployeeStatsTitle")} ({threeMonthSummary.employeeSummaries.length})
                                     </span>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="border-b border-gray-200 bg-gray-100/60 text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                                                <th className="py-3.5 px-4">Xodim</th>
-                                                <th className="py-3.5 px-4">Bo'lim / Lavozim</th>
-                                                <th className="py-3.5 px-4 text-center">Kelgan Kunlari</th>
-                                                <th className="py-3.5 px-4 text-center">Kelmagan Kunlari</th>
-                                                <th className="py-3.5 px-4 text-center">Kechikishlar</th>
-                                                <th className="py-3.5 px-4 text-right">Davomat Foizi</th>
+                                                <th className="py-3.5 px-4">{t("colEmployee")}</th>
+                                                <th className="py-3.5 px-4">{t("colDepartmentPosition")}</th>
+                                                <th className="py-3.5 px-4 text-center">{t("colAttendedDays")}</th>
+                                                <th className="py-3.5 px-4 text-center">{t("colAbsentDays")}</th>
+                                                <th className="py-3.5 px-4 text-center">{t("colLateTimes")}</th>
+                                                <th className="py-3.5 px-4 text-right">{t("colAttendancePercentage")}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100 text-xs">
@@ -786,17 +786,17 @@ export default function HRAttendancePage() {
                                                         {emp.name}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-gray-600">
-                                                        <div>{emp.department}</div>
-                                                        <div className="text-[10px] text-gray-400">{emp.position}</div>
+                                                        <div>{emp.department || t("noDepartment")}</div>
+                                                        <div className="text-[10px] text-gray-400">{emp.position || t("noPosition")}</div>
                                                     </td>
                                                     <td className="py-3.5 px-4 text-center font-bold text-emerald-700">
-                                                        {emp.attendedCount} kun
+                                                        {emp.attendedCount} {t("daysUnit")}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-center font-bold text-rose-700">
-                                                        {emp.absentCount} kun
+                                                        {emp.absentCount} {t("daysUnit")}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-center font-bold text-amber-700">
-                                                        {emp.lateCount} marta
+                                                        {emp.lateCount} {t("timesUnit")}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-right font-black">
                                                         <span
