@@ -23,13 +23,23 @@ export default function HRPenaltyManager() {
     const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeTab, setActiveTab] = useState<"overview" | "lateness" | "disciplinary">("overview");
+    const [activeTab, setActiveTab] = useState<"overview" | "all" | "lateness" | "absence" | "disciplinary" | "archive">("overview");
+    const [expandedEmployees, setExpandedEmployees] = useState<Record<string, boolean>>({});
 
     const [employees, setEmployees] = useState<any[]>([]);
     const [penaltyRules, setPenaltyRules] = useState<any[]>([]);
     const [employeePenalties, setEmployeePenalties] = useState<any[]>([]);
     const [lateAttendances, setLateAttendances] = useState<any[]>([]);
+    const [absentRecords, setAbsentRecords] = useState<any[]>([]);
     const [employeeSummaries, setEmployeeSummaries] = useState<any[]>([]);
+    const [archiveData, setArchiveData] = useState<{
+        threeMonthPenalties: any[];
+        threeMonthAttendances: any[];
+    }>({
+        threeMonthPenalties: [],
+        threeMonthAttendances: [],
+    });
+    const [archiveMonthFilter, setArchiveMonthFilter] = useState<string>("ALL");
     const [summaryStats, setSummaryStats] = useState<any>({
         totalLateCount: 0,
         totalLateMinutes: 0,
@@ -68,6 +78,13 @@ export default function HRPenaltyManager() {
     });
 
     const [actionLoading, setActionLoading] = useState(false);
+
+    const toggleEmployeeExpand = (empId: string) => {
+        setExpandedEmployees((prev) => ({
+            ...prev,
+            [empId]: !prev[empId],
+        }));
+    };
 
     const getMonthName = (m: number) => {
         try {
@@ -117,7 +134,12 @@ export default function HRPenaltyManager() {
             if (summaryData) {
                 setLateAttendances(summaryData.lateAttendances || []);
                 setEmployeePenalties(summaryData.disciplinaryPenalties || []);
+                setAbsentRecords(summaryData.absentRecords || []);
                 setEmployeeSummaries(summaryData.employeeSummaries || []);
+                setArchiveData(summaryData.archive || {
+                    threeMonthPenalties: [],
+                    threeMonthAttendances: [],
+                });
                 setSummaryStats(summaryData.stats || {
                     totalLateCount: 0,
                     totalLateMinutes: 0,
@@ -297,11 +319,82 @@ export default function HRPenaltyManager() {
         });
     };
 
+    const getEmployeeAllPenalties = (summary: any) => {
+        const list: any[] = [];
+        (summary.lateAttendances || []).forEach((l: any) => {
+            list.push({
+                id: `late-${l.id || Math.random()}`,
+                date: l.date,
+                time: l.checkIn ? new Date(l.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+                type: "LATENESS",
+                typeLabel: t("tabLateness") || "Kechikish",
+                typeBadge: "bg-amber-100 text-amber-900 border-amber-300",
+                reason: `Ishga ${l.lateMinutes || 0} daqiqa kechikish${l.checkIn ? ` (Kelgan vaqti: ${new Date(l.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ""}`,
+                amount: l.fineAmount || 0,
+                raw: l,
+                isDisciplinary: false,
+            });
+        });
+        (summary.absentRecords || []).forEach((a: any) => {
+            list.push({
+                id: a.id || `absent-${a.date}`,
+                date: a.date,
+                time: null,
+                type: "ABSENCE",
+                typeLabel: t("cardAbsenceAuto") || "Sababsiz kelmaslik",
+                typeBadge: "bg-red-100 text-red-900 border-red-300",
+                reason: a.reason || "Ishga sababsiz kelmaganlik",
+                amount: a.fineAmount || 0,
+                raw: a,
+                isDisciplinary: false,
+            });
+        });
+        (summary.disciplinaryPenalties || []).forEach((d: any) => {
+            list.push({
+                id: d.id,
+                date: d.date || d.createdAt,
+                time: d.createdAt ? new Date(d.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+                type: "DISCIPLINARY",
+                typeLabel: t("tabDisciplinary") || "Intizomiy jarima",
+                typeBadge: "bg-rose-100 text-rose-900 border-rose-300",
+                reason: d.reason || d.rule?.name || "Intizomiy jarima",
+                amount: d.amount || 0,
+                raw: d,
+                isDisciplinary: true,
+            });
+        });
+        return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    };
+
+    const allCombinedPenalties = employeeSummaries.flatMap((summary) => {
+        return getEmployeeAllPenalties(summary).map((p) => ({
+            ...p,
+            employeeName: summary.name,
+            email: summary.email || "",
+            department: summary.department,
+            position: summary.position,
+            employeeId: summary.employeeId,
+        }));
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const filteredAllPenalties = allCombinedPenalties.filter((p) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+            (p.employeeName || "").toLowerCase().includes(q) ||
+            (p.email || "").toLowerCase().includes(q) ||
+            (p.reason || "").toLowerCase().includes(q) ||
+            (p.typeLabel || "").toLowerCase().includes(q) ||
+            (p.department || "").toLowerCase().includes(q)
+        );
+    });
+
     const filteredSummaries = employeeSummaries.filter((s) => {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
         return (
             (s.name || "").toLowerCase().includes(q) ||
+            (s.email || "").toLowerCase().includes(q) ||
             (s.department || "").toLowerCase().includes(q) ||
             (s.position || "").toLowerCase().includes(q)
         );
@@ -311,15 +404,120 @@ export default function HRPenaltyManager() {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
         const empName = `${l.employee?.firstName || ""} ${l.employee?.lastName || ""}`.toLowerCase();
-        return empName.includes(q);
+        const empEmail = (l.employee?.user?.email || l.employee?.email || "").toLowerCase();
+        return empName.includes(q) || empEmail.includes(q);
+    });
+
+    const filteredAbsentRecords = absentRecords.filter((a) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        const empName = `${a.employee?.firstName || ""} ${a.employee?.lastName || ""}`.toLowerCase();
+        const empEmail = (a.employee?.user?.email || a.employee?.email || "").toLowerCase();
+        return empName.includes(q) || empEmail.includes(q) || (a.reason || "").toLowerCase().includes(q);
     });
 
     const filteredDisciplinaryPenalties = employeePenalties.filter((p) => {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
         const empName = `${p.employee?.firstName || ""} ${p.employee?.lastName || ""}`.toLowerCase();
+        const empEmail = (p.employee?.user?.email || p.employee?.email || "").toLowerCase();
         const reason = (p.reason || "").toLowerCase();
-        return empName.includes(q) || reason.includes(q);
+        return empName.includes(q) || empEmail.includes(q) || reason.includes(q);
+    });
+
+    const last3MonthsList = [
+        {
+            month: currentDate.getMonth() + 1,
+            year: currentDate.getFullYear(),
+            label: `${getMonthName(currentDate.getMonth() + 1)} ${currentDate.getFullYear()}`,
+            isCurrent: true,
+            key: `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`,
+        },
+        {
+            month: currentDate.getMonth() === 0 ? 12 : currentDate.getMonth(),
+            year: currentDate.getMonth() === 0 ? currentDate.getFullYear() - 1 : currentDate.getFullYear(),
+            label: `${getMonthName(currentDate.getMonth() === 0 ? 12 : currentDate.getMonth())} ${currentDate.getMonth() === 0 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()}`,
+            isCurrent: false,
+            key: `${currentDate.getMonth() === 0 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()}-${currentDate.getMonth() === 0 ? 12 : currentDate.getMonth()}`,
+        },
+        {
+            month: currentDate.getMonth() <= 1 ? currentDate.getMonth() + 11 : currentDate.getMonth() - 1,
+            year: currentDate.getMonth() <= 1 ? currentDate.getFullYear() - 1 : currentDate.getFullYear(),
+            label: `${getMonthName(currentDate.getMonth() <= 1 ? currentDate.getMonth() + 11 : currentDate.getMonth() - 1)} ${currentDate.getMonth() <= 1 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()}`,
+            isCurrent: false,
+            key: `${currentDate.getMonth() <= 1 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()}-${currentDate.getMonth() <= 1 ? currentDate.getMonth() + 11 : currentDate.getMonth() - 1}`,
+        },
+    ];
+
+    const allArchiveItems = [
+        ...(archiveData.threeMonthPenalties || []).map((p: any) => {
+            const pDate = new Date(p.date || p.createdAt);
+            const pMonth = p.month || (pDate.getMonth() + 1);
+            const pYear = p.year || pDate.getFullYear();
+            return {
+                id: `arch-disc-${p.id}`,
+                dbId: p.id,
+                date: p.date || p.createdAt,
+                time: p.createdAt ? new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+                employeeName: `${p.employee?.firstName || ""} ${p.employee?.lastName || ""}`.trim() || "-",
+                email: p.employee?.user?.email || p.employee?.email || "",
+                department: p.employee?.department?.name || "-",
+                position: p.employee?.position?.title || "-",
+                type: "DISCIPLINARY",
+                typeLabel: t("tabDisciplinary") || "Intizomiy jarima",
+                typeBadge: "bg-rose-100 text-rose-900 border-rose-300",
+                reason: p.reason || p.rule?.name || "Intizomiy jarima",
+                amount: p.amount || 0,
+                month: pMonth,
+                year: pYear,
+                monthKey: `${pYear}-${pMonth}`,
+                monthLabel: `${getMonthName(pMonth)} ${pYear}`,
+                raw: p,
+                isDisciplinary: true,
+            };
+        }),
+        ...(archiveData.threeMonthAttendances || []).map((a: any) => {
+            const aDate = new Date(a.date);
+            const aMonth = aDate.getMonth() + 1;
+            const aYear = aDate.getFullYear();
+            return {
+                id: `arch-late-${a.id}`,
+                dbId: a.id,
+                date: a.date,
+                time: a.checkIn ? new Date(a.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+                employeeName: `${a.employee?.firstName || ""} ${a.employee?.lastName || ""}`.trim() || "-",
+                email: a.employee?.user?.email || a.employee?.email || "",
+                department: a.employee?.department?.name || "-",
+                position: a.employee?.position?.title || "-",
+                type: "LATENESS",
+                typeLabel: t("tabLateness") || "Kechikish",
+                typeBadge: "bg-amber-100 text-amber-900 border-amber-300",
+                reason: `Ishga ${a.lateMinutes || 0} daqiqa kechikish${a.checkIn ? ` (Kelgan vaqti: ${new Date(a.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ""}`,
+                amount: a.fineAmount || 0,
+                month: aMonth,
+                year: aYear,
+                monthKey: `${aYear}-${aMonth}`,
+                monthLabel: `${getMonthName(aMonth)} ${aYear}`,
+                raw: a,
+                isDisciplinary: false,
+            };
+        }),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const filteredArchiveItems = allArchiveItems.filter((item) => {
+        if (archiveMonthFilter !== "ALL" && item.monthKey !== archiveMonthFilter) {
+            return false;
+        }
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+            item.employeeName.toLowerCase().includes(q) ||
+            item.email.toLowerCase().includes(q) ||
+            item.reason.toLowerCase().includes(q) ||
+            item.typeLabel.toLowerCase().includes(q) ||
+            item.department.toLowerCase().includes(q) ||
+            item.monthLabel.toLowerCase().includes(q)
+        );
     });
 
     return (
@@ -424,7 +622,7 @@ export default function HRPenaltyManager() {
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50 p-4 border border-gray-200">
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold uppercase text-gray-500">{t("monthLabel")}</span>
                         <select
@@ -454,12 +652,35 @@ export default function HRPenaltyManager() {
                             ))}
                         </select>
                     </div>
+
+                    <div className="hidden lg:flex items-center gap-1.5 border-l border-gray-200 pl-4">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 mr-1">Tezkor oylar:</span>
+                        {last3MonthsList.map((item) => {
+                            const isSelected = selectedMonth === item.month && selectedYear === item.year;
+                            return (
+                                <button
+                                    key={item.key}
+                                    onClick={() => {
+                                        setSelectedMonth(item.month);
+                                        setSelectedYear(item.year);
+                                    }}
+                                    className={`px-2.5 py-1 text-[11px] font-bold uppercase transition-all rounded cursor-pointer border ${
+                                        isSelected
+                                            ? "bg-black text-white border-black"
+                                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                                    }`}
+                                >
+                                    {item.label}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <div className="w-full md:w-80">
                     <input
                         type="text"
-                        placeholder={t("searchEmployeeOrReason")}
+                        placeholder={t("searchEmployeeOrReason") || "Xodim ismi, sababi yoki turi bo'yicha qidirish..."}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full bg-white border border-gray-300 text-xs px-3 py-2 outline-none focus:border-black"
@@ -467,10 +688,10 @@ export default function HRPenaltyManager() {
                 </div>
             </div>
 
-            <div className="flex items-center border-b border-gray-200 gap-2">
+            <div className="flex items-center border-b border-gray-200 gap-2 overflow-x-auto">
                 <button
                     onClick={() => setActiveTab("overview")}
-                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 ${
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                         activeTab === "overview"
                             ? "border-black text-black bg-gray-50"
                             : "border-transparent text-gray-500 hover:text-black"
@@ -480,8 +701,19 @@ export default function HRPenaltyManager() {
                     <span>{t("tabOverview")} ({filteredSummaries.length})</span>
                 </button>
                 <button
+                    onClick={() => setActiveTab("all")}
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                        activeTab === "all"
+                            ? "border-black text-black bg-gray-50"
+                            : "border-transparent text-gray-500 hover:text-black"
+                    }`}
+                >
+                    <span>📋</span>
+                    <span>Barcha jarimalar ({filteredAllPenalties.length})</span>
+                </button>
+                <button
                     onClick={() => setActiveTab("lateness")}
-                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 ${
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                         activeTab === "lateness"
                             ? "border-black text-black bg-gray-50"
                             : "border-transparent text-gray-500 hover:text-black"
@@ -491,8 +723,19 @@ export default function HRPenaltyManager() {
                     <span>{t("tabLateness")} ({filteredLateAttendances.length})</span>
                 </button>
                 <button
+                    onClick={() => setActiveTab("absence")}
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                        activeTab === "absence"
+                            ? "border-black text-black bg-gray-50"
+                            : "border-transparent text-gray-500 hover:text-black"
+                    }`}
+                >
+                    <span>🚫</span>
+                    <span>Kelmaganliklar ({filteredAbsentRecords.length})</span>
+                </button>
+                <button
                     onClick={() => setActiveTab("disciplinary")}
-                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 ${
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                         activeTab === "disciplinary"
                             ? "border-black text-black bg-gray-50"
                             : "border-transparent text-gray-500 hover:text-black"
@@ -500,6 +743,17 @@ export default function HRPenaltyManager() {
                 >
                     <span>📝</span>
                     <span>{t("tabDisciplinary")} ({filteredDisciplinaryPenalties.length})</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab("archive")}
+                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                        activeTab === "archive"
+                            ? "border-black text-black bg-gray-50"
+                            : "border-transparent text-gray-500 hover:text-black"
+                    }`}
+                >
+                    <span>📁</span>
+                    <span>3 oylik arxiv ({filteredArchiveItems.length})</span>
                 </button>
             </div>
 
@@ -510,13 +764,13 @@ export default function HRPenaltyManager() {
             )}
 
             {loading ? (
-                <div className="p-12 text-center text-xs font-bold uppercase tracking-widest text-gray-400">
+                <div className="p-12 text-center text-xs font-bold uppercase tracking-widest text-gray-400 animate-pulse">
                     {t("loading")}
                 </div>
             ) : (
                 <>
                     {activeTab === "overview" && (
-                        <div className="border border-gray-200 bg-white">
+                        <div className="border border-gray-200 bg-white shadow-xs">
                             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
                                 <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
                                     {t("overviewTableTitle")} ({getMonthName(selectedMonth)} {selectedYear})
@@ -530,80 +784,270 @@ export default function HRPenaltyManager() {
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
-                                            <th className="py-3 px-4">{t("colEmployee")}</th>
-                                            <th className="py-3 px-4">{t("colDeptPos")}</th>
-                                            <th className="py-3 px-4 text-center">{t("colLateAuto")}</th>
-                                            <th className="py-3 px-4 text-center">{t("colAbsentAuto")}</th>
-                                            <th className="py-3 px-4 text-center">{t("colDisciplinaryManual")}</th>
-                                            <th className="py-3 px-4 text-right">{t("colTotalFineAmount")}</th>
+                                            <th className="py-3.5 px-4">{t("colEmployee")}</th>
+                                            <th className="py-3.5 px-4">{t("colDeptPos")}</th>
+                                            <th className="py-3.5 px-4 text-center">{t("colLateAuto")}</th>
+                                            <th className="py-3.5 px-4 text-center">{t("colAbsentAuto")}</th>
+                                            <th className="py-3.5 px-4 text-center">{t("colDisciplinaryManual")}</th>
+                                            <th className="py-3.5 px-4 text-right">{t("colTotalFineAmount")}</th>
+                                            <th className="py-3.5 px-4 text-center">Tafsilotlar</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 text-xs">
                                         {filteredSummaries.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-semibold">
+                                             <tr>
+                                                <td colSpan={7} className="py-8 text-center text-gray-400 font-semibold">
                                                     {t("noDataFound")}
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredSummaries.map((summary) => (
-                                                <tr key={summary.employeeId} className="hover:bg-gray-50 transition-colors">
+                                            filteredSummaries.map((summary) => {
+                                                const empPenaltiesList = getEmployeeAllPenalties(summary);
+                                                const isExpanded = !!expandedEmployees[summary.employeeId];
+
+                                                return (
+                                                    <tr key={summary.employeeId} className="group">
+                                                        <td colSpan={7} className="p-0">
+                                                            <div className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+                                                                <div className="grid grid-cols-7 w-full items-center">
+                                                                    <div className="col-span-1 font-bold text-black flex flex-col">
+                                                                        <span>{summary.name}</span>
+                                                                        {summary.email && (
+                                                                            <span className="text-[11px] text-gray-500 font-normal truncate">{summary.email}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="col-span-1 text-gray-500">
+                                                                        <div className="font-medium text-gray-700">{summary.department}</div>
+                                                                        <div className="text-[11px] text-gray-400">{summary.position}</div>
+                                                                    </div>
+                                                                    <div className="col-span-1 text-center">
+                                                                        {summary.lateCount > 0 ? (
+                                                                            <div className="inline-flex flex-col items-center">
+                                                                                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold rounded text-[11px]">
+                                                                                    {summary.lateCount} {t("unitTimes")} ({formatLateTime(summary.totalLateMinutes)})
+                                                                                </span>
+                                                                                <span className="text-[10px] text-rose-600 font-bold mt-0.5">
+                                                                                    -{Number(summary.totalLateFines || 0).toLocaleString()} UZS
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-gray-400 font-semibold">-</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="col-span-1 text-center">
+                                                                        {summary.absentDays > 0 ? (
+                                                                            <div className="inline-flex flex-col items-center">
+                                                                                <span className="px-2 py-0.5 bg-red-100 text-red-800 font-bold rounded text-[11px]">
+                                                                                    {summary.absentDays} {t("unitDays")}
+                                                                                </span>
+                                                                                <span className="text-[10px] text-rose-600 font-bold mt-0.5">
+                                                                                    -{Number(summary.absentFines || 0).toLocaleString()} UZS
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-gray-400 font-semibold">-</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="col-span-1 text-center">
+                                                                        {summary.disciplinaryCount > 0 ? (
+                                                                            <div className="inline-flex flex-col items-center">
+                                                                                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold rounded text-[11px]">
+                                                                                    {summary.disciplinaryCount} {t("unitItems")}
+                                                                                </span>
+                                                                                <span className="text-[10px] text-rose-600 font-bold mt-0.5">
+                                                                                    -{Number(summary.totalDisciplinaryFines || 0).toLocaleString()} UZS
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-gray-400 font-semibold">-</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="col-span-1 text-right font-black">
+                                                                        {summary.totalFines > 0 ? (
+                                                                            <span className="text-rose-600 text-sm">
+                                                                                -{Number(summary.totalFines || 0).toLocaleString()} UZS
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-emerald-600 font-bold">0 UZS</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="col-span-1 text-center">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => toggleEmployeeExpand(summary.employeeId)}
+                                                                            className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded border transition-colors cursor-pointer ${
+                                                                                isExpanded
+                                                                                    ? "bg-black text-white border-black"
+                                                                                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                                                                            }`}
+                                                                        >
+                                                                            {isExpanded ? "▲ Yopish" : `▼ ${empPenaltiesList.length} ta jarima`}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Expanded Itemized Penalty Details */}
+                                                            {isExpanded && (
+                                                                <div className="bg-gray-50/80 p-4 border-b border-gray-200 pl-8 pr-8">
+                                                                    <div className="bg-white border border-gray-200 shadow-xs p-4">
+                                                                        <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
+                                                                            <h4 className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-2">
+                                                                                <span>📋</span>
+                                                                                <span>{summary.name} {summary.email ? `(${summary.email})` : ""} — Jarimalar va ushlanmalar tafsilotlari</span>
+                                                                            </h4>
+                                                                            <span className="text-xs font-bold text-rose-600">
+                                                                                Jami: -{Number(summary.totalFines || 0).toLocaleString()} UZS
+                                                                            </span>
+                                                                        </div>
+
+                                                                        {empPenaltiesList.length === 0 ? (
+                                                                            <div className="py-6 text-center text-xs text-gray-400 font-medium">
+                                                                                Ushbu xodimda jarima yoki ushlanmalar yo'q.
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="overflow-x-auto">
+                                                                                <table className="w-full text-left border-collapse text-xs">
+                                                                                    <thead>
+                                                                                        <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                                                                                            <th className="py-2.5 px-3">Sana (Qachon)</th>
+                                                                                            <th className="py-2.5 px-3">Jarima turi</th>
+                                                                                            <th className="py-2.5 px-3">Sababi (Nima sababdan)</th>
+                                                                                            <th className="py-2.5 px-3 text-right">Summasi (Qancha)</th>
+                                                                                            <th className="py-2.5 px-3 text-center">{t("colAction")}</th>
+                                                                                        </tr>
+                                                                                    </thead>
+                                                                                    <tbody className="divide-y divide-gray-100">
+                                                                                        {empPenaltiesList.map((item, pIdx) => (
+                                                                                            <tr key={pIdx} className="hover:bg-gray-50 transition-colors">
+                                                                                                <td className="py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap">
+                                                                                                    <span className="font-bold text-black">
+                                                                                                        {item.date ? new Date(item.date).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US") : "-"}
+                                                                                                    </span>
+                                                                                                    {item.time && (
+                                                                                                        <span className="text-[10px] text-gray-400 ml-1.5 font-mono">
+                                                                                                            ({item.time})
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </td>
+                                                                                                <td className="py-2.5 px-3">
+                                                                                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded border uppercase tracking-wider ${item.typeBadge}`}>
+                                                                                                        {item.typeLabel}
+                                                                                                    </span>
+                                                                                                </td>
+                                                                                                <td className="py-2.5 px-3 text-gray-800 font-medium">
+                                                                                                    {item.reason}
+                                                                                                </td>
+                                                                                                <td className="py-2.5 px-3 text-right font-black text-rose-600 whitespace-nowrap">
+                                                                                                    -{Number(item.amount || 0).toLocaleString()} UZS
+                                                                                                </td>
+                                                                                                <td className="py-2.5 px-3 text-center">
+                                                                                                    {item.isDisciplinary ? (
+                                                                                                        <button
+                                                                                                            type="button"
+                                                                                                            onClick={() => handleDeletePenalty(item.id)}
+                                                                                                            className="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors cursor-pointer"
+                                                                                                        >
+                                                                                                            {t("btnDelete")}
+                                                                                                        </button>
+                                                                                                    ) : (
+                                                                                                        <span className="text-[10px] text-gray-400">Tizim (Auto)</span>
+                                                                                                    )}
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                        ))}
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "all" && (
+                        <div className="border border-gray-200 bg-white shadow-xs">
+                            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+                                <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                                    Barcha jarimalar va ushlanmalar ro'yxati ({filteredAllPenalties.length})
+                                </span>
+                                <span className="text-xs font-semibold text-gray-500">
+                                    {getMonthName(selectedMonth)} {selectedYear}
+                                </span>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                                            <th className="py-3 px-4">{t("colEmployee")}</th>
+                                            <th className="py-3 px-4">Sana (Qachon)</th>
+                                            <th className="py-3 px-4">Jarima turi</th>
+                                            <th className="py-3 px-4">Sababi (Nima sababdan)</th>
+                                            <th className="py-3 px-4 text-right">Summasi (Qancha)</th>
+                                            <th className="py-3 px-4 text-center">{t("colAction")}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {filteredAllPenalties.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-semibold">
+                                                    Bu oyda hech qanday jarima qayd etilmagan.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredAllPenalties.map((item, idx) => (
+                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                                     <td className="py-3 px-4 font-bold text-black">
-                                                        {summary.name}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-gray-500">
-                                                        <div>{summary.department}</div>
-                                                        <div className="text-[11px] text-gray-400">{summary.position}</div>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-center">
-                                                        {summary.lateCount > 0 ? (
-                                                            <div className="inline-flex flex-col items-center">
-                                                                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold rounded text-[11px]">
-                                                                    {summary.lateCount} {t("unitTimes")} ({formatLateTime(summary.totalLateMinutes)})
-                                                                </span>
-                                                                <span className="text-[10px] text-rose-600 font-bold mt-0.5">
-                                                                    -{Number(summary.totalLateFines || 0).toLocaleString()} UZS
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-gray-400 font-semibold">-</span>
+                                                        <div>{item.employeeName}</div>
+                                                        {item.email && (
+                                                            <div className="text-[11px] text-gray-500 font-normal truncate">{item.email}</div>
                                                         )}
+                                                        <div className="text-[11px] text-gray-400 font-normal">
+                                                            {item.department || "-"} • {item.position || "-"}
+                                                        </div>
                                                     </td>
-                                                    <td className="py-3 px-4 text-center">
-                                                        {summary.absentDays > 0 ? (
-                                                            <div className="inline-flex flex-col items-center">
-                                                                <span className="px-2 py-0.5 bg-red-100 text-red-800 font-bold rounded text-[11px]">
-                                                                    {summary.absentDays} {t("unitDays")}
-                                                                </span>
-                                                                <span className="text-[10px] text-rose-600 font-bold mt-0.5">
-                                                                    -{Number(summary.absentFines || 0).toLocaleString()} UZS
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-gray-400 font-semibold">-</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-center">
-                                                        {summary.disciplinaryCount > 0 ? (
-                                                            <div className="inline-flex flex-col items-center">
-                                                                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold rounded text-[11px]">
-                                                                    {summary.disciplinaryCount} {t("unitItems")}
-                                                                </span>
-                                                                <span className="text-[10px] text-rose-600 font-bold mt-0.5">
-                                                                    -{Number(summary.totalDisciplinaryFines || 0).toLocaleString()} UZS
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-gray-400 font-semibold">-</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right">
-                                                        {summary.totalFines > 0 ? (
-                                                            <span className="font-black text-rose-600">
-                                                                -{Number(summary.totalFines || 0).toLocaleString()} UZS
+                                                    <td className="py-3 px-4 text-gray-700 font-medium whitespace-nowrap">
+                                                        <span className="font-bold text-black">
+                                                            {item.date ? new Date(item.date).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US") : "-"}
+                                                        </span>
+                                                        {item.time && (
+                                                            <span className="text-[10px] text-gray-400 ml-1.5 font-mono">
+                                                                ({item.time})
                                                             </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded border uppercase tracking-wider ${item.typeBadge}`}>
+                                                            {item.typeLabel}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-gray-800 font-medium">
+                                                        {item.reason}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-right font-black text-rose-600 whitespace-nowrap">
+                                                        -{Number(item.amount || 0).toLocaleString()} UZS
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        {item.isDisciplinary ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDeletePenalty(item.id)}
+                                                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors cursor-pointer"
+                                                            >
+                                                                {t("btnDelete")}
+                                                            </button>
                                                         ) : (
-                                                            <span className="text-emerald-600 font-bold">0 UZS</span>
+                                                            <span className="text-[10px] text-gray-400">Tizim (Auto)</span>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -616,7 +1060,7 @@ export default function HRPenaltyManager() {
                     )}
 
                     {activeTab === "lateness" && (
-                        <div className="border border-gray-200 bg-white">
+                        <div className="border border-gray-200 bg-white shadow-xs">
                             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
                                 <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
                                     {t("latenessTableTitle")} ({filteredLateAttendances.length})
@@ -627,7 +1071,7 @@ export default function HRPenaltyManager() {
                             </div>
 
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
+                                <table className="w-full text-left border-collapse text-xs">
                                     <thead>
                                         <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
                                             <th className="py-3 px-4">{t("colEmployee")}</th>
@@ -637,7 +1081,7 @@ export default function HRPenaltyManager() {
                                             <th className="py-3 px-4 text-right">{t("colCalculatedFine")}</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100 text-xs">
+                                    <tbody className="divide-y divide-gray-100">
                                         {filteredLateAttendances.length === 0 ? (
                                             <tr>
                                                 <td colSpan={5} className="py-8 text-center text-gray-400 font-semibold">
@@ -649,6 +1093,11 @@ export default function HRPenaltyManager() {
                                                 <tr key={late.id} className="hover:bg-gray-50 transition-colors">
                                                     <td className="py-3 px-4 font-bold text-black">
                                                         <div>{`${late.employee?.firstName || ""} ${late.employee?.lastName || ""}`.trim() || "-"}</div>
+                                                        {(late.employee?.user?.email || late.employee?.email) && (
+                                                            <div className="text-[11px] text-gray-500 font-normal truncate">
+                                                                {late.employee?.user?.email || late.employee?.email}
+                                                            </div>
+                                                        )}
                                                         <div className="text-[11px] text-gray-400 font-normal">
                                                             {late.employee?.department?.name || "-"} • {late.employee?.position?.title || "-"}
                                                         </div>
@@ -676,8 +1125,70 @@ export default function HRPenaltyManager() {
                         </div>
                     )}
 
+                    {activeTab === "absence" && (
+                        <div className="border border-gray-200 bg-white shadow-xs">
+                            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+                                <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                                    Ishga kelmaganliklar ro'yxati ({filteredAbsentRecords.length})
+                                </span>
+                                <span className="text-xs font-semibold text-gray-500">
+                                    {getMonthName(selectedMonth)} {selectedYear}
+                                </span>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                                            <th className="py-3 px-4">{t("colEmployee")}</th>
+                                            <th className="py-3 px-4">Sana (Qachon)</th>
+                                            <th className="py-3 px-4">Sababi (Nima sababdan)</th>
+                                            <th className="py-3 px-4 text-right">Hisoblangan jarima</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {filteredAbsentRecords.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={4} className="py-8 text-center text-gray-400 font-semibold">
+                                                    Bu oyda ishga sababsiz kelmaganliklar qayd etilmagan.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredAbsentRecords.map((absent, idx) => (
+                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="py-3 px-4 font-bold text-black">
+                                                        <div>{`${absent.employee?.firstName || ""} ${absent.employee?.lastName || ""}`.trim() || "-"}</div>
+                                                        {(absent.employee?.user?.email || absent.employee?.email) && (
+                                                            <div className="text-[11px] text-gray-500 font-normal truncate">
+                                                                {absent.employee?.user?.email || absent.employee?.email}
+                                                            </div>
+                                                        )}
+                                                        <div className="text-[11px] text-gray-400 font-normal">
+                                                            {absent.employee?.department?.name || "-"} • {absent.employee?.position?.title || "-"}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-gray-700 font-medium">
+                                                        {absent.date ? new Date(absent.date).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US") : "-"}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-gray-800 font-medium">
+                                                        <span className="px-2 py-0.5 bg-red-100 text-red-800 font-bold rounded text-[11px]">
+                                                            {absent.reason || "Ishga sababsiz kelmaganlik"}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-right font-black text-rose-600">
+                                                        -{Number(absent.fineAmount || 0).toLocaleString()} UZS
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === "disciplinary" && (
-                        <div className="border border-gray-200 bg-white">
+                        <div className="border border-gray-200 bg-white shadow-xs">
                             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
                                 <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
                                     {t("disciplinaryTableTitle")} ({filteredDisciplinaryPenalties.length})
@@ -688,7 +1199,7 @@ export default function HRPenaltyManager() {
                             </div>
 
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
+                                <table className="w-full text-left border-collapse text-xs">
                                     <thead>
                                         <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
                                             <th className="py-3 px-4">{t("colEmployee")}</th>
@@ -699,7 +1210,7 @@ export default function HRPenaltyManager() {
                                             <th className="py-3 px-4 text-center">{t("colAction")}</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100 text-xs">
+                                    <tbody className="divide-y divide-gray-100">
                                         {filteredDisciplinaryPenalties.length === 0 ? (
                                             <tr>
                                                 <td colSpan={6} className="py-8 text-center text-gray-400 font-semibold">
@@ -711,6 +1222,11 @@ export default function HRPenaltyManager() {
                                                 <tr key={penalty.id} className="hover:bg-gray-50 transition-colors">
                                                     <td className="py-3 px-4 font-bold text-black">
                                                         <div>{`${penalty.employee?.firstName || ""} ${penalty.employee?.lastName || ""}`.trim() || "-"}</div>
+                                                        {(penalty.employee?.user?.email || penalty.employee?.email) && (
+                                                            <div className="text-[11px] text-gray-500 font-normal truncate">
+                                                                {penalty.employee?.user?.email || penalty.employee?.email}
+                                                            </div>
+                                                        )}
                                                         <div className="text-[11px] text-gray-400 font-normal">
                                                             {penalty.employee?.department?.name || "-"} • {penalty.employee?.position?.title || "-"}
                                                         </div>
@@ -732,7 +1248,7 @@ export default function HRPenaltyManager() {
                                                     <td className="py-3 px-4 text-center">
                                                         <button
                                                             onClick={() => handleDeletePenalty(penalty.id)}
-                                                            className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors"
+                                                            className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors cursor-pointer"
                                                         >
                                                             {t("btnDelete")}
                                                         </button>
@@ -742,6 +1258,145 @@ export default function HRPenaltyManager() {
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "archive" && (
+                        <div className="flex flex-col gap-6">
+                            <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                <div className="flex items-start gap-3">
+                                    <span className="text-xl">📌</span>
+                                    <div>
+                                        <h4 className="text-xs font-black uppercase text-blue-950 tracking-wide">
+                                            3 Oylik Jarimalar Arxivi va Saqlanish Siyosati
+                                        </h4>
+                                        <p className="text-xs text-blue-800 mt-1 leading-relaxed">
+                                            Jarimalar har oy yangi oy uchun alohida yangidan hisoblanadi. Oxirgi 3 oylik barcha jarimalar tarixi ushbu arxivda saqlanadi. Ma'lumotlar bazasini toza va tizimni tezkor saqlash maqsadida <strong>3 oydan (90 kundan) oshgan</strong> eski jarimalar avtomatik ravishda bazadan tozalanadi.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="shrink-0">
+                                    <span className="px-3 py-1.5 bg-blue-100 text-blue-900 border border-blue-300 text-[11px] font-bold uppercase rounded inline-flex items-center gap-1.5">
+                                        <span>🛡️</span>
+                                        <span>Avto-tozalash: 90 kun</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-between gap-3 bg-gray-50 p-3 border border-gray-200">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[11px] font-bold uppercase text-gray-500 mr-1">Oylar bo'yicha:</span>
+                                    <button
+                                        onClick={() => setArchiveMonthFilter("ALL")}
+                                        className={`px-3 py-1 text-xs font-bold uppercase rounded cursor-pointer border transition-colors ${
+                                            archiveMonthFilter === "ALL"
+                                                ? "bg-black text-white border-black"
+                                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                                        }`}
+                                    >
+                                        Barchasi ({allArchiveItems.length})
+                                    </button>
+                                    {last3MonthsList.map((m) => {
+                                        const count = allArchiveItems.filter((i) => i.monthKey === m.key).length;
+                                        return (
+                                            <button
+                                                key={m.key}
+                                                onClick={() => setArchiveMonthFilter(m.key)}
+                                                className={`px-3 py-1 text-xs font-bold uppercase rounded cursor-pointer border transition-colors ${
+                                                    archiveMonthFilter === m.key
+                                                        ? "bg-black text-white border-black"
+                                                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                                                }`}
+                                            >
+                                                {m.label} ({count})
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="text-xs font-semibold text-gray-500">
+                                    Jami: <strong className="text-black">{filteredArchiveItems.length} ta</strong> jarima (
+                                    <span className="text-rose-600 font-bold">
+                                        -{filteredArchiveItems.reduce((sum, i) => sum + (i.amount || 0), 0).toLocaleString()} UZS
+                                    </span>)
+                                </div>
+                            </div>
+
+                            <div className="border border-gray-200 bg-white shadow-xs">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                                                <th className="py-3.5 px-4">Oy va Sana</th>
+                                                <th className="py-3.5 px-4">{t("colEmployee")}</th>
+                                                <th className="py-3.5 px-4">Jarima turi</th>
+                                                <th className="py-3.5 px-4">Sababi (Nima sababdan)</th>
+                                                <th className="py-3.5 px-4 text-right">Summasi (Qancha)</th>
+                                                <th className="py-3.5 px-4 text-center">Holati</th>
+                                                <th className="py-3.5 px-4 text-center">{t("colAction")}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {filteredArchiveItems.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={7} className="py-12 text-center text-gray-400 font-semibold">
+                                                        Oxirgi 3 oylik arxivda jarimalar topilmadi.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                filteredArchiveItems.map((item) => (
+                                                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="py-3.5 px-4">
+                                                            <div className="font-bold text-gray-900">{item.monthLabel}</div>
+                                                            <div className="text-[11px] text-gray-500 font-mono">
+                                                                {item.date ? new Date(item.date).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US") : "-"}
+                                                                {item.time ? ` ${item.time}` : ""}
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3.5 px-4 font-bold text-black">
+                                                            <div>{item.employeeName}</div>
+                                                            {item.email && (
+                                                                <div className="text-[11px] text-gray-500 font-normal truncate">{item.email}</div>
+                                                            )}
+                                                            <div className="text-[11px] text-gray-400 font-normal">
+                                                                {item.department} • {item.position}
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3.5 px-4">
+                                                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${item.typeBadge}`}>
+                                                                {item.typeLabel}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-gray-700 font-medium">
+                                                            {item.reason}
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-right font-black text-rose-600">
+                                                            -{Number(item.amount || 0).toLocaleString()} UZS
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center">
+                                                            <span className="px-2 py-0.5 bg-gray-100 text-gray-700 font-bold uppercase text-[10px] rounded border border-gray-200">
+                                                                Arxivlangan
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3.5 px-4 text-center">
+                                                            {item.isDisciplinary && item.dbId ? (
+                                                                <button
+                                                                    onClick={() => handleDeletePenalty(item.dbId)}
+                                                                    className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors cursor-pointer"
+                                                                >
+                                                                    {t("btnDelete")}
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-gray-300 font-medium text-[11px]">-</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -780,7 +1435,7 @@ export default function HRPenaltyManager() {
                                     <option value="" disabled>{t("selectEmployeeOption")}</option>
                                     {employees.map((emp) => (
                                         <option key={emp.id} value={emp.id}>
-                                            {emp.name} ({emp.department} - {emp.position})
+                                            {emp.name} {emp.email ? `(${emp.email})` : ""} - {emp.department} ({emp.position})
                                         </option>
                                     ))}
                                 </select>

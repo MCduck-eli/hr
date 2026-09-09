@@ -357,16 +357,7 @@ export default function PayrollManager() {
         const baseSal = emp?.salary || 5000000;
         const targetPayroll = payrolls.find((p) => p.employeeId === empId && p.month === month && p.year === year);
         const isSalaryPaid = targetPayroll?.status === "PAID";
-        let cutoffDay = 1;
-        if (isSalaryPaid) {
-            if (targetPayroll?.disbursedAt) {
-                cutoffDay = new Date(targetPayroll.disbursedAt).getDate();
-            } else if (targetPayroll?.confirmedAt) {
-                cutoffDay = Math.min(new Date(targetPayroll.confirmedAt).getDate(), 5);
-            } else {
-                cutoffDay = 5;
-            }
-        }
+        const cutoffDay = 5;
 
         const startFromDay = isSalaryPaid && month === (new Date().getMonth() + 1) && year === new Date().getFullYear()
             ? cutoffDay + 1
@@ -377,7 +368,6 @@ export default function PayrollManager() {
         let passedWorkingDays = 0;
         const now = new Date();
         const isTargetCurrent = year === now.getFullYear() && month === (now.getMonth() + 1);
-        const isWorkDayEnded = now.getHours() >= 18;
 
         for (let d = 1; d <= daysInMonthCount; d++) {
             const checkDate = new Date(year, month - 1, d);
@@ -386,9 +376,7 @@ export default function PayrollManager() {
                 totalWorkingDays++;
                 if (d >= startFromDay) {
                     if (isTargetCurrent) {
-                        if (d < now.getDate()) {
-                            passedWorkingDays++;
-                        } else if (d === now.getDate() && isWorkDayEnded) {
+                        if (d <= now.getDate()) {
                             passedWorkingDays++;
                         }
                     } else if (year < now.getFullYear() || (year === now.getFullYear() && month < (now.getMonth() + 1))) {
@@ -403,12 +391,34 @@ export default function PayrollManager() {
         const empAdvances = advancesList.filter((a) => a.employeeId === empId && a.month === month && a.year === year && a.status !== "CANCELLED");
         const postBaselineAdvances = empAdvances.filter((a) => {
             if (!isSalaryPaid) return true;
+            if (a.status !== "PAID") return true;
             const aDate = new Date(a.paidDate || a.createdAt);
             return aDate.getDate() > cutoffDay;
         });
         const alreadyTakenAdvancesTotal = postBaselineAdvances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+
+        const empPenaltyObj = penaltySummaries[empId];
+        const postBaselineAbsences = (empPenaltyObj?.absentRecords || []).filter((ar: any) => {
+            if (!isSalaryPaid) return true;
+            const arDate = new Date(ar.date);
+            return arDate.getDate() > cutoffDay;
+        }).reduce((sum: number, ar: any) => sum + (ar.fineAmount || 0), 0);
+
+        const postBaselineDisciplinary = (empPenaltyObj?.disciplinaryPenalties || []).filter((dp: any) => {
+            if (!isSalaryPaid) return true;
+            const dpDate = new Date(dp.date || dp.createdAt);
+            return dpDate.getDate() > cutoffDay;
+        }).reduce((sum: number, dp: any) => sum + (dp.amount || 0), 0);
+
+        const postBaselineLates = (empPenaltyObj?.lateAttendances || []).filter((la: any) => {
+            if (!isSalaryPaid) return true;
+            const laDate = new Date(la.date);
+            return laDate.getDate() > cutoffDay;
+        }).reduce((sum: number, la: any) => sum + (la.fineAmount || 0), 0);
+
+        const postBaselinePenaltiesTotal = postBaselineAbsences + postBaselineDisciplinary + postBaselineLates;
         const grossEarnedSoFar = passedWorkingDays * dailyRate;
-        const availableEarnedSalary = Math.max(0, grossEarnedSoFar - alreadyTakenAdvancesTotal);
+        const availableEarnedSalary = Math.max(0, grossEarnedSoFar - alreadyTakenAdvancesTotal - postBaselinePenaltiesTotal);
 
         return {
             totalWorkingDays,
@@ -416,6 +426,7 @@ export default function PayrollManager() {
             dailyRate,
             grossEarnedSoFar,
             alreadyTakenAdvancesTotal,
+            postBaselinePenaltiesTotal,
             availableEarnedSalary,
         };
     };
@@ -1013,280 +1024,296 @@ export default function PayrollManager() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {payrolls.flatMap((p) => {
+                            {payrolls.map((p) => {
                                 const emp = p.employee || {};
                                 const empAdvances = advancesList.filter((a) => a.employeeId === emp.id);
+                                const empAwaitingAdvances = empAdvances.filter((a) => a.status === "AWAITING_CONFIRMATION" || a.status === "PENDING");
+                                const empPaidAdvances = empAdvances.filter((a) => a.status === "PAID");
+                                const totalPaidAdvances = empPaidAdvances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
 
-                                type DateGroup = {
-                                    dateKey: string;
-                                    advances: any[];
-                                    hasSalary: boolean;
-                                };
+                                const empPenaltyObj = penaltySummaries[emp.id];
+                                const empPenaltyTotal = empPenaltyObj?.totalFines || 0;
 
-                                const dateGroupsMap: Record<string, DateGroup> = {};
+                                const cutoffDay = 5;
 
-                                // 1. If salary is paid, record under its date
-                                if (p.status === "PAID") {
-                                    const sDate = p.confirmedAt
-                                        ? new Date(p.confirmedAt).toLocaleDateString()
-                                        : p.disbursedAt
-                                        ? new Date(p.disbursedAt).toLocaleDateString()
-                                        : p.updatedAt
-                                        ? new Date(p.updatedAt).toLocaleDateString()
-                                        : "default";
-                                    dateGroupsMap[sDate] = { dateKey: sDate, advances: [], hasSalary: true };
-                                }
-
-                                // 2. Map each advance to its date
-                                empAdvances.forEach((adv) => {
-                                    const advDate = adv.paidDate
-                                        ? new Date(adv.paidDate).toLocaleDateString()
-                                        : adv.updatedAt
-                                        ? new Date(adv.updatedAt).toLocaleDateString()
-                                        : adv.createdAt
-                                        ? new Date(adv.createdAt).toLocaleDateString()
-                                        : "default";
-                                    if (!dateGroupsMap[advDate]) {
-                                        dateGroupsMap[advDate] = { dateKey: advDate, advances: [adv], hasSalary: false };
-                                    } else {
-                                        dateGroupsMap[advDate].advances.push(adv);
-                                    }
+                                const postPaydayAdvances = empPaidAdvances.filter((a) => {
+                                    if (p.status !== "PAID") return true;
+                                    const aDate = new Date(a.paidDate || a.createdAt);
+                                    return aDate.getDate() > cutoffDay;
                                 });
+                                const postPaydayAdvancesTotal = postPaydayAdvances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
 
-                                let dateGroups = Object.values(dateGroupsMap);
-                                if (dateGroups.length === 0) {
-                                    dateGroups = [{ dateKey: "default", advances: [], hasSalary: p.status === "PAID" }];
-                                }
+                                const postPaydayAbsences = (empPenaltyObj?.absentRecords || []).filter((ar: any) => {
+                                    if (p.status !== "PAID") return true;
+                                    const arDate = new Date(ar.date);
+                                    return arDate.getDate() > cutoffDay;
+                                }).reduce((sum: number, ar: any) => sum + (ar.fineAmount || 0), 0);
+
+                                const postPaydayDisciplinary = (empPenaltyObj?.disciplinaryPenalties || []).filter((dp: any) => {
+                                    if (p.status !== "PAID") return true;
+                                    const dpDate = new Date(dp.date || dp.createdAt);
+                                    return dpDate.getDate() > cutoffDay;
+                                }).reduce((sum: number, dp: any) => sum + (dp.amount || 0), 0);
+
+                                const postPaydayLates = (empPenaltyObj?.lateAttendances || []).filter((la: any) => {
+                                    if (p.status !== "PAID") return true;
+                                    const laDate = new Date(la.date);
+                                    return laDate.getDate() > cutoffDay;
+                                }).reduce((sum: number, la: any) => sum + (la.fineAmount || 0), 0);
+
+                                const postPaydayPenaltyTotal = postPaydayAbsences + postPaydayDisciplinary + postPaydayLates;
+                                const postPaydayDeductions = postPaydayAdvancesTotal + postPaydayPenaltyTotal;
+
+                                const rowDeductions = p.status === "PAID"
+                                    ? (statusFilter === "PAID" ? p.deductions : postPaydayDeductions)
+                                    : (totalPaidAdvances + empPenaltyTotal);
+                                const rowNetSalary = p.status === "PAID"
+                                    ? p.netSalary
+                                    : Math.max(0, p.baseSalary + p.bonus - rowDeductions);
+
+                                const limitInfo = getEmployeeAvailableAdvanceLimit(emp.id, selectedMonth, selectedYear);
 
                                 const daysInMonthCount = new Date(selectedYear, selectedMonth, 0).getDate();
                                 let totalWorkingDaysInMonth = 0;
-                                let elapsedWorkingDaysInMonth = 0;
-                                const now = new Date();
-                                const isSelectedCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === (now.getMonth() + 1);
-                                const isWorkDayEnded = now.getHours() >= 18;
 
                                 for (let d = 1; d <= daysInMonthCount; d++) {
                                     const checkDate = new Date(selectedYear, selectedMonth - 1, d);
                                     const dow = checkDate.getDay();
                                     if (dow !== 0 && dow !== 6) {
                                         totalWorkingDaysInMonth++;
-                                        if (isSelectedCurrentMonth) {
-                                            if (d < now.getDate()) {
-                                                elapsedWorkingDaysInMonth++;
-                                            } else if (d === now.getDate() && isWorkDayEnded) {
-                                                elapsedWorkingDaysInMonth++;
-                                            }
-                                        } else if (selectedYear < now.getFullYear() || (selectedYear === now.getFullYear() && selectedMonth < (now.getMonth() + 1))) {
-                                            elapsedWorkingDaysInMonth++;
-                                        }
                                     }
                                 }
                                 if (totalWorkingDaysInMonth === 0) totalWorkingDaysInMonth = 22;
 
                                 const dailyRate = Math.round(p.baseSalary / totalWorkingDaysInMonth);
-                                const dailyAccruedBase = elapsedWorkingDaysInMonth * dailyRate;
-                                const dailyAccruedNet = Math.max(0, dailyAccruedBase + p.bonus - p.deductions);
 
-                                return dateGroups.map((group, gIdx) => {
-                                    const groupAwaiting = group.advances.filter((a) => a.status === "AWAITING_CONFIRMATION" || a.status === "PENDING");
-                                    const groupPaid = group.advances.filter((a) => a.status === "PAID");
-                                    const groupAdvTotal = groupPaid.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+                                const salaryPaidDate = p.confirmedAt
+                                    ? new Date(p.confirmedAt).toLocaleDateString()
+                                    : p.disbursedAt
+                                    ? new Date(p.disbursedAt).toLocaleDateString()
+                                    : p.updatedAt
+                                    ? new Date(p.updatedAt).toLocaleDateString()
+                                    : "";
 
-                                    const empPenaltyTotal = penaltySummaries[emp.id]?.totalFines || 0;
-                                    const rowDeductions = group.hasSalary
-                                        ? p.deductions
-                                        : (groupAdvTotal + empPenaltyTotal);
-                                    const rowNetSalary = group.hasSalary
-                                        ? p.netSalary
-                                        : Math.max(0, p.baseSalary + p.bonus - rowDeductions);
-
-                                    const limitInfo = getEmployeeAvailableAdvanceLimit(emp.id, selectedMonth, selectedYear);
-
-                                    return (
-                                        <tr key={`${p.id}-${group.dateKey}-${gIdx}`} className="hover:bg-gray-50 transition-colors">
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
-                                                        {emp.firstName ? emp.firstName[0] : "X"}
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                                            <span className="font-bold text-black">
-                                                                {emp.firstName} {emp.lastName}
-                                                            </span>
-                                                            {p.status === "PENDING" && (
-                                                                <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-rose-100 text-rose-950 border border-rose-300">
-                                                                    ⚠️ To'lanmagan
-                                                                </span>
-                                                            )}
-                                                            {p.status === "AWAITING_CONFIRMATION" && (
-                                                                <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-orange-100 text-orange-950 border border-orange-300 animate-pulse">
-                                                                    ⏳ Tasdiqlanmagan
-                                                                </span>
-                                                            )}
-                                                            {p.status === "PAID" && (
-                                                                <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-emerald-100 text-emerald-950 border border-emerald-300">
-                                                                    ✓ To'langan
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <span className="text-[10px] text-gray-400 block">
-                                                            {emp.user?.email || ""}
+                                return (
+                                    <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                                    {emp.firstName ? emp.firstName[0] : "X"}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="font-bold text-black">
+                                                            {emp.firstName} {emp.lastName}
                                                         </span>
+                                                        {p.status === "PENDING" && (
+                                                            <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-rose-100 text-rose-950 border border-rose-300">
+                                                                ⚠️ To'lanmagan
+                                                            </span>
+                                                        )}
+                                                        {p.status === "AWAITING_CONFIRMATION" && (
+                                                            <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-orange-100 text-orange-950 border border-orange-300 animate-pulse">
+                                                                ⏳ Tasdiqlanmagan
+                                                            </span>
+                                                        )}
+                                                        {p.status === "PAID" && (
+                                                            <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-emerald-100 text-emerald-950 border border-emerald-300">
+                                                                ✓ To'langan
+                                                            </span>
+                                                        )}
                                                     </div>
+                                                    <span className="text-[10px] text-gray-400 block">
+                                                        {emp.user?.email || ""}
+                                                    </span>
                                                 </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className="font-medium text-gray-700 block">
-                                                    {emp.department?.name || "-"}
-                                                </span>
-                                                <span className="text-[10px] text-gray-400">
-                                                    {emp.position?.title || "-"}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 font-bold text-gray-800">
-                                                <div>{formatMoney(p.baseSalary)}</div>
-                                                <div className="text-[10px] font-normal text-blue-700 font-mono mt-0.5" title={`${totalWorkingDaysInMonth} ish kuni hisobida`}>
-                                                    ~{formatMoney(dailyRate)} / kun
-                                                </div>
-                                            </td>
-                                            <td className="p-4 font-bold text-emerald-600">
-                                                +{formatMoney(p.bonus)}
-                                            </td>
-                                            <td className="p-4 font-bold text-rose-600">
-                                                <div>-{formatMoney(rowDeductions)}</div>
-                                                {empPenaltyTotal > 0 && !group.hasSalary && (
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="font-medium text-gray-700 block">
+                                                {emp.department?.name || "-"}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">
+                                                {emp.position?.title || "-"}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 font-bold text-gray-800">
+                                            <div>{formatMoney(p.baseSalary)}</div>
+                                            <div className="text-[10px] font-normal text-blue-700 font-mono mt-0.5" title={`${totalWorkingDaysInMonth} ish kuni hisobida`}>
+                                                ~{formatMoney(dailyRate)} / kun
+                                            </div>
+                                        </td>
+                                        <td className="p-4 font-bold text-emerald-600">
+                                            +{formatMoney(p.bonus)}
+                                        </td>
+                                        <td className="p-4 font-bold text-rose-600">
+                                            <div>-{formatMoney(rowDeductions)}</div>
+                                            {p.status === "PAID" ? (
+                                                statusFilter === "PAID" ? (
+                                                    <div className="text-[9px] font-normal text-gray-400 font-mono mt-0.5">
+                                                        To'langan oylikdan ushlangan
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-[9px] font-normal text-rose-600 font-mono mt-0.5">
+                                                        {rowDeductions > 0 ? (
+                                                            postPaydayPenaltyTotal > 0 && postPaydayAdvancesTotal > 0
+                                                                ? `Yangi davr: Avans -${formatMoney(postPaydayAdvancesTotal)} | Jarima -${formatMoney(postPaydayPenaltyTotal)}`
+                                                                : postPaydayPenaltyTotal > 0
+                                                                ? `Yangi davr: -${formatMoney(postPaydayPenaltyTotal)}`
+                                                                : `Yangi davr: -${formatMoney(postPaydayAdvancesTotal)}`
+                                                        ) : (
+                                                            `Jarima va avanslar to'langan (0 UZS)`
+                                                        )}
+                                                    </div>
+                                                )
+                                            ) : (
+                                                empPenaltyTotal > 0 && (
                                                     <div className="text-[9px] font-normal text-rose-500 font-mono mt-0.5" title="Avanslar va Jarimalar jamlangan">
-                                                        {groupAdvTotal > 0 ? `Avans: -${formatMoney(groupAdvTotal)} | Jarima: -${formatMoney(empPenaltyTotal)}` : `Jarima: -${formatMoney(empPenaltyTotal)}`}
+                                                        {totalPaidAdvances > 0 ? `Avans: -${formatMoney(totalPaidAdvances)} | Jarima: -${formatMoney(empPenaltyTotal)}` : `Jarima: -${formatMoney(empPenaltyTotal)}`}
                                                     </div>
-                                                )}
-                                            </td>
-                                            <td className="p-4 font-black text-black text-sm">
-                                                {p.status === "PAID" && group.hasSalary ? (
+                                                )
+                                            )}
+                                        </td>
+                                        <td className="p-4 font-black text-black text-sm">
+                                            {p.status === "PAID" ? (
+                                                statusFilter === "PAID" ? (
                                                     <div>
-                                                        <div className="text-gray-900 font-bold">{formatMoney(rowNetSalary)} <span className="text-[10px] text-gray-500 font-normal">(To'langan)</span></div>
+                                                        <div className="text-gray-900 font-bold flex items-center gap-1.5 flex-wrap">
+                                                            <span>{formatMoney(p.netSalary)}</span>
+                                                            <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-xs uppercase">✓ To'langan</span>
+                                                        </div>
                                                         <div className="text-[10px] font-semibold text-emerald-700 font-mono mt-0.5">
-                                                            Faol shot: {formatMoney(limitInfo.availableEarnedSalary)} {limitInfo.passedWorkingDays === 0 ? "(0 dan to'planmoqda)" : `(+${limitInfo.passedWorkingDays} ish kuni)`}
+                                                            {salaryPaidDate ? `${salaryPaidDate} da to'landi` : "To'liq to'langan"}
                                                         </div>
                                                     </div>
                                                 ) : (
                                                     <div>
-                                                        <div>{formatMoney(rowNetSalary)}</div>
-                                                        {p.status !== "PAID" && isSelectedCurrentMonth && (
-                                                            <div className="text-[10px] font-semibold text-emerald-700 font-mono mt-0.5" title={`Yakunlangan (${elapsedWorkingDaysInMonth} ish kuni)`}>
-                                                                To'plandi: {formatMoney(dailyAccruedNet)}
-                                                            </div>
-                                                        )}
+                                                        <div className="text-gray-900 font-bold flex items-center gap-1.5 flex-wrap">
+                                                            <span>{formatMoney(limitInfo.grossEarnedSoFar)}</span>
+                                                            <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-xs uppercase">✓ To'langan</span>
+                                                        </div>
+                                                        <div className="text-[10px] font-semibold text-emerald-700 font-mono mt-0.5">
+                                                            {limitInfo.passedWorkingDays === 0
+                                                                ? "0 dan to'planmoqda"
+                                                                : `+${limitInfo.passedWorkingDays} ish kuni to'plandi`}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            ) : (
+                                                <div>
+                                                    <div className="text-gray-900 font-black">{formatMoney(rowNetSalary)}</div>
+                                                    <div className="text-[10px] font-semibold text-amber-700 font-mono mt-0.5">
+                                                        To'lanishi kutilayotgan sof oylik
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex flex-col items-start gap-1.5">
+                                                {/* Salary Status */}
+                                                {p.status === "PAID" && (
+                                                    <div className="flex flex-col items-start gap-0.5">
+                                                        <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-emerald-50 text-emerald-800 border-emerald-300">
+                                                            ✓ To'langan va Tasdiqlangan
+                                                        </span>
+                                                        <span className="text-[10px] font-mono text-gray-500">
+                                                            {salaryPaidDate} • {formatMoney(p.netSalary)}
+                                                        </span>
                                                     </div>
                                                 )}
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex flex-col items-start gap-1.5">
-                                                    {/* Salary Status */}
-                                                    {group.hasSalary && (
-                                                        <div className="flex flex-col items-start gap-0.5">
-                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-emerald-50 text-emerald-800 border-emerald-300">
-                                                                ✓ To'langan va Tasdiqlangan
-                                                            </span>
-                                                            <span className="text-[10px] font-mono text-gray-500">
-                                                                {group.dateKey !== "default" ? group.dateKey : ""} • {formatMoney(p.netSalary)}
-                                                            </span>
-                                                        </div>
-                                                    )}
 
-                                                    {p.status === "PENDING" && gIdx === 0 && (
-                                                        <div className="flex flex-col items-start gap-0.5">
-                                                            <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-rose-50 text-rose-950 border-rose-300 block">
-                                                                ⚠️ Oylik to'lanmagan
-                                                            </span>
-                                                            <span className="text-[10px] font-mono text-gray-500">
-                                                                Kutilayotgan: {formatMoney(rowNetSalary)}
-                                                            </span>
-                                                        </div>
-                                                    )}
-
-                                                    {p.status === "AWAITING_CONFIRMATION" && gIdx === 0 && (
-                                                        <div className="flex flex-col items-start gap-0.5">
-                                                            <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-orange-100 text-orange-950 border-orange-400 animate-pulse block">
-                                                                ⏳ TASDIQLANMAGAN (Xodim tasdiqlashi kutilmoqda)
-                                                            </span>
-                                                            <span className="text-[10px] font-mono text-gray-500">
-                                                                {formatMoney(rowNetSalary)}
-                                                            </span>
-                                                        </div>
-                                                    )}
-
-                                                    {p.status === "CANCELLED" && gIdx === 0 && (
-                                                        <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-rose-50 text-rose-800 border-rose-300">
-                                                            {t("statusCancelled")}
+                                                {p.status === "PENDING" && (
+                                                    <div className="flex flex-col items-start gap-0.5">
+                                                        <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-rose-50 text-rose-950 border-rose-300 block">
+                                                            ⚠️ Oylik to'lanmagan
                                                         </span>
-                                                    )}
+                                                        <span className="text-[10px] font-mono text-gray-500">
+                                                            Kutilayotgan: {formatMoney(rowNetSalary)}
+                                                        </span>
+                                                    </div>
+                                                )}
 
-                                                    {/* Awaiting Advances */}
-                                                    {groupAwaiting.map((adv) => (
-                                                        <div key={adv.id} className="flex flex-col items-start gap-0.5">
-                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-amber-100 text-amber-950 border-amber-400 animate-pulse">
-                                                                ⏳ TASDIQLANMAGAN ({adv.isEarly ? "Muddatidan oldin avans" : "Avans"})
-                                                            </span>
-                                                            <span className="text-[10px] font-mono text-gray-500">
-                                                                {formatMoney(adv.amount)}
-                                                            </span>
-                                                        </div>
-                                                    ))}
+                                                {p.status === "AWAITING_CONFIRMATION" && (
+                                                    <div className="flex flex-col items-start gap-0.5">
+                                                        <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-orange-100 text-orange-950 border-orange-400 animate-pulse block">
+                                                            ⏳ TASDIQLANMAGAN (Xodim tasdiqlashi kutilmoqda)
+                                                        </span>
+                                                        <span className="text-[10px] font-mono text-gray-500">
+                                                            {formatMoney(rowNetSalary)}
+                                                        </span>
+                                                    </div>
+                                                )}
 
-                                                    {/* Paid Advances */}
-                                                    {groupPaid.map((adv) => (
-                                                        <div key={adv.id} className="flex flex-col items-start gap-0.5">
-                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-emerald-50 text-emerald-800 border-emerald-300">
-                                                                {adv.isEarly ? "⚡ Muddatidan oldin avans to'landi" : "✓ Avans to'landi"}
-                                                            </span>
-                                                            <span className="text-[10px] font-mono text-gray-500">
-                                                                {adv.paidDate ? new Date(adv.paidDate).toLocaleDateString() : (adv.updatedAt ? new Date(adv.updatedAt).toLocaleDateString() : "")} • {formatMoney(adv.amount)}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {groupAwaiting.map((adv) => (
-                                                        <button
-                                                            key={adv.id}
-                                                            type="button"
-                                                            onClick={() => setIsAdvancesListModalOpen(true)}
-                                                            className="px-2 py-1 bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-bold uppercase hover:bg-amber-100 transition-colors animate-pulse cursor-pointer"
-                                                            title="Xodim tasdiqlashi kutilmoqda"
-                                                        >
-                                                            ⏳ Tasdiq ({formatMoney(adv.amount)})
-                                                        </button>
-                                                    ))}
+                                                {p.status === "CANCELLED" && (
+                                                    <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-rose-50 text-rose-800 border-rose-300">
+                                                        {t("statusCancelled")}
+                                                    </span>
+                                                )}
+
+                                                {/* Paid Advances */}
+                                                {empPaidAdvances.map((adv) => (
+                                                    <div key={adv.id} className="flex flex-col items-start gap-0.5">
+                                                        <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-emerald-50 text-emerald-800 border-emerald-300">
+                                                            {adv.isEarly ? "⚡ Muddatidan oldin avans to'landi" : "✓ Avans to'landi"}
+                                                        </span>
+                                                        <span className="text-[10px] font-mono text-gray-500">
+                                                            {adv.paidDate ? new Date(adv.paidDate).toLocaleDateString() : (adv.updatedAt ? new Date(adv.updatedAt).toLocaleDateString() : "")} • {formatMoney(adv.amount)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+
+                                                {/* Awaiting Advances */}
+                                                {empAwaitingAdvances.map((adv) => (
+                                                    <div key={adv.id} className="flex flex-col items-start gap-0.5">
+                                                        <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-amber-100 text-amber-950 border-amber-400 animate-pulse">
+                                                            ⏳ TASDIQLANMAGAN ({adv.isEarly ? "Muddatidan oldin avans" : "Avans"})
+                                                        </span>
+                                                        <span className="text-[10px] font-mono text-gray-500">
+                                                            {formatMoney(adv.amount)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {empAwaitingAdvances.map((adv) => (
                                                     <button
-                                                        onClick={() => handleOpenAddAdvance(emp.id)}
-                                                        className="px-2 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold uppercase hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-200 cursor-pointer"
-                                                        title={t("addAdvanceBtn")}
+                                                        key={adv.id}
+                                                        type="button"
+                                                        onClick={() => setIsAdvancesListModalOpen(true)}
+                                                        className="px-2 py-1 bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-bold uppercase hover:bg-amber-100 transition-colors animate-pulse cursor-pointer"
+                                                        title="Xodim tasdiqlashi kutilmoqda"
                                                     >
-                                                        + 💳 {t("advanceBtn")}
+                                                        ⏳ Tasdiq ({formatMoney(adv.amount)})
                                                     </button>
+                                                ))}
+                                                <button
+                                                    onClick={() => handleOpenAddAdvance(emp.id)}
+                                                    className="px-2 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold uppercase hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-200 cursor-pointer"
+                                                    title={t("addAdvanceBtn")}
+                                                >
+                                                    + 💳 {t("advanceBtn")}
+                                                </button>
+                                                <button
+                                                    onClick={() => setSelectedPayslip(p)}
+                                                    className="px-2.5 py-1 bg-gray-100 text-black text-[11px] font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors border border-gray-300 cursor-pointer"
+                                                >
+                                                    🧾 {t("viewPayslip")}
+                                                </button>
+                                                {(currentUserRole === "DIRECTOR" || currentUserRole === "SUPER_ADMIN") && (
                                                     <button
-                                                        onClick={() => setSelectedPayslip(p)}
-                                                        className="px-2.5 py-1 bg-gray-100 text-black text-[11px] font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors border border-gray-300 cursor-pointer"
+                                                        onClick={() => handleDeletePayroll(p.id)}
+                                                        className="px-2 py-1 text-gray-400 hover:text-rose-600 text-xs font-bold transition-colors cursor-pointer"
+                                                        title={t("delete")}
                                                     >
-                                                        🧾 {t("viewPayslip")}
+                                                        ✕
                                                     </button>
-                                                    {(currentUserRole === "DIRECTOR" || currentUserRole === "SUPER_ADMIN") && (
-                                                        <button
-                                                            onClick={() => handleDeletePayroll(p.id)}
-                                                            className="px-2 py-1 text-gray-400 hover:text-rose-600 text-xs font-bold transition-colors cursor-pointer"
-                                                            title={t("delete")}
-                                                        >
-                                                            ✕
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                });
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
                             })}
                         </tbody>
                     </table>

@@ -328,6 +328,7 @@ export class PayrollService {
                             lastName: true,
                             department: { select: { name: true } },
                             position: { select: { title: true } },
+                            user: { select: { email: true } },
                         },
                     },
                     rule: true,
@@ -350,6 +351,7 @@ export class PayrollService {
                             lastName: true,
                             department: { select: { name: true } },
                             position: { select: { title: true } },
+                            user: { select: { email: true } },
                         },
                     },
                 },
@@ -430,7 +432,25 @@ export class PayrollService {
                 };
             });
 
+        // Auto-cleanup disciplinary penalties older than 3 months to keep the database lean
+        try {
+            const cutoffDate = new Date();
+            cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+            cutoffDate.setHours(0, 0, 0, 0);
+
+            await prisma.employeePenalty.deleteMany({
+                where: {
+                    createdAt: { lt: cutoffDate },
+                    ...(companyFilter ? { companyName: companyFilter } : {}),
+                },
+            });
+        } catch (cleanupErr) {
+            console.warn("Auto-cleanup old penalties error:", cleanupErr);
+        }
+
         const employeeSummaries = employees.map((emp) => {
+            let attendedDays = 0;
+            let absentDays = 0;
             const baseSalary = emp.salary && emp.salary > 0 ? emp.salary : 5000000;
 
             const empSchedule =
@@ -463,8 +483,14 @@ export class PayrollService {
             const empAttendances = attendances.filter((a) => a.employeeId === emp.id);
             const empLeaves = approvedLeaves.filter((l) => l.employeeId === emp.id);
 
-            let attendedDays = 0;
-            let absentDays = 0;
+            const empAbsentRecords: {
+                id: string;
+                employeeId: string;
+                employee: any;
+                date: string;
+                reason: string;
+                fineAmount: number;
+            }[] = [];
 
             if (!isFutureMonth && evalStartDate <= evalEndDate) {
                 const curDay = new Date(evalStartDate);
@@ -490,20 +516,40 @@ export class PayrollService {
                         } else if (onLeave || att?.absenceReason || att?.status === "ON_LEAVE") {
                         } else if (!isToday) {
                             absentDays++;
+                            let singleDayFine = 0;
+                            if (absenceRule) {
+                                if (absenceRule.penaltyType === "PERCENT") {
+                                    singleDayFine = Math.round((baseSalary / workingDaysInMonth) * (absenceRule.amount / 100));
+                                } else {
+                                    singleDayFine = Math.round(absenceRule.amount);
+                                }
+                            } else {
+                                singleDayFine = Math.round(baseSalary / workingDaysInMonth);
+                            }
+
+                            empAbsentRecords.push({
+                                id: `absent-${emp.id}-${curDayStr}`,
+                                employeeId: emp.id,
+                                employee: {
+                                    id: emp.id,
+                                    firstName: emp.firstName,
+                                    lastName: emp.lastName,
+                                    department: emp.department,
+                                    position: emp.position,
+                                    email: emp.user?.email || "",
+                                    user: { email: emp.user?.email || "" },
+                                },
+                                date: curDayStr,
+                                reason: "Ishga sababsiz kelmaganlik",
+                                fineAmount: singleDayFine,
+                            });
                         }
                     }
                     curDay.setDate(curDay.getDate() + 1);
                 }
             }
 
-            let absentFines = 0;
-            if (absentDays > 0 && absenceRule) {
-                if (absenceRule.penaltyType === "PERCENT") {
-                    absentFines = Math.round((baseSalary / workingDaysInMonth) * absentDays * (absenceRule.amount / 100));
-                } else {
-                    absentFines = Math.round(absentDays * absenceRule.amount);
-                }
-            }
+            const absentFines = empAbsentRecords.reduce((sum, r) => sum + r.fineAmount, 0);
 
             const empLates = lateAttendances.filter((l) => l.employeeId === emp.id);
             const totalLateMinutes = empLates.reduce((sum, l) => sum + (l.lateMinutes || 0), 0);
@@ -517,11 +563,13 @@ export class PayrollService {
                 firstName: emp.firstName,
                 lastName: emp.lastName,
                 name: `${emp.firstName} ${emp.lastName}`.trim(),
+                email: emp.user?.email || "",
                 department: emp.department?.name || "-",
                 position: emp.position?.title || "-",
                 attendedDays,
                 absentDays,
                 absentFines,
+                absentRecords: empAbsentRecords,
                 lateCount: empLates.length,
                 totalLateMinutes,
                 totalLateFines,
@@ -533,19 +581,90 @@ export class PayrollService {
             };
         });
 
+        const allAbsentRecords = employeeSummaries.flatMap((e) => e.absentRecords || []);
         const totalLateFines = lateAttendances.reduce((sum, l) => sum + (l.fineAmount || 0), 0);
         const totalDisciplinaryFines = employeePenalties.reduce((sum, p) => sum + (p.amount || 0), 0);
         const totalLateMinutes = lateAttendances.reduce((sum, l) => sum + (l.lateMinutes || 0), 0);
         const totalAbsentDays = employeeSummaries.reduce((sum, e) => sum + e.absentDays, 0);
         const totalAbsentFines = employeeSummaries.reduce((sum, e) => sum + e.absentFines, 0);
 
+        // Fetch 3-month archive history (past 3 months of disciplinary penalties & lates)
+        const archiveStart = new Date(targetYear, targetMonth - 3, 1, 0, 0, 0, 0);
+        const archiveEnd = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+
+        const [threeMonthPenalties, threeMonthAttendances] = await Promise.all([
+            prisma.employeePenalty.findMany({
+                where: {
+                    createdAt: { gte: archiveStart, lte: archiveEnd },
+                    ...(companyFilter ? { employee: { user: { companyName: companyFilter } } } : {}),
+                },
+                include: {
+                    employee: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            department: { select: { name: true } },
+                            position: { select: { title: true } },
+                            user: { select: { email: true } },
+                        },
+                    },
+                    rule: true,
+                },
+                orderBy: { date: "desc" },
+            }),
+            prisma.attendance.findMany({
+                where: {
+                    date: { gte: archiveStart, lte: archiveEnd },
+                    lateMinutes: { gt: 0 },
+                    ...(companyFilter ? { employee: { user: { companyName: companyFilter } } } : {}),
+                },
+                include: {
+                    employee: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            department: { select: { name: true } },
+                            position: { select: { title: true } },
+                            user: { select: { email: true } },
+                        },
+                    },
+                },
+                orderBy: { date: "desc" },
+            }),
+        ]);
+
         return {
             month: targetMonth,
             year: targetYear,
             lateAttendances,
+            absentRecords: allAbsentRecords,
             disciplinaryPenalties: employeePenalties,
             employeeSummaries,
             penaltyRules,
+            archive: {
+                threeMonthPenalties,
+                threeMonthAttendances: threeMonthAttendances.map((a) => {
+                    let fine = 0;
+                    if (lateFixedRule) {
+                        fine = lateFixedRule.amount;
+                    } else if (lateMinuteRule) {
+                        fine = (a.lateMinutes || 0) * lateMinuteRule.amount;
+                    } else {
+                        fine = Math.max(10000, (a.lateMinutes || 0) * 2000);
+                    }
+                    return {
+                        id: a.id,
+                        employeeId: a.employeeId,
+                        employee: a.employee,
+                        date: a.date,
+                        checkIn: a.checkIn,
+                        lateMinutes: a.lateMinutes,
+                        fineAmount: fine,
+                    };
+                }),
+            },
             stats: {
                 totalLateCount: lateAttendances.length,
                 totalLateMinutes,
@@ -2045,28 +2164,7 @@ export class PayrollService {
                         : []),
                 ];
             } else if (query.status === PayrollStatus.PAID) {
-                const advanceWhere: any = {
-                    status: PayrollStatus.PAID,
-                };
-                if (query.month) advanceWhere.month = Number(query.month);
-                if (query.year) advanceWhere.year = Number(query.year);
-                if (companyFilter) {
-                    advanceWhere.employee = { user: { companyName: companyFilter } };
-                }
-
-                const paidAdvanceEmployeeIds = (
-                    await prisma.payrollAdvance.findMany({
-                        where: advanceWhere,
-                        select: { employeeId: true },
-                    })
-                ).map((a) => a.employeeId);
-
-                where.OR = [
-                    { status: PayrollStatus.PAID },
-                    ...(paidAdvanceEmployeeIds.length > 0
-                        ? [{ employeeId: { in: paidAdvanceEmployeeIds } }]
-                        : []),
-                ];
+                where.status = PayrollStatus.PAID;
             } else {
                 where.status = query.status;
             }
@@ -2649,7 +2747,7 @@ export class PayrollService {
                 title: "Oylik maosh to'lovi muddati",
                 message: `${currentMonth}-oy uchun ${pendingPayrolls.length} nafar xodimga oylik maosh to'lash vaqti keldi.`,
                 type: "PAYROLL_DUE_REMINDER" as any,
-                targetRoles: ["ACCOUNTANT", "HR_ADMIN", "DIRECTOR"],
+                targetRoles: ["ACCOUNTANT"],
                 companyName: companyFilter || undefined,
             });
         }
@@ -2659,7 +2757,7 @@ export class PayrollService {
                 title: "Avans to'lovi muddati",
                 message: `${currentMonth}-oy uchun ${pendingAdvances.length} nafar xodimga avans to'lash vaqti keldi.`,
                 type: "ADVANCE_DUE_REMINDER" as any,
-                targetRoles: ["ACCOUNTANT", "HR_ADMIN", "DIRECTOR"],
+                targetRoles: ["ACCOUNTANT"],
                 companyName: companyFilter || undefined,
             });
         }
