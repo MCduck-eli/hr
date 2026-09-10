@@ -49,6 +49,13 @@ export default function HRAdminDashboard() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Link
+                        href={`/${locale}/profile`}
+                        className="px-4 py-2.5 bg-blue-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-blue-800 transition-colors flex items-center gap-2 shadow-xs"
+                    >
+                        <span>👤</span>
+                        <span>Mening Profilim</span>
+                    </Link>
                     <button
                         onClick={() => setIsEjmModalOpen(true)}
                         className="px-4 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center gap-2 shadow-xs"
@@ -61,6 +68,25 @@ export default function HRAdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
+                <Link href={`/${locale}/profile`}>
+                    <div className="bg-gradient-to-br from-blue-50/50 to-white p-8 border-2 border-blue-400 hover:border-blue-700 transition-all cursor-pointer flex flex-col gap-4 h-full group shadow-xs">
+                        <div className="w-10 h-10 bg-blue-100 text-blue-700 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">👤</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">
+                                Shaxsiy Kabinet
+                            </span>
+                            <h2 className="text-sm font-black uppercase tracking-wider text-black group-hover:text-blue-800">
+                                Mening Profilim
+                            </h2>
+                            <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">
+                                Ishga keldi-ketdi (check-in), o'z oyligim, 360 baholash va xodim kabineti
+                            </p>
+                        </div>
+                    </div>
+                </Link>
+
                 <Link href={`/${locale}/hr/employees`}>
                     <div className="bg-white p-8 border border-gray-200 hover:border-black transition-colors cursor-pointer flex flex-col gap-4 h-full">
                         <div className="w-10 h-10 bg-gray-100 flex items-center justify-center rounded-sm">

@@ -136,10 +136,28 @@ payrollRouter.post(
     payrollController.createEmployeePenalty,
 );
 
+payrollRouter.put(
+    "/employee-penalties/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.updateEmployeePenalty,
+);
+
 payrollRouter.delete(
     "/employee-penalties/:id",
     authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
     payrollController.deleteEmployeePenalty,
+);
+
+payrollRouter.post(
+    "/waive-penalty",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.waivePenalty,
+);
+
+payrollRouter.post(
+    "/edit-penalty",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.editPenalty,
 );
 
 payrollRouter.post(
@@ -159,6 +177,12 @@ payrollRouter.post(
     authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
     validate(createPayrollSchema),
     payrollController.create,
+);
+
+payrollRouter.get(
+    "/company-expenses",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.getCompanyExpensesAnalytics,
 );
 
 payrollRouter.get(

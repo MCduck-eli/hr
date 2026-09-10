@@ -207,6 +207,42 @@ export class PayrollController {
         }
     }
 
+    async updateEmployeePenalty(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.updateEmployeePenalty(req.params.id, req.body, (req as any).user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async waivePenalty(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.waivePenalty(req.body, (req as any).user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async editPenalty(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.editPenalty(req.body, (req as any).user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async getSchedule(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await payrollService.getPayrollSchedule((req as any).user);
@@ -369,6 +405,21 @@ export class PayrollController {
     async checkDueReminders(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await payrollService.checkAndNotifyDuePayments((req as any).user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getCompanyExpensesAnalytics(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.getCompanyExpensesAnalytics(
+                req.query as any,
+                (req as any).user,
+            );
             res.status(200).json({
                 status: "success",
                 data: result,

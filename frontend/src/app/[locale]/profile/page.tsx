@@ -17,6 +17,7 @@ export default function EmployeeProfilePage() {
     const t = useTranslations("DashboardProfile");
     const router = useRouter();
     const params = useParams();
+    const locale = (params?.locale as string) || "uz";
 
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [dashboardData, setDashboardData] = useState<any>(null);
@@ -216,8 +217,12 @@ export default function EmployeeProfilePage() {
         roleData === "SUPER_ADMIN" ||
         currentUser?.role === "SUPER_ADMIN" ||
         currentUser?.customRole?.baseRole === "DIRECTOR";
+    const isHrAdmin =
+        roleData === "HR_ADMIN" ||
+        currentUser?.role === "HR_ADMIN" ||
+        currentUser?.customRole?.baseRole === "HR_ADMIN";
     const canManagePayroll = isAccountant || isDirector;
-    const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData === "ACCOUNTANT" ? "Bugalter / Hisobchi" : roleData;
+    const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData === "ACCOUNTANT" ? "Bugalter / Hisobchi" : roleData === "HR_ADMIN" ? "HR Admin" : roleData;
 
     const grade = dashboardData?.grade || dashboardData?.user?.employee?.grade || null;
     const positionTitle = dashboardData?.position || dashboardData?.user?.employee?.position || null;
@@ -408,6 +413,28 @@ export default function EmployeeProfilePage() {
                                 className="px-4 py-2 bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-900 transition-colors shrink-0 rounded-sm shadow-xs"
                             >
                                 Moliya & Oyliklarni Boshqarish &rarr;
+                            </button>
+                        </div>
+                    )}
+
+                    {isHrAdmin && (
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">🛡️</span>
+                                <div>
+                                    <div className="text-xs font-black uppercase tracking-wider text-blue-950">
+                                        HR Admin Boshqaruv Paneli
+                                    </div>
+                                    <div className="text-[11px] font-semibold text-blue-800">
+                                        Kompaniya xodimlari, rekruting, onboarding, lavozimlar va tizim sozlamalarini boshqarish uchun HR paneliga o'ting.
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => router.push(`/${locale}/hr/dashboard`)}
+                                className="px-4 py-2 bg-blue-800 text-white text-xs font-bold uppercase tracking-wider hover:bg-blue-900 transition-colors shrink-0 rounded-sm shadow-xs"
+                            >
+                                HR Dashboard &rarr;
                             </button>
                         </div>
                     )}

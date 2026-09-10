@@ -241,6 +241,28 @@ export const createEmployeePenalty = async (payload: {
     return json.data;
 };
 
+export const updateEmployeePenalty = async (
+    id: string,
+    payload: {
+        reason?: string;
+        amount?: number;
+        ruleId?: string;
+        date?: string;
+    },
+) => {
+    const res = await fetch(`${API_URL}/payroll/employee-penalties/${id}`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to update employee penalty");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
 export const deleteEmployeePenalty = async (id: string) => {
     const res = await fetch(`${API_URL}/payroll/employee-penalties/${id}`, {
         method: "DELETE",
@@ -253,6 +275,50 @@ export const deleteEmployeePenalty = async (id: string) => {
     const json = await res.json();
     return json.data;
 };
+
+export const waivePenalty = async (payload: {
+    type: "ABSENCE" | "LATENESS" | "DISCIPLINARY";
+    id?: string;
+    employeeId: string;
+    date: string;
+    reason?: string;
+}) => {
+    const res = await fetch(`${API_URL}/payroll/waive-penalty`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to waive penalty");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const editPenalty = async (payload: {
+    type: "ABSENCE" | "LATENESS" | "DISCIPLINARY";
+    id?: string;
+    employeeId: string;
+    date: string;
+    amount: number;
+    reason?: string;
+    month?: number;
+    year?: number;
+}) => {
+    const res = await fetch(`${API_URL}/payroll/edit-penalty`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to edit penalty");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
 export const fetchPenaltiesSummary = async (params?: {
     month?: number;
     year?: number;
@@ -497,6 +563,23 @@ export const clearAllPaymentRecords = async () => {
     if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to clear all payment records");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const fetchCompanyExpensesAnalytics = async (params?: {
+    year?: number;
+}) => {
+    const query = new URLSearchParams();
+    if (params?.year) query.set("year", params.year.toString());
+
+    const res = await fetch(`${API_URL}/payroll/company-expenses?${query.toString()}`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch company expenses analytics");
     }
     const json = await res.json();
     return json.data;

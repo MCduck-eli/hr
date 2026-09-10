@@ -24,10 +24,12 @@ import {
 } from "@/src/services/payroll-service";
 import { fetchAllUsers } from "@/src/services/user-service";
 import PayslipModal from "./PayslipModal";
+import CompanyExpensesAnalytics from "./CompanyExpensesAnalytics";
 
 export default function PayrollManager() {
     const t = useTranslations("Payroll");
     const currentDate = new Date();
+    const [activeViewMode, setActiveViewMode] = useState<"operations" | "expenses">("operations");
     const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
     const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -57,7 +59,13 @@ export default function PayrollManager() {
 
     const [dueReminders, setDueReminders] = useState<any | null>(null);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-    const [scheduleForm, setScheduleForm] = useState({
+    const [scheduleForm, setScheduleForm] = useState<{
+        salaryPayDay: number | string;
+        advancePayDay: number | string;
+        advancePercentage: number | string;
+        isAdvanceEnabled: boolean;
+        notificationLeadDays: number | string;
+    }>({
         salaryPayDay: 5,
         advancePayDay: 20,
         advancePercentage: 40,
@@ -338,12 +346,17 @@ export default function PayrollManager() {
     const handleSaveSchedule = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const salaryPayDay = Math.min(28, Math.max(1, Number(scheduleForm.salaryPayDay) || 5));
+            const advancePayDay = Math.min(28, Math.max(1, Number(scheduleForm.advancePayDay) || 20));
+            const advancePercentage = Math.min(100, Math.max(0, Number(scheduleForm.advancePercentage) || 40));
+            const notificationLeadDays = Math.min(30, Math.max(0, Number(scheduleForm.notificationLeadDays) || 2));
+
             await updatePayrollSchedule({
-                salaryPayDay: Number(scheduleForm.salaryPayDay),
-                advancePayDay: Number(scheduleForm.advancePayDay),
-                advancePercentage: Number(scheduleForm.advancePercentage),
+                salaryPayDay,
+                advancePayDay,
+                advancePercentage,
                 isAdvanceEnabled: Boolean(scheduleForm.isAdvanceEnabled),
-                notificationLeadDays: Number(scheduleForm.notificationLeadDays),
+                notificationLeadDays,
             });
             setIsScheduleModalOpen(false);
             await loadData();
@@ -357,6 +370,8 @@ export default function PayrollManager() {
         const baseSal = emp?.salary || 5000000;
         const targetPayroll = payrolls.find((p) => p.employeeId === empId && p.month === month && p.year === year);
         const isSalaryPaid = targetPayroll?.status === "PAID";
+        const salaryPaidDate = targetPayroll?.confirmedAt || targetPayroll?.disbursedAt || null;
+        const salaryPaidTime = salaryPaidDate ? new Date(salaryPaidDate).getTime() : 0;
         const cutoffDay = 5;
 
         const startFromDay = isSalaryPaid && month === (new Date().getMonth() + 1) && year === new Date().getFullYear()
@@ -392,6 +407,7 @@ export default function PayrollManager() {
         const postBaselineAdvances = empAdvances.filter((a) => {
             if (!isSalaryPaid) return true;
             if (a.status !== "PAID") return true;
+            if (salaryPaidTime && new Date(a.createdAt || a.paidDate || 0).getTime() <= salaryPaidTime) return false;
             const aDate = new Date(a.paidDate || a.createdAt);
             return aDate.getDate() > cutoffDay;
         });
@@ -745,7 +761,37 @@ export default function PayrollManager() {
 
     return (
         <div className="flex flex-col gap-8 w-full">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+            {/* View Mode Switcher: Operations vs Company Expenses Analytics */}
+            <div className="flex border-b border-gray-200 gap-2">
+                <button
+                    onClick={() => setActiveViewMode("operations")}
+                    className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 cursor-pointer ${
+                        activeViewMode === "operations"
+                            ? "border-black text-black"
+                            : "border-transparent text-gray-400 hover:text-black"
+                    }`}
+                >
+                    <span>💵</span>
+                    <span>Oylik Maoshlar & To'lovlar</span>
+                </button>
+                <button
+                    onClick={() => setActiveViewMode("expenses")}
+                    className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 cursor-pointer ${
+                        activeViewMode === "expenses"
+                            ? "border-black text-black"
+                            : "border-transparent text-gray-400 hover:text-black"
+                    }`}
+                >
+                    <span>📊</span>
+                    <span>Kompaniya Xarajatlari & Moliya Tahlili</span>
+                </button>
+            </div>
+
+            {activeViewMode === "expenses" ? (
+                <CompanyExpensesAnalytics />
+            ) : (
+                <>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
                 <div>
                     <h2 className="text-2xl font-black uppercase tracking-tight text-black flex items-center gap-2">
                         <span>💰</span> {t("title")}
@@ -1034,10 +1080,13 @@ export default function PayrollManager() {
                                 const empPenaltyObj = penaltySummaries[emp.id];
                                 const empPenaltyTotal = empPenaltyObj?.totalFines || 0;
 
+                                const salaryPaidDate = p.confirmedAt || p.disbursedAt || null;
+                                const salaryPaidTime = salaryPaidDate ? new Date(salaryPaidDate).getTime() : 0;
                                 const cutoffDay = 5;
 
                                 const postPaydayAdvances = empPaidAdvances.filter((a) => {
                                     if (p.status !== "PAID") return true;
+                                    if (salaryPaidTime && new Date(a.createdAt || a.paidDate || 0).getTime() <= salaryPaidTime) return false;
                                     const aDate = new Date(a.paidDate || a.createdAt);
                                     return aDate.getDate() > cutoffDay;
                                 });
@@ -1087,7 +1136,7 @@ export default function PayrollManager() {
 
                                 const dailyRate = Math.round(p.baseSalary / totalWorkingDaysInMonth);
 
-                                const salaryPaidDate = p.confirmedAt
+                                const salaryPaidDateStr = p.confirmedAt
                                     ? new Date(p.confirmedAt).toLocaleDateString()
                                     : p.disbursedAt
                                     ? new Date(p.disbursedAt).toLocaleDateString()
@@ -1183,7 +1232,7 @@ export default function PayrollManager() {
                                                             <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-xs uppercase">✓ To'langan</span>
                                                         </div>
                                                         <div className="text-[10px] font-semibold text-emerald-700 font-mono mt-0.5">
-                                                            {salaryPaidDate ? `${salaryPaidDate} da to'landi` : "To'liq to'langan"}
+                                                            {salaryPaidDateStr ? `${salaryPaidDateStr} da to'landi` : "To'liq to'langan"}
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -1486,7 +1535,7 @@ export default function PayrollManager() {
                                     max="28"
                                     required
                                     value={scheduleForm.salaryPayDay}
-                                    onChange={(e) => setScheduleForm({ ...scheduleForm, salaryPayDay: parseInt(e.target.value, 10) || 5 })}
+                                    onChange={(e) => setScheduleForm({ ...scheduleForm, salaryPayDay: e.target.value })}
                                     className="w-full p-2.5 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
                                 />
                             </div>
@@ -1501,7 +1550,7 @@ export default function PayrollManager() {
                                     max="28"
                                     required
                                     value={scheduleForm.advancePayDay}
-                                    onChange={(e) => setScheduleForm({ ...scheduleForm, advancePayDay: parseInt(e.target.value, 10) || 20 })}
+                                    onChange={(e) => setScheduleForm({ ...scheduleForm, advancePayDay: e.target.value })}
                                     className="w-full p-2.5 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
                                 />
                             </div>
@@ -1513,11 +1562,11 @@ export default function PayrollManager() {
                                     </label>
                                     <input
                                         type="number"
-                                        min="10"
-                                        max="80"
+                                        min="0"
+                                        max="100"
                                         required
                                         value={scheduleForm.advancePercentage}
-                                        onChange={(e) => setScheduleForm({ ...scheduleForm, advancePercentage: parseFloat(e.target.value) || 40 })}
+                                        onChange={(e) => setScheduleForm({ ...scheduleForm, advancePercentage: e.target.value })}
                                         className="w-full p-2.5 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
                                     />
                                 </div>
@@ -1527,11 +1576,11 @@ export default function PayrollManager() {
                                     </label>
                                     <input
                                         type="number"
-                                        min="1"
-                                        max="7"
+                                        min="0"
+                                        max="30"
                                         required
                                         value={scheduleForm.notificationLeadDays}
-                                        onChange={(e) => setScheduleForm({ ...scheduleForm, notificationLeadDays: parseInt(e.target.value, 10) || 2 })}
+                                        onChange={(e) => setScheduleForm({ ...scheduleForm, notificationLeadDays: e.target.value })}
                                         className="w-full p-2.5 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
                                     />
                                 </div>
@@ -2214,6 +2263,8 @@ export default function PayrollManager() {
                 onClose={() => setSelectedPayslip(null)}
                 payroll={selectedPayslip}
             />
+                </>
+            )}
         </div>
     );
 }

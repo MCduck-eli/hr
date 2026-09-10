@@ -141,6 +141,13 @@ export default function Navbar() {
                         ) : (
                             <>
                                 <Link
+                                    href={`/${locale}/profile`}
+                                    className="hover:text-black font-black text-black transition-colors flex items-center gap-1"
+                                >
+                                    <span>👤</span>
+                                    <span>{t("myProfile") || "Profilim"}</span>
+                                </Link>
+                                <Link
                                     href={`/${locale}/hr/okr`}
                                     className="hover:text-black transition-colors"
                                 >

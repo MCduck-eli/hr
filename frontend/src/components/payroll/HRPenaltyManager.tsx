@@ -11,6 +11,9 @@ import {
     fetchEmployeePenalties,
     createEmployeePenalty,
     deleteEmployeePenalty,
+    updateEmployeePenalty,
+    waivePenalty,
+    editPenalty,
     fetchPenaltiesSummary,
 } from "@/src/services/payroll-service";
 import { fetchAllUsers } from "@/src/services/user-service";
@@ -40,6 +43,8 @@ export default function HRPenaltyManager() {
         threeMonthAttendances: [],
     });
     const [archiveMonthFilter, setArchiveMonthFilter] = useState<string>("ALL");
+    const [allPenaltiesMonthFilter, setAllPenaltiesMonthFilter] = useState<string>("ALL");
+    const [allPenaltiesTypeFilter, setAllPenaltiesTypeFilter] = useState<string>("ALL");
     const [summaryStats, setSummaryStats] = useState<any>({
         totalLateCount: 0,
         totalLateMinutes: 0,
@@ -65,6 +70,21 @@ export default function HRPenaltyManager() {
         year: selectedYear,
         date: new Date().toISOString().split("T")[0],
     });
+
+    const [isEditPenaltyModalOpen, setIsEditPenaltyModalOpen] = useState(false);
+    const [editingPenaltyItem, setEditingPenaltyItem] = useState<{
+        id?: string;
+        dbId?: string;
+        employeeId: string;
+        employeeName: string;
+        type: "ABSENCE" | "LATENESS" | "DISCIPLINARY";
+        typeLabel?: string;
+        amount: number | string;
+        reason: string;
+        date: string;
+        month: number;
+        year: number;
+    } | null>(null);
 
     const [isPenaltyRulesModalOpen, setIsPenaltyRulesModalOpen] = useState(false);
     const [editingRule, setEditingRule] = useState<any | null>(null);
@@ -319,11 +339,89 @@ export default function HRPenaltyManager() {
         });
     };
 
+    const handleOpenEditPenalty = (item: any) => {
+        const empId = item.employeeId || item.employee?.id;
+        const empName = item.employeeName || `${item.employee?.firstName || ""} ${item.employee?.lastName || ""}`.trim();
+        const rawDate = item.date ? (typeof item.date === 'string' ? item.date.split('T')[0] : new Date(item.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
+
+        setEditingPenaltyItem({
+            id: item.id,
+            dbId: item.dbId || item.id,
+            employeeId: empId,
+            employeeName: empName || "Xodim",
+            type: item.type,
+            typeLabel: item.typeLabel,
+            amount: item.amount || 0,
+            reason: item.reason || "",
+            date: rawDate,
+            month: selectedMonth,
+            year: selectedYear,
+        });
+        setIsEditPenaltyModalOpen(true);
+    };
+
+    const handleSaveEditPenalty = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingPenaltyItem) return;
+
+        setActionLoading(true);
+        try {
+            await editPenalty({
+                type: editingPenaltyItem.type,
+                id: editingPenaltyItem.dbId || editingPenaltyItem.id,
+                employeeId: editingPenaltyItem.employeeId,
+                date: editingPenaltyItem.date,
+                amount: Number(editingPenaltyItem.amount) || 0,
+                reason: editingPenaltyItem.reason,
+                month: Number(editingPenaltyItem.month || selectedMonth),
+                year: Number(editingPenaltyItem.year || selectedYear),
+            });
+            setIsEditPenaltyModalOpen(false);
+            setEditingPenaltyItem(null);
+            await loadData();
+        } catch (err: any) {
+            alert(err.message || "Jarimani tahrirlashda xatolik yuz berdi");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleWaiveOrDeletePenalty = async (item: any) => {
+        const confirmMsg = item.type === "DISCIPLINARY"
+            ? "Ushbu intizomiy jarimani o'chirishni tasdiqlaysizmi?"
+            : item.type === "ABSENCE"
+            ? "Ushbu ishga kelmaganlik jarimasini bekor qilish (uzrli deb belgilash)ni tasdiqlaysizmi?"
+            : "Ushbu kechikish jarimasini bekor qilishni tasdiqlaysizmi?";
+        
+        if (!confirm(confirmMsg)) return;
+
+        setActionLoading(true);
+        try {
+            if (item.type === "DISCIPLINARY" && item.id && !String(item.id).startsWith("late-") && !String(item.id).startsWith("absent-")) {
+                await deleteEmployeePenalty(item.dbId || item.id);
+            } else {
+                await waivePenalty({
+                    type: item.type,
+                    id: item.dbId || item.id,
+                    employeeId: item.employeeId || item.employee?.id,
+                    date: item.date ? (typeof item.date === 'string' ? item.date.split('T')[0] : new Date(item.date).toISOString().split('T')[0]) : undefined,
+                    reason: item.reason,
+                });
+            }
+            await loadData();
+        } catch (err: any) {
+            alert(err.message || "Jarimani o'chirish/bekor qilishda xatolik yuz berdi");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const getEmployeeAllPenalties = (summary: any) => {
         const list: any[] = [];
         (summary.lateAttendances || []).forEach((l: any) => {
             list.push({
                 id: `late-${l.id || Math.random()}`,
+                dbId: l.id,
                 date: l.date,
                 time: l.checkIn ? new Date(l.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
                 type: "LATENESS",
@@ -333,11 +431,14 @@ export default function HRPenaltyManager() {
                 amount: l.fineAmount || 0,
                 raw: l,
                 isDisciplinary: false,
+                employeeId: summary.employeeId,
+                employeeName: summary.name,
             });
         });
         (summary.absentRecords || []).forEach((a: any) => {
             list.push({
                 id: a.id || `absent-${a.date}`,
+                dbId: a.id,
                 date: a.date,
                 time: null,
                 type: "ABSENCE",
@@ -347,11 +448,14 @@ export default function HRPenaltyManager() {
                 amount: a.fineAmount || 0,
                 raw: a,
                 isDisciplinary: false,
+                employeeId: summary.employeeId,
+                employeeName: summary.name,
             });
         });
         (summary.disciplinaryPenalties || []).forEach((d: any) => {
             list.push({
                 id: d.id,
+                dbId: d.id,
                 date: d.date || d.createdAt,
                 time: d.createdAt ? new Date(d.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
                 type: "DISCIPLINARY",
@@ -361,6 +465,8 @@ export default function HRPenaltyManager() {
                 amount: d.amount || 0,
                 raw: d,
                 isDisciplinary: true,
+                employeeId: summary.employeeId,
+                employeeName: summary.name,
             });
         });
         return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -376,18 +482,6 @@ export default function HRPenaltyManager() {
             employeeId: summary.employeeId,
         }));
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    const filteredAllPenalties = allCombinedPenalties.filter((p) => {
-        if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
-        return (
-            (p.employeeName || "").toLowerCase().includes(q) ||
-            (p.email || "").toLowerCase().includes(q) ||
-            (p.reason || "").toLowerCase().includes(q) ||
-            (p.typeLabel || "").toLowerCase().includes(q) ||
-            (p.department || "").toLowerCase().includes(q)
-        );
-    });
 
     const filteredSummaries = employeeSummaries.filter((s) => {
         if (!searchQuery.trim()) return true;
@@ -502,7 +596,89 @@ export default function HRPenaltyManager() {
                 isDisciplinary: false,
             };
         }),
+        ...(absentRecords || []).map((ab: any) => {
+            const abDate = new Date(ab.date);
+            const abMonth = abDate.getMonth() + 1;
+            const abYear = abDate.getFullYear();
+            return {
+                id: `arch-absent-${ab.id || `${ab.employeeId}-${ab.date}`}`,
+                dbId: ab.id,
+                date: ab.date,
+                time: null,
+                employeeName: `${ab.employee?.firstName || ""} ${ab.employee?.lastName || ""}`.trim() || "-",
+                email: ab.employee?.user?.email || ab.employee?.email || "",
+                department: ab.employee?.department?.name || "-",
+                position: ab.employee?.position?.title || "-",
+                type: "ABSENCE",
+                typeLabel: t("cardAbsenceAuto") || "Sababsiz kelmaslik",
+                typeBadge: "bg-red-100 text-red-900 border-red-300",
+                reason: ab.reason || "Ishga sababsiz kelmaganlik",
+                amount: ab.fineAmount || 0,
+                month: abMonth,
+                year: abYear,
+                monthKey: `${abYear}-${abMonth}`,
+                monthLabel: `${getMonthName(abMonth)} ${abYear}`,
+                raw: ab,
+                isDisciplinary: false,
+            };
+        }),
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const all3MonthsAndCurrentPenalties = (() => {
+        const map = new Map<string, any>();
+
+        // 1. Add current month penalties (absences, lates, disciplinary)
+        allCombinedPenalties.forEach((p) => {
+            const pDate = new Date(p.date);
+            const m = pDate.getMonth() + 1;
+            const y = pDate.getFullYear();
+            const key = p.id || `${p.type}-${p.employeeId}-${p.date}`;
+            map.set(key, {
+                ...p,
+                month: m,
+                year: y,
+                monthKey: `${y}-${m}`,
+                monthLabel: `${getMonthName(m)} ${y}`,
+                statusLabel: "Joriy davr",
+                isArchived: false,
+            });
+        });
+
+        // 2. Add archive penalties
+        allArchiveItems.forEach((a) => {
+            const key = a.id || `arch-${a.type}-${a.dbId || a.employeeName}-${a.date}`;
+            if (!map.has(key)) {
+                map.set(key, {
+                    ...a,
+                    statusLabel: "Arxivlangan",
+                    isArchived: true,
+                });
+            }
+        });
+
+        return Array.from(map.values()).sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+    })();
+
+    const filteredAllPenalties = all3MonthsAndCurrentPenalties.filter((p) => {
+        if (allPenaltiesMonthFilter !== "ALL" && p.monthKey !== allPenaltiesMonthFilter) {
+            return false;
+        }
+        if (allPenaltiesTypeFilter !== "ALL" && p.type !== allPenaltiesTypeFilter) {
+            return false;
+        }
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+            (p.employeeName || "").toLowerCase().includes(q) ||
+            (p.email || "").toLowerCase().includes(q) ||
+            (p.reason || "").toLowerCase().includes(q) ||
+            (p.typeLabel || "").toLowerCase().includes(q) ||
+            (p.department || "").toLowerCase().includes(q) ||
+            (p.monthLabel || "").toLowerCase().includes(q)
+        );
+    });
 
     const filteredArchiveItems = allArchiveItems.filter((item) => {
         if (archiveMonthFilter !== "ALL" && item.monthKey !== archiveMonthFilter) {
@@ -520,6 +696,140 @@ export default function HRPenaltyManager() {
         );
     });
 
+    const generatePenaltiesPdfDocument = (items: any[], customTitle?: string) => {
+        const printWindow = window.open("", "_blank", "width=1100,height=850");
+        if (!printWindow) {
+            alert("Iltimos, brauzerda pop-up oynalarga ruxsat bering.");
+            return;
+        }
+
+        const totalAmount = items.reduce((sum, r) => sum + (r.amount || 0), 0);
+        const formattedTotal = Number(totalAmount).toLocaleString("uz-UZ") + " UZS";
+        const dateStr = new Date().toLocaleDateString("uz-UZ");
+        const docTitle = customTitle || "XODIMLAR JARIMALARI BO'YICHA YAGONA HISOBOT";
+        const docSubtitle = "Oxirgi 3 oylik arxiv va joriy davr bo'yicha barcha kechikishlar, kelmaganliklar va intizomiy jarimalar";
+
+        const rowsHtml = items
+            .map((r, idx) => {
+                const fullName = r.employeeName || "-";
+                const email = r.email || "-";
+                const deptPos = `${r.department || "-"} / ${r.position || "-"}`;
+                const dateVal = r.date ? new Date(r.date).toLocaleDateString("uz-UZ") : "-";
+                const timeVal = r.time ? ` (${r.time})` : "";
+                const typeVal = r.typeLabel || r.type || "Jarima";
+                const reasonVal = r.reason || "-";
+                const amountVal = "-" + Number(r.amount || 0).toLocaleString("uz-UZ") + " UZS";
+                const statusVal = r.isArchived ? "Arxivlangan" : "Joriy davr";
+
+                return `
+                <tr>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #6b7280;">${idx + 1}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 12px; font-weight: bold; color: #111827;">${fullName}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #4b5563;">${email}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #4b5563;">${deptPos}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-family: monospace; color: #111827; white-space: nowrap;">${dateVal}${timeVal}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-weight: 600; color: #374151;">${typeVal}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #374151;">${reasonVal}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 12px; font-weight: bold; text-align: right; color: #dc2626; white-space: nowrap;">${amountVal}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: center; font-weight: 600; color: #6b7280;">${statusVal}</td>
+                </tr>
+            `;
+            })
+            .join("");
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="uz">
+            <head>
+                <meta charset="UTF-8">
+                <title>${docTitle}</title>
+                <style>
+                    @page { size: landscape; margin: 12mm; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 24px; background: #fff; }
+                    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 20px; }
+                    .title { font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0 0 6px 0; letter-spacing: 0.02em; }
+                    .subtitle { font-size: 12px; color: #6b7280; margin: 0; }
+                    .meta { text-align: right; font-size: 11px; color: #4b5563; }
+                    .summary-box { display: flex; gap: 24px; margin-bottom: 20px; background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px 18px; border-radius: 4px; }
+                    .summary-item { font-size: 12px; }
+                    .summary-item span { font-weight: bold; color: #111827; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                    th { background: #f3f4f6; color: #374151; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px; text-align: left; border-bottom: 2px solid #d1d5db; }
+                    .signatures { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 1px dashed #d1d5db; font-size: 12px; page-break-inside: avoid; }
+                    .sign-line { width: 220px; border-bottom: 1px solid #000; margin-top: 30px; }
+                    @media print {
+                        body { padding: 0; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div>
+                        <h1 class="title">${docTitle}</h1>
+                        <p class="subtitle">${docSubtitle}</p>
+                    </div>
+                    <div class="meta">
+                        <div><strong>Hujjat sanasi:</strong> ${dateStr}</div>
+                        <div><strong>Tizim:</strong> HR Platform & Penalty Management</div>
+                    </div>
+                </div>
+
+                <div class="summary-box">
+                    <div class="summary-item">Jami jarimalar soni: <span>${items.length} ta</span></div>
+                    <div class="summary-item">Jami jarima summasi: <span style="color: #dc2626;">-${formattedTotal}</span></div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; width: 40px;">№</th>
+                            <th>Xodim (F.I.Sh.)</th>
+                            <th>Email</th>
+                            <th>Bo'lim / Lavozim</th>
+                            <th>Sana</th>
+                            <th>Jarima turi</th>
+                            <th>Sababi</th>
+                            <th style="text-align: right;">Summasi</th>
+                            <th style="text-align: center;">Holati</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #9ca3af;">Hech qanday ma\'lumot topilmadi</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div class="signatures">
+                    <div>
+                        <strong>HR Menejer:</strong>
+                        <div class="sign-line"></div>
+                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">(Imzo / F.I.Sh.)</div>
+                    </div>
+                    <div>
+                        <strong>Bosh buxgalter:</strong>
+                        <div class="sign-line"></div>
+                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">(Imzo / F.I.Sh.)</div>
+                    </div>
+                    <div>
+                        <strong>Rahbar tasdig'i:</strong>
+                        <div class="sign-line"></div>
+                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">(Imzo / Sana)</div>
+                    </div>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
     return (
         <div className="flex flex-col gap-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
@@ -535,15 +845,23 @@ export default function HRPenaltyManager() {
 
                 <div className="flex flex-wrap items-center gap-3">
                     <button
+                        onClick={() => generatePenaltiesPdfDocument(filteredAllPenalties)}
+                        className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
+                        title="Barcha jarimalarni PDF formatda yuklab olish yoki chop etish"
+                    >
+                        <span>📥</span>
+                        <span>PDF Yuklab Olish</span>
+                    </button>
+                    <button
                         onClick={() => setIsPenaltyRulesModalOpen(true)}
-                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border border-gray-300 transition-colors"
+                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold uppercase tracking-wider flex items-center gap-2 border border-gray-300 transition-colors cursor-pointer"
                     >
                         <span>⚙️</span>
                         <span>{t("penaltyRulesBtnText")}</span>
                     </button>
                     <button
                         onClick={handleOpenAddPenalty}
-                        className="px-4 py-2 bg-black hover:bg-zinc-800 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors shadow-sm"
+                        className="px-4 py-2 bg-black hover:bg-zinc-800 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
                     >
                         <span>➕</span>
                         <span>{t("addPenaltyBtnText")}</span>
@@ -942,17 +1260,32 @@ export default function HRPenaltyManager() {
                                                                                                     -{Number(item.amount || 0).toLocaleString()} UZS
                                                                                                 </td>
                                                                                                 <td className="py-2.5 px-3 text-center">
-                                                                                                    {item.isDisciplinary ? (
+                                                                                                    <div className="flex items-center justify-center gap-1.5">
                                                                                                         <button
                                                                                                             type="button"
-                                                                                                            onClick={() => handleDeletePenalty(item.id)}
-                                                                                                            className="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors cursor-pointer"
+                                                                                                            onClick={() => handleOpenEditPenalty({
+                                                                                                                ...item,
+                                                                                                                employeeId: summary.employeeId,
+                                                                                                                employeeName: summary.name,
+                                                                                                            })}
+                                                                                                            title="Tahrirlash"
+                                                                                                            className="px-2 py-1 text-[10px] font-bold uppercase bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 cursor-pointer"
                                                                                                         >
-                                                                                                            {t("btnDelete")}
+                                                                                                            ✏️ Tahrirlash
                                                                                                         </button>
-                                                                                                    ) : (
-                                                                                                        <span className="text-[10px] text-gray-400">Tizim (Auto)</span>
-                                                                                                    )}
+                                                                                                        <button
+                                                                                                            type="button"
+                                                                                                            onClick={() => handleWaiveOrDeletePenalty({
+                                                                                                                ...item,
+                                                                                                                employeeId: summary.employeeId,
+                                                                                                                employeeName: summary.name,
+                                                                                                            })}
+                                                                                                            title="O'chirish / Bekor qilish"
+                                                                                                            className="px-2 py-1 text-[10px] font-bold uppercase bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer"
+                                                                                                        >
+                                                                                                            🗑️ O'chirish
+                                                                                                        </button>
+                                                                                                    </div>
                                                                                                 </td>
                                                                                             </tr>
                                                                                         ))}
@@ -976,41 +1309,139 @@ export default function HRPenaltyManager() {
 
                     {activeTab === "all" && (
                         <div className="border border-gray-200 bg-white shadow-xs">
-                            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-                                <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
-                                    Barcha jarimalar va ushlanmalar ro'yxati ({filteredAllPenalties.length})
-                                </span>
-                                <span className="text-xs font-semibold text-gray-500">
-                                    {getMonthName(selectedMonth)} {selectedYear}
-                                </span>
+                            <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-gray-50">
+                                <div>
+                                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-2">
+                                        <span>📋</span>
+                                        <span>Barcha jarimalar va ushlanmalar ro'yxati (3 oylik arxiv & joriy davr)</span>
+                                    </h3>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">
+                                        Oxirgi 3 oy va hozirgi kungacha tushgan barcha kechikishlar, kelmaganliklar va intizomiy jarimalar
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-xs font-bold text-rose-600 bg-rose-50 px-3 py-1.5 border border-rose-200">
+                                        Jami: {filteredAllPenalties.length} ta (-{filteredAllPenalties.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()} UZS)
+                                    </span>
+                                    <button
+                                        onClick={() => generatePenaltiesPdfDocument(filteredAllPenalties, `BARCHA JARIMALAR HISOBOTI (${filteredAllPenalties.length} TA)`)}
+                                        className="px-3.5 py-1.5 bg-black hover:bg-zinc-800 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                                        title="Ushbu ro'yxatni PDF formatda yuklab olish yoki chop etish"
+                                    >
+                                        <span>📥</span>
+                                        <span>PDF Yuklab Olish</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Filters Bar: Months and Types */}
+                            <div className="p-3 bg-white border-b border-gray-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-[10px] font-bold uppercase text-gray-400 mr-1">Oylar:</span>
+                                    <button
+                                        onClick={() => setAllPenaltiesMonthFilter("ALL")}
+                                        className={`px-2.5 py-1 text-[11px] font-bold uppercase transition-colors cursor-pointer ${
+                                            allPenaltiesMonthFilter === "ALL"
+                                                ? "bg-black text-white"
+                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                        }`}
+                                    >
+                                        Barchasi ({all3MonthsAndCurrentPenalties.length})
+                                    </button>
+                                    {last3MonthsList.map((m) => {
+                                        const count = all3MonthsAndCurrentPenalties.filter((p) => p.monthKey === m.key).length;
+                                        return (
+                                            <button
+                                                key={m.key}
+                                                onClick={() => setAllPenaltiesMonthFilter(m.key)}
+                                                className={`px-2.5 py-1 text-[11px] font-bold uppercase transition-colors cursor-pointer ${
+                                                    allPenaltiesMonthFilter === m.key
+                                                        ? "bg-black text-white"
+                                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                                }`}
+                                            >
+                                                {m.label} ({count})
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-[10px] font-bold uppercase text-gray-400 mr-1">Turi:</span>
+                                    <button
+                                        onClick={() => setAllPenaltiesTypeFilter("ALL")}
+                                        className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer ${
+                                            allPenaltiesTypeFilter === "ALL"
+                                                ? "bg-gray-800 text-white border-gray-800"
+                                                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                                        }`}
+                                    >
+                                        Barchasi
+                                    </button>
+                                    <button
+                                        onClick={() => setAllPenaltiesTypeFilter("LATENESS")}
+                                        className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer ${
+                                            allPenaltiesTypeFilter === "LATENESS"
+                                                ? "bg-amber-600 text-white border-amber-600"
+                                                : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+                                        }`}
+                                    >
+                                        ⏱️ Kechikishlar
+                                    </button>
+                                    <button
+                                        onClick={() => setAllPenaltiesTypeFilter("ABSENCE")}
+                                        className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer ${
+                                            allPenaltiesTypeFilter === "ABSENCE"
+                                                ? "bg-red-600 text-white border-red-600"
+                                                : "bg-red-50 text-red-800 border-red-200 hover:bg-red-100"
+                                        }`}
+                                    >
+                                        🚫 Kelmaganlik
+                                    </button>
+                                    <button
+                                        onClick={() => setAllPenaltiesTypeFilter("DISCIPLINARY")}
+                                        className={`px-2 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer ${
+                                            allPenaltiesTypeFilter === "DISCIPLINARY"
+                                                ? "bg-rose-600 text-white border-rose-600"
+                                                : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
+                                        }`}
+                                    >
+                                        📝 Intizomiy
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse text-xs">
                                     <thead>
                                         <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
+                                            <th className="py-3 px-3 text-center w-12">№</th>
                                             <th className="py-3 px-4">{t("colEmployee")}</th>
-                                            <th className="py-3 px-4">Sana (Qachon)</th>
+                                            <th className="py-3 px-4">Sana va Vaqt</th>
                                             <th className="py-3 px-4">Jarima turi</th>
                                             <th className="py-3 px-4">Sababi (Nima sababdan)</th>
                                             <th className="py-3 px-4 text-right">Summasi (Qancha)</th>
+                                            <th className="py-3 px-4 text-center">Holati</th>
                                             <th className="py-3 px-4 text-center">{t("colAction")}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                         {filteredAllPenalties.length === 0 ? (
                                             <tr>
-                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-semibold">
-                                                    Bu oyda hech qanday jarima qayd etilmagan.
+                                                <td colSpan={8} className="py-12 text-center text-gray-400 font-semibold">
+                                                    Hech qanday jarima topilmadi.
                                                 </td>
                                             </tr>
                                         ) : (
                                             filteredAllPenalties.map((item, idx) => (
-                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                <tr key={item.id || idx} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="py-3 px-3 text-center text-gray-400 font-medium">
+                                                        {idx + 1}
+                                                    </td>
                                                     <td className="py-3 px-4 font-bold text-black">
                                                         <div>{item.employeeName}</div>
                                                         {item.email && (
-                                                            <div className="text-[11px] text-gray-500 font-normal truncate">{item.email}</div>
+                                                             <div className="text-[11px] text-gray-500 font-normal truncate">{item.email}</div>
                                                         )}
                                                         <div className="text-[11px] text-gray-400 font-normal">
                                                             {item.department || "-"} • {item.position || "-"}
@@ -1025,6 +1456,9 @@ export default function HRPenaltyManager() {
                                                                 ({item.time})
                                                             </span>
                                                         )}
+                                                        <div className="text-[10px] text-gray-400 font-normal">
+                                                            {item.monthLabel || ""}
+                                                        </div>
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         <span className={`px-2 py-0.5 text-[10px] font-bold rounded border uppercase tracking-wider ${item.typeBadge}`}>
@@ -1038,16 +1472,36 @@ export default function HRPenaltyManager() {
                                                         -{Number(item.amount || 0).toLocaleString()} UZS
                                                     </td>
                                                     <td className="py-3 px-4 text-center">
-                                                        {item.isDisciplinary ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleDeletePenalty(item.id)}
-                                                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors cursor-pointer"
-                                                            >
-                                                                {t("btnDelete")}
-                                                            </button>
+                                                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded border ${
+                                                            item.isArchived
+                                                                ? "bg-gray-100 text-gray-600 border-gray-300"
+                                                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                        }`}>
+                                                            {item.statusLabel || (item.isArchived ? "Arxivlangan" : "Joriy davr")}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        {item.isArchived ? (
+                                                            <span className="text-[10px] text-gray-400 font-medium">-</span>
                                                         ) : (
-                                                            <span className="text-[10px] text-gray-400">Tizim (Auto)</span>
+                                                            <div className="flex items-center justify-center gap-1.5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleOpenEditPenalty(item)}
+                                                                    title="Tahrirlash"
+                                                                    className="px-2 py-1 text-[10px] font-bold uppercase bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 cursor-pointer"
+                                                                >
+                                                                    ✏️ Tahrirlash
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleWaiveOrDeletePenalty(item)}
+                                                                    title="O'chirish / Bekor qilish"
+                                                                    className="px-2 py-1 text-[10px] font-bold uppercase bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer"
+                                                                >
+                                                                    🗑️ O'chirish
+                                                                </button>
+                                                            </div>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -1079,12 +1533,13 @@ export default function HRPenaltyManager() {
                                             <th className="py-3 px-4">{t("colArrivalTime")}</th>
                                             <th className="py-3 px-4">{t("colLateDuration")}</th>
                                             <th className="py-3 px-4 text-right">{t("colCalculatedFine")}</th>
+                                            <th className="py-3 px-4 text-center">{t("colAction")}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                         {filteredLateAttendances.length === 0 ? (
                                             <tr>
-                                                <td colSpan={5} className="py-8 text-center text-gray-400 font-semibold">
+                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-semibold">
                                                     {t("noLateFoundMonth")}
                                                 </td>
                                             </tr>
@@ -1116,6 +1571,41 @@ export default function HRPenaltyManager() {
                                                     <td className="py-3 px-4 text-right font-black text-rose-600">
                                                         -{Number(late.fineAmount || 0).toLocaleString()} UZS
                                                     </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <div className="flex items-center justify-center gap-1.5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenEditPenalty({
+                                                                    id: late.id,
+                                                                    dbId: late.id,
+                                                                    employeeId: late.employeeId,
+                                                                    employeeName: `${late.employee?.firstName || ""} ${late.employee?.lastName || ""}`.trim(),
+                                                                    type: "LATENESS",
+                                                                    typeLabel: "Kechikish",
+                                                                    amount: late.fineAmount || 0,
+                                                                    reason: `Ishga ${late.lateMinutes || 0} daqiqa kechikish`,
+                                                                    date: late.date,
+                                                                })}
+                                                                className="px-2 py-1 text-[10px] font-bold uppercase bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 cursor-pointer"
+                                                            >
+                                                                ✏️ Tahrirlash
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleWaiveOrDeletePenalty({
+                                                                    id: late.id,
+                                                                    dbId: late.id,
+                                                                    employeeId: late.employeeId,
+                                                                    type: "LATENESS",
+                                                                    date: late.date,
+                                                                    reason: `Ishga ${late.lateMinutes || 0} daqiqa kechikish`,
+                                                                })}
+                                                                className="px-2 py-1 text-[10px] font-bold uppercase bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer"
+                                                            >
+                                                                🗑️ Bekor qilish
+                                                            </button>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             ))
                                         )}
@@ -1144,12 +1634,13 @@ export default function HRPenaltyManager() {
                                             <th className="py-3 px-4">Sana (Qachon)</th>
                                             <th className="py-3 px-4">Sababi (Nima sababdan)</th>
                                             <th className="py-3 px-4 text-right">Hisoblangan jarima</th>
+                                            <th className="py-3 px-4 text-center">{t("colAction")}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                         {filteredAbsentRecords.length === 0 ? (
                                             <tr>
-                                                <td colSpan={4} className="py-8 text-center text-gray-400 font-semibold">
+                                                <td colSpan={5} className="py-8 text-center text-gray-400 font-semibold">
                                                     Bu oyda ishga sababsiz kelmaganliklar qayd etilmagan.
                                                 </td>
                                             </tr>
@@ -1177,6 +1668,41 @@ export default function HRPenaltyManager() {
                                                     </td>
                                                     <td className="py-3 px-4 text-right font-black text-rose-600">
                                                         -{Number(absent.fineAmount || 0).toLocaleString()} UZS
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <div className="flex items-center justify-center gap-1.5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenEditPenalty({
+                                                                    id: absent.id,
+                                                                    dbId: absent.id,
+                                                                    employeeId: absent.employeeId,
+                                                                    employeeName: `${absent.employee?.firstName || ""} ${absent.employee?.lastName || ""}`.trim(),
+                                                                    type: "ABSENCE",
+                                                                    typeLabel: "Sababsiz kelmaslik",
+                                                                    amount: absent.fineAmount || 0,
+                                                                    reason: absent.reason || "Ishga sababsiz kelmaganlik",
+                                                                    date: absent.date,
+                                                                })}
+                                                                className="px-2 py-1 text-[10px] font-bold uppercase bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 cursor-pointer"
+                                                            >
+                                                                ✏️ Tahrirlash
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleWaiveOrDeletePenalty({
+                                                                    id: absent.id,
+                                                                    dbId: absent.id,
+                                                                    employeeId: absent.employeeId,
+                                                                    type: "ABSENCE",
+                                                                    date: absent.date,
+                                                                    reason: absent.reason,
+                                                                })}
+                                                                className="px-2 py-1 text-[10px] font-bold uppercase bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer"
+                                                            >
+                                                                🗑️ Bekor qilish
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))
@@ -1246,12 +1772,39 @@ export default function HRPenaltyManager() {
                                                         -{Number(penalty.amount || 0).toLocaleString()} UZS
                                                     </td>
                                                     <td className="py-3 px-4 text-center">
-                                                        <button
-                                                            onClick={() => handleDeletePenalty(penalty.id)}
-                                                            className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors cursor-pointer"
-                                                        >
-                                                            {t("btnDelete")}
-                                                        </button>
+                                                        <div className="flex items-center justify-center gap-1.5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenEditPenalty({
+                                                                    id: penalty.id,
+                                                                    dbId: penalty.id,
+                                                                    employeeId: penalty.employeeId,
+                                                                    employeeName: `${penalty.employee?.firstName || ""} ${penalty.employee?.lastName || ""}`.trim(),
+                                                                    type: "DISCIPLINARY",
+                                                                    typeLabel: "Intizomiy jarima",
+                                                                    amount: penalty.amount || 0,
+                                                                    reason: penalty.reason || penalty.rule?.name || "Intizomiy jarima",
+                                                                    date: penalty.date || penalty.createdAt,
+                                                                })}
+                                                                className="px-2 py-1 text-[10px] font-bold uppercase bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 cursor-pointer"
+                                                            >
+                                                                ✏️ Tahrirlash
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleWaiveOrDeletePenalty({
+                                                                    id: penalty.id,
+                                                                    dbId: penalty.id,
+                                                                    employeeId: penalty.employeeId,
+                                                                    type: "DISCIPLINARY",
+                                                                    date: penalty.date,
+                                                                    reason: penalty.reason,
+                                                                })}
+                                                                className="px-2 py-1 text-[10px] font-bold uppercase bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer"
+                                                            >
+                                                                🗑️ O'chirish
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))
@@ -1315,11 +1868,21 @@ export default function HRPenaltyManager() {
                                     })}
                                 </div>
 
-                                <div className="text-xs font-semibold text-gray-500">
-                                    Jami: <strong className="text-black">{filteredArchiveItems.length} ta</strong> jarima (
-                                    <span className="text-rose-600 font-bold">
-                                        -{filteredArchiveItems.reduce((sum, i) => sum + (i.amount || 0), 0).toLocaleString()} UZS
-                                    </span>)
+                                <div className="flex items-center gap-3">
+                                    <div className="text-xs font-semibold text-gray-500">
+                                        Jami: <strong className="text-black">{filteredArchiveItems.length} ta</strong> jarima (
+                                        <span className="text-rose-600 font-bold">
+                                            -{filteredArchiveItems.reduce((sum, i) => sum + (i.amount || 0), 0).toLocaleString()} UZS
+                                        </span>)
+                                    </div>
+                                    <button
+                                        onClick={() => generatePenaltiesPdfDocument(filteredArchiveItems, `3 OYLIK JARIMALAR ARXIVI HISOBOTI (${filteredArchiveItems.length} TA)`)}
+                                        className="px-3 py-1 bg-black hover:bg-zinc-800 text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                                        title="Arxivdagi jarimalarni PDF formatda yuklab olish"
+                                    >
+                                        <span>📥</span>
+                                        <span>PDF Yuklab Olish</span>
+                                    </button>
                                 </div>
                             </div>
 
@@ -1334,13 +1897,12 @@ export default function HRPenaltyManager() {
                                                 <th className="py-3.5 px-4">Sababi (Nima sababdan)</th>
                                                 <th className="py-3.5 px-4 text-right">Summasi (Qancha)</th>
                                                 <th className="py-3.5 px-4 text-center">Holati</th>
-                                                <th className="py-3.5 px-4 text-center">{t("colAction")}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
                                             {filteredArchiveItems.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={7} className="py-12 text-center text-gray-400 font-semibold">
+                                                    <td colSpan={6} className="py-12 text-center text-gray-400 font-semibold">
                                                         Oxirgi 3 oylik arxivda jarimalar topilmadi.
                                                     </td>
                                                 </tr>
@@ -1378,18 +1940,6 @@ export default function HRPenaltyManager() {
                                                             <span className="px-2 py-0.5 bg-gray-100 text-gray-700 font-bold uppercase text-[10px] rounded border border-gray-200">
                                                                 Arxivlangan
                                                             </span>
-                                                        </td>
-                                                        <td className="py-3.5 px-4 text-center">
-                                                            {item.isDisciplinary && item.dbId ? (
-                                                                <button
-                                                                    onClick={() => handleDeletePenalty(item.dbId)}
-                                                                    className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold uppercase text-[10px] rounded border border-rose-200 transition-colors cursor-pointer"
-                                                                >
-                                                                    {t("btnDelete")}
-                                                                </button>
-                                                            ) : (
-                                                                <span className="text-gray-300 font-medium text-[11px]">-</span>
-                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))
@@ -1862,6 +2412,110 @@ export default function HRPenaltyManager() {
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Penalty Modal */}
+            {isEditPenaltyModalOpen && editingPenaltyItem && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <div className="bg-white border border-gray-300 w-full max-w-md shadow-2xl p-6 relative animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
+                            <div>
+                                <h3 className="text-sm font-black uppercase tracking-wider text-black flex items-center gap-2">
+                                    <span>✏️</span>
+                                    <span>Jarimani tahrirlash</span>
+                                </h3>
+                                <div className="text-xs text-gray-500 font-medium mt-0.5">
+                                    {editingPenaltyItem.employeeName}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setIsEditPenaltyModalOpen(false);
+                                    setEditingPenaltyItem(null);
+                                }}
+                                className="text-gray-400 hover:text-black font-bold text-lg leading-none p-1"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveEditPenalty} className="space-y-4">
+                            <div>
+                                <label className="text-[11px] font-bold uppercase text-gray-600 block mb-1">
+                                    Jarima turi
+                                </label>
+                                <div className="p-2.5 bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800 flex items-center gap-2">
+                                    <span className="px-2 py-0.5 text-[10px] uppercase rounded border font-bold bg-amber-50 text-amber-900 border-amber-300">
+                                        {editingPenaltyItem.type === "LATENESS" ? "Kechikish (Avto)" : editingPenaltyItem.type === "ABSENCE" ? "Sababsiz kelmaslik (Avto)" : "Intizomiy jarima"}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[11px] font-bold uppercase text-gray-600 block mb-1">
+                                    Sana
+                                </label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={editingPenaltyItem.date}
+                                    onChange={(e) => setEditingPenaltyItem({ ...editingPenaltyItem, date: e.target.value })}
+                                    className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black font-medium"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-[11px] font-bold uppercase text-gray-600 block mb-1">
+                                    Jarima summasi (UZS)
+                                </label>
+                                <input
+                                    type="number"
+                                    required
+                                    min="0"
+                                    step="1000"
+                                    value={editingPenaltyItem.amount}
+                                    onChange={(e) => setEditingPenaltyItem({ ...editingPenaltyItem, amount: e.target.value })}
+                                    className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black font-black text-rose-600"
+                                    placeholder="Jarima summasini kiriting"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-[11px] font-bold uppercase text-gray-600 block mb-1">
+                                    Sababi / Izoh
+                                </label>
+                                <textarea
+                                    required
+                                    rows={3}
+                                    value={editingPenaltyItem.reason}
+                                    onChange={(e) => setEditingPenaltyItem({ ...editingPenaltyItem, reason: e.target.value })}
+                                    className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black"
+                                    placeholder="Jarima sababi yoki o'zgartirish izohini yozing..."
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-200">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsEditPenaltyModalOpen(false);
+                                        setEditingPenaltyItem(null);
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-gray-700 hover:bg-gray-100"
+                                >
+                                    Bekor qilish
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={actionLoading}
+                                    className="px-5 py-2 bg-black hover:bg-zinc-800 disabled:bg-zinc-400 text-white text-xs font-bold uppercase tracking-wider"
+                                >
+                                    {actionLoading ? "Saqlanmoqda..." : "Saqlash"}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

@@ -1088,7 +1088,7 @@ export default function EjmTemplateManager() {
                                                     type="number"
                                                     min="1"
                                                     value={task.dueDays}
-                                                    onChange={(e) => handleTaskChange(tIdx, "dueDays", parseInt(e.target.value) || 1)}
+                                                    onChange={(e) => handleTaskChange(tIdx, "dueDays", e.target.value === "" ? "" : (parseInt(e.target.value) || 1))}
                                                     className="w-16 p-1.5 bg-white border border-gray-300 text-xs font-bold text-center text-black focus:outline-none focus:border-black"
                                                 />
                                                 <span className="text-[10px] font-bold text-gray-500 uppercase">{t("day")}</span>
