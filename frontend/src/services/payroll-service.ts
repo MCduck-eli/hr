@@ -584,3 +584,142 @@ export const fetchCompanyExpensesAnalytics = async (params?: {
     const json = await res.json();
     return json.data;
 };
+
+export const fetchCompanyExpensesItems = async (params?: {
+    month?: number | string;
+    year?: number | string;
+    category?: string;
+    search?: string;
+}) => {
+    const query = new URLSearchParams();
+    if (params?.month && params.month !== "ALL") query.set("month", params.month.toString());
+    if (params?.year) query.set("year", params.year.toString());
+    if (params?.category && params.category !== "ALL") query.set("category", params.category);
+    if (params?.search) query.set("search", params.search);
+
+    const res = await fetch(`${API_URL}/payroll/company-expenses/items?${query.toString()}`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch company expenses items");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const createCompanyExpenseItem = async (payload: {
+    title: string;
+    category?: string;
+    amount: number;
+    date?: string;
+    month?: number;
+    year?: number;
+    description?: string;
+    paymentMethod?: string;
+    receiptUrl?: string;
+    isRecurring?: boolean;
+    recurringDay?: number;
+    recurringScope?: "ALL_YEAR" | "FROM_SELECTED_MONTH" | "SELECTED_MONTHS";
+    recurringMonths?: number[];
+}) => {
+    const res = await fetch(`${API_URL}/payroll/company-expenses/items`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to create company expense");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const updateCompanyExpenseItem = async (
+    id: string,
+    payload: {
+        title?: string;
+        category?: string;
+        amount?: number;
+        date?: string;
+        month?: number;
+        year?: number;
+        description?: string;
+        paymentMethod?: string;
+        receiptUrl?: string;
+        isRecurring?: boolean;
+        recurringDay?: number;
+        updateScope?: "ONLY_THIS" | "ALL_RECURRING";
+    },
+) => {
+    const res = await fetch(`${API_URL}/payroll/company-expenses/items/${id}`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to update company expense");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const deleteCompanyExpenseItem = async (
+    id: string,
+    params?: { deleteScope?: "ONLY_THIS" | "ALL_RECURRING" | string },
+) => {
+    const query = new URLSearchParams();
+    if (params?.deleteScope) query.set("deleteScope", params.deleteScope);
+
+    const res = await fetch(
+        `${API_URL}/payroll/company-expenses/items/${id}?${query.toString()}`,
+        {
+            method: "DELETE",
+            headers: getHeaders(),
+        },
+    );
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to delete company expense");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const fetchEmployeeCompensations = async () => {
+    const res = await fetch(`${API_URL}/payroll/employee-compensations`, {
+        headers: getHeaders(),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to fetch employee compensations");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+export const updateEmployeeCompensation = async (
+    employeeId: string,
+    payload: {
+        salaryType?: "MONTHLY" | "HOURLY";
+        salary?: number;
+        hourlyRate?: number;
+        taxPercent?: number;
+    },
+) => {
+    const res = await fetch(`${API_URL}/payroll/employee/${employeeId}/compensation`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to update employee compensation");
+    }
+    const json = await res.json();
+    return json.data;
+};
+
+

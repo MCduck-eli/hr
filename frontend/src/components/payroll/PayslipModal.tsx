@@ -102,9 +102,13 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
                             <span className="font-bold text-black">{emp.position?.title || "-"}</span>
                         </div>
                         <div>
-                            <span className="text-[10px] font-bold uppercase text-gray-400 block">{t("payslipId")}</span>
-                            <span className="font-mono text-[10px] font-bold text-gray-600 truncate block">
-                                {payroll.id ? payroll.id.slice(0, 8).toUpperCase() : "N/A"}
+                            <span className="text-[10px] font-bold uppercase text-gray-400 block">{t("salaryType") || "To'lov Turi"}</span>
+                            <span className="font-bold text-black flex items-center gap-1">
+                                {payroll.salaryType === "HOURLY" || emp.salaryType === "HOURLY" ? (
+                                    <span className="text-blue-700 font-bold">⏱️ {t("typeHourly") || "Soatbay"}</span>
+                                ) : (
+                                    <span className="text-neutral-900 font-bold">📅 {t("typeMonthly") || "Oylik"}</span>
+                                )}
                             </span>
                         </div>
                     </div>
@@ -116,7 +120,14 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
                         
                         <div className="flex flex-col divide-y divide-gray-100 text-xs">
                             <div className="py-2.5 flex items-center justify-between">
-                                <span className="font-medium text-gray-700">{t("baseSalaryDesc")}</span>
+                                <div>
+                                    <span className="font-medium text-gray-700">{t("baseSalaryDesc")}</span>
+                                    {(payroll.salaryType === "HOURLY" || emp.salaryType === "HOURLY") && (
+                                        <span className="text-[10px] text-blue-600 block font-mono">
+                                            {payroll.workedHours || 0} soat × {formatMoney(payroll.hourlyRate || emp.hourlyRate || 0)}/soat
+                                        </span>
+                                    )}
+                                </div>
                                 <span className="font-bold text-black">{formatMoney(payroll.baseSalary)}</span>
                             </div>
 
@@ -127,6 +138,18 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
                                 </div>
                                 <span className="font-bold text-emerald-700">+{formatMoney(payroll.bonus)}</span>
                             </div>
+
+                            {(payroll.taxAmount > 0 || (payroll.taxPercent && payroll.taxPercent > 0)) && (
+                                <div className="py-2.5 flex items-center justify-between bg-amber-50/50 px-2 -mx-2 rounded-xs">
+                                    <div>
+                                        <span className="font-medium text-amber-900">{t("taxAmount") || "Daromad Solig'i"} ({payroll.taxPercent || 12}%)</span>
+                                        <span className="text-[10px] text-amber-700 block">Jami hisoblangan gross maoshdan ushlab qolinadi</span>
+                                    </div>
+                                    <span className="font-bold text-amber-800">
+                                        -{formatMoney(payroll.taxAmount || Math.round((payroll.baseSalary + payroll.bonus) * ((payroll.taxPercent || 12) / 100)))}
+                                    </span>
+                                </div>
+                            )}
 
                             <div className="py-2.5 flex items-center justify-between">
                                 <div>

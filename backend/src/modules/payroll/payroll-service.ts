@@ -2,6 +2,7 @@ import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 import { PayrollStatus, Role } from "@prisma/client";
 import { notificationService } from "../notification/notification-service";
+import { randomUUID } from "crypto";
 
 export class PayrollService {
     async getPenaltyRules(currentUser?: any) {
@@ -306,6 +307,9 @@ export class PayrollService {
                     firstName: true,
                     lastName: true,
                     salary: true,
+                    salaryType: true,
+                    hourlyRate: true,
+                    taxPercent: true,
                     createdAt: true,
                     departmentId: true,
                     department: { select: { id: true, name: true } },
@@ -439,7 +443,7 @@ export class PayrollService {
                 };
             });
 
-        // Auto-cleanup disciplinary penalties older than 3 months to keep the database lean
+        
         try {
             const cutoffDate = new Date();
             cutoffDate.setMonth(cutoffDate.getMonth() - 3);
@@ -531,33 +535,35 @@ export class PayrollService {
                         } else if (onLeave || att?.absenceReason || att?.status === "ON_LEAVE") {
                         } else if (!isToday) {
                             absentDays++;
-                            let singleDayFine = 0;
-                            if (absenceRule) {
-                                if (absenceRule.penaltyType === "PERCENT") {
-                                    singleDayFine = Math.round((baseSalary / workingDaysInMonth) * (absenceRule.amount / 100));
+                            if (emp.salaryType !== "HOURLY") {
+                                let singleDayFine = 0;
+                                if (absenceRule) {
+                                    if (absenceRule.penaltyType === "PERCENT") {
+                                        singleDayFine = Math.round((baseSalary / workingDaysInMonth) * (absenceRule.amount / 100));
+                                    } else {
+                                        singleDayFine = Math.round(absenceRule.amount);
+                                    }
                                 } else {
-                                    singleDayFine = Math.round(absenceRule.amount);
+                                    singleDayFine = Math.round(baseSalary / workingDaysInMonth);
                                 }
-                            } else {
-                                singleDayFine = Math.round(baseSalary / workingDaysInMonth);
-                            }
 
-                            empAbsentRecords.push({
-                                id: `absent-${emp.id}-${curDayStr}`,
-                                employeeId: emp.id,
-                                employee: {
-                                    id: emp.id,
-                                    firstName: emp.firstName,
-                                    lastName: emp.lastName,
-                                    department: emp.department,
-                                    position: emp.position,
-                                    email: emp.user?.email || "",
-                                    user: { email: emp.user?.email || "" },
-                                },
-                                date: curDayStr,
-                                reason: "Ishga sababsiz kelmaganlik",
-                                fineAmount: singleDayFine,
-                            });
+                                empAbsentRecords.push({
+                                    id: `absent-${emp.id}-${curDayStr}`,
+                                    employeeId: emp.id,
+                                    employee: {
+                                        id: emp.id,
+                                        firstName: emp.firstName,
+                                        lastName: emp.lastName,
+                                        department: emp.department,
+                                        position: emp.position,
+                                        email: emp.user?.email || "",
+                                        user: { email: emp.user?.email || "" },
+                                    },
+                                    date: curDayStr,
+                                    reason: "Ishga sababsiz kelmaganlik",
+                                    fineAmount: singleDayFine,
+                                });
+                            }
                         }
                     }
                     curDay.setDate(curDay.getDate() + 1);
@@ -627,7 +633,7 @@ export class PayrollService {
         const totalAbsentFines = employeeSummaries.reduce((sum, e) => sum + e.absentFines, 0);
         const grandTotalFines = totalLateFines + totalAbsentFines + totalDisciplinaryFines;
 
-        // Fetch 3-month archive history (past 3-4 months of disciplinary penalties & lates)
+        
         const archiveStart = new Date(targetYear, targetMonth - 4, 1, 0, 0, 0, 0);
         const archiveEnd = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
 
@@ -908,7 +914,6 @@ export class PayrollService {
                     where: { id },
                     data: {
                         lateMinutes: 0,
-                        fineAmount: 0,
                         status: "PRESENT",
                         absenceReason: waiveReason,
                     },
@@ -923,7 +928,6 @@ export class PayrollService {
                     },
                     data: {
                         lateMinutes: 0,
-                        fineAmount: 0,
                         status: "PRESENT",
                         absenceReason: waiveReason,
                     },
@@ -1195,14 +1199,14 @@ export class PayrollService {
         const amount = Number(payload.amount);
         const baseSalary = employee.salary && employee.salary > 0 ? employee.salary : 5000000;
 
-        // Calculate working days in month (excluding weekends)
+        
         const daysInMonthCount = new Date(targetYear, targetMonth, 0).getDate();
         let workingDaysInMonth = 0;
         let passedWorkingDays = 0;
         const now = new Date();
         const isTargetCurrentMonth = targetYear === now.getFullYear() && targetMonth === (now.getMonth() + 1);
 
-        // Check if salary for targetMonth was already paid
+        
         const existingPayroll = await prisma.payroll.findUnique({
             where: {
                 employeeId_month_year: {
@@ -1246,7 +1250,7 @@ export class PayrollService {
 
         const dailyRate = Math.round(baseSalary / workingDaysInMonth);
 
-        // Check already taken advances after baseline
+        
         const existingAdvances = await prisma.payrollAdvance.findMany({
             where: {
                 employeeId: payload.employeeId,
@@ -1701,10 +1705,16 @@ export class PayrollService {
                 await prisma.payroll.update({
                     where: { id: existing.id },
                     data: {
+                        baseSalary: item.baseSalary,
+                        salaryType: item.salaryType,
+                        hourlyRate: item.hourlyRate,
+                        workedHours: item.workedHours,
+                        grossSalary: item.grossSalary,
+                        taxPercent: item.taxPercent,
+                        taxAmount: item.taxAmount,
+                        bonus: item.bonus,
                         deductions: item.deductions,
                         netSalary: item.netSalary,
-                        baseSalary: item.baseSalary,
-                        bonus: item.bonus,
                     },
                 });
             }
@@ -1715,13 +1725,93 @@ export class PayrollService {
                     month,
                     year,
                     baseSalary: item.baseSalary,
+                    salaryType: item.salaryType,
+                    hourlyRate: item.hourlyRate,
+                    workedHours: item.workedHours,
+                    grossSalary: item.grossSalary,
+                    taxPercent: item.taxPercent,
+                    taxAmount: item.taxAmount,
                     bonus: item.bonus,
                     deductions: item.deductions,
                     netSalary: item.netSalary,
                     status: PayrollStatus.PENDING,
+                    companyName: item.companyName,
                 },
             });
         }
+    }
+
+    async calculateMonthlyAttendanceHours(employeeId: string, month: number, year: number): Promise<{
+        workedHours: number;
+        lateDays: number;
+        totalLateMinutes: number;
+        attendedDays: number;
+    }> {
+        const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+        const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+        const now = new Date();
+
+        const attendances = await prisma.attendance.findMany({
+            where: {
+                employeeId,
+                date: {
+                    gte: startDate,
+                    lte: endDate,
+                },
+            },
+            orderBy: { date: "asc" },
+        });
+
+        let totalWorkedHours = 0;
+        let lateDays = 0;
+        let totalLateMinutes = 0;
+        let attendedDays = 0;
+
+        attendances.forEach((a) => {
+            if (a.checkIn && a.checkOut) {
+                const duration = (new Date(a.checkOut).getTime() - new Date(a.checkIn).getTime()) / (1000 * 60 * 60);
+                totalWorkedHours += Math.max(0, duration);
+                attendedDays++;
+            } else if (a.checkIn && a.date) {
+                const attDate = new Date(a.date);
+                const isToday = attDate.toDateString() === now.toDateString();
+                if (isToday) {
+                    const duration = (now.getTime() - new Date(a.checkIn).getTime()) / (1000 * 60 * 60);
+                    totalWorkedHours += Math.max(0, duration);
+                } else {
+                    totalWorkedHours += 8;
+                }
+                attendedDays++;
+            } else if (a.checkIn || a.status === "PRESENT" || a.status === "LATE") {
+                totalWorkedHours += 8;
+                attendedDays++;
+            } else if (a.status === "HALF_DAY") {
+                totalWorkedHours += 4;
+                attendedDays++;
+            }
+
+            const lateMin = a.lateMinutes || 0;
+            let isLateByCheckIn = false;
+            if (a.checkIn) {
+                const d = new Date(a.checkIn);
+                const minutes = d.getHours() * 60 + d.getMinutes();
+                if (minutes > 9 * 60 + 15) {
+                    isLateByCheckIn = true;
+                    if (lateMin === 0) {
+                        totalLateMinutes += minutes - 9 * 60;
+                    }
+                }
+            }
+            if (lateMin > 0 || isLateByCheckIn || a.status === "LATE") {
+                lateDays++;
+                if (lateMin > 0) {
+                    totalLateMinutes += lateMin;
+                }
+            }
+        });
+
+        const workedHours = Math.round(totalWorkedHours * 10) / 10;
+        return { workedHours, lateDays, totalLateMinutes, attendedDays };
     }
 
     async calculateAutoPayroll(payload: {
@@ -1824,7 +1914,9 @@ export class PayrollService {
 
         const results = await Promise.all(
             employees.map(async (emp) => {
-                const baseSalary = emp.salary && emp.salary > 0 ? emp.salary : 5000000;
+                const salaryType = emp.salaryType || "MONTHLY";
+                const hourlyRate = emp.hourlyRate || 0;
+                const taxPercent = emp.taxPercent !== undefined && emp.taxPercent !== null ? emp.taxPercent : 12;
 
                 const empSchedule =
                     schedules.find((s) => s.employeeId === emp.id) ||
@@ -1898,39 +1990,10 @@ export class PayrollService {
                     }
                 }
 
-                let lateDays = 0;
-                let totalLateMinutes = 0;
-                attendances.forEach((a) => {
-                    const lateMin = a.lateMinutes || 0;
-                    let isLateByCheckIn = false;
-                    if (a.checkIn) {
-                        const d = new Date(a.checkIn);
-                        const minutes = d.getHours() * 60 + d.getMinutes();
-                        if (minutes > 9 * 60 + 15) {
-                            isLateByCheckIn = true;
-                            if (lateMin === 0) {
-                                totalLateMinutes += minutes - 9 * 60;
-                            }
-                        }
-                    }
-                    if (lateMin > 0 || isLateByCheckIn || a.status === "LATE") {
-                        lateDays++;
-                        if (lateMin > 0) {
-                            totalLateMinutes += lateMin;
-                        }
-                    }
-                });
-
-                let absentDeduction = 0;
-                if (absentDays > 0) {
-                    if (absenceRule) {
-                        if (absenceRule.penaltyType === "PERCENT") {
-                            absentDeduction = Math.round((baseSalary / workingDaysInMonth) * absentDays * (absenceRule.amount / 100));
-                        } else {
-                            absentDeduction = Math.round(absentDays * absenceRule.amount);
-                        }
-                    }
-                }
+                const attendanceHoursData = await this.calculateMonthlyAttendanceHours(emp.id, payload.month, payload.year);
+                const workedHours = attendanceHoursData.workedHours;
+                const lateDays = attendanceHoursData.lateDays;
+                const totalLateMinutes = attendanceHoursData.totalLateMinutes;
 
                 let latePenalty = 0;
                 if (lateFixedRule && lateDays > 0) {
@@ -1941,7 +2004,27 @@ export class PayrollService {
                     latePenalty += Math.max(10000, totalLateMinutes * 2000);
                 }
 
-                const attendanceDeduction = Math.min(Math.round(baseSalary * 0.7), absentDeduction + latePenalty);
+                let baseSalary = 0;
+                let absentDeduction = 0;
+                let attendanceDeduction = 0;
+
+                if (salaryType === "HOURLY") {
+                    baseSalary = Math.round(workedHours * hourlyRate);
+                    absentDeduction = 0;
+                    attendanceDeduction = latePenalty;
+                } else {
+                    baseSalary = emp.salary && emp.salary > 0 ? emp.salary : 5000000;
+                    if (absentDays > 0) {
+                        if (absenceRule) {
+                            if (absenceRule.penaltyType === "PERCENT") {
+                                absentDeduction = Math.round((baseSalary / workingDaysInMonth) * absentDays * (absenceRule.amount / 100));
+                            } else {
+                                absentDeduction = Math.round(absentDays * absenceRule.amount);
+                            }
+                        }
+                    }
+                    attendanceDeduction = Math.min(Math.round(baseSalary * 0.7), absentDeduction + latePenalty);
+                }
 
                 const empManualPenalties = manualPenalties.filter((p) => p.employeeId === emp.id);
                 const manualPenaltiesTotal = empManualPenalties.reduce((sum, p) => sum + p.amount, 0);
@@ -1977,8 +2060,10 @@ export class PayrollService {
                 }
 
                 const totalBonus = okrBonus;
-                const totalDeductions = attendanceDeduction + manualPenaltiesTotal + advancesTotal;
-                const netSalary = Math.max(0, baseSalary + totalBonus - totalDeductions);
+                const grossSalary = baseSalary + totalBonus;
+                const taxAmount = Math.round(grossSalary * (taxPercent / 100));
+                const totalDeductions = attendanceDeduction + manualPenaltiesTotal + advancesTotal + taxAmount;
+                const netSalary = Math.max(0, grossSalary - totalDeductions);
 
                 const existingPayroll = await prisma.payroll.findUnique({
                     where: {
@@ -1999,10 +2084,17 @@ export class PayrollService {
                     companyName: emp.user?.companyName || null,
                     month: payload.month,
                     year: payload.year,
+                    salaryType,
+                    hourlyRate,
+                    workedHours,
                     baseSalary,
+                    grossSalary,
+                    taxPercent,
+                    taxAmount,
                     attendanceStats: {
                         workingDays: workingDaysInMonth,
                         attendedDays,
+                        workedHours,
                         lateDays,
                         totalLateMinutes,
                         absentDays,
@@ -2059,6 +2151,12 @@ export class PayrollService {
                     },
                     update: {
                         baseSalary: item.baseSalary,
+                        salaryType: item.salaryType,
+                        hourlyRate: item.hourlyRate,
+                        workedHours: item.workedHours,
+                        grossSalary: item.grossSalary,
+                        taxPercent: item.taxPercent,
+                        taxAmount: item.taxAmount,
                         bonus: item.bonus,
                         deductions: item.deductions,
                         netSalary: item.netSalary,
@@ -2068,10 +2166,17 @@ export class PayrollService {
                         month: payload.month,
                         year: payload.year,
                         baseSalary: item.baseSalary,
+                        salaryType: item.salaryType,
+                        hourlyRate: item.hourlyRate,
+                        workedHours: item.workedHours,
+                        grossSalary: item.grossSalary,
+                        taxPercent: item.taxPercent,
+                        taxAmount: item.taxAmount,
                         bonus: item.bonus,
                         deductions: item.deductions,
                         netSalary: item.netSalary,
                         status: PayrollStatus.PENDING,
+                        companyName: item.companyName,
                     },
                 });
             }),
@@ -2177,7 +2282,7 @@ export class PayrollService {
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
-        // 1. Find past months' PAID payrolls
+        
         const pastPaidPayrolls = await prisma.payroll.findMany({
             where: {
                 employeeId: employee.id,
@@ -2189,7 +2294,7 @@ export class PayrollService {
             },
         });
 
-        // 2. Ensure each past paid payroll is permanently archived in PayrollPaymentRecord for Accountant & Director
+        
         for (const pp of pastPaidPayrolls) {
             const existingRec = await prisma.payrollPaymentRecord.findFirst({
                 where: { payrollId: pp.id },
@@ -2217,7 +2322,7 @@ export class PayrollService {
             }
         }
 
-        // 3. Clean up past months' paid payrolls from active table (only keeps current month for employee profile)
+        
         if (pastPaidPayrolls.length > 0) {
             await prisma.payroll.deleteMany({
                 where: {
@@ -2226,10 +2331,10 @@ export class PayrollService {
             });
         }
 
-        // Check if there is any advance or activity for current month, ensure payroll is synced
+        
         await this.syncPayrollDeductionsAndNet(employee.id, currentMonth, currentYear);
 
-        // Check company schedule
+        
         const sched = await this.getPayrollSchedule({ companyName: employee.user?.companyName });
         const salaryPayDay = sched.salaryPayDay || 5;
         const isSalaryDue = now.getDate() >= salaryPayDay;
@@ -2242,6 +2347,10 @@ export class PayrollService {
                         id: true,
                         firstName: true,
                         lastName: true,
+                        salary: true,
+                        salaryType: true,
+                        hourlyRate: true,
+                        taxPercent: true,
                         department: { select: { name: true } },
                         position: { select: { title: true } },
                     },
@@ -2250,7 +2359,7 @@ export class PayrollService {
             orderBy: [{ year: "desc" }, { month: "desc" }],
         });
 
-        // If salary payment day has arrived for current month, auto-transition PENDING to AWAITING_CONFIRMATION
+        
         if (isSalaryDue) {
             for (const p of payrolls) {
                 if (p.year === currentYear && p.month === currentMonth && (p.status === PayrollStatus.PENDING || (p.status as any) === "DRAFT")) {
@@ -2298,28 +2407,63 @@ export class PayrollService {
                 const paidAdvances = advances.filter((a) => a.status === PayrollStatus.PAID);
                 const advancesTotal = paidAdvances.reduce((sum, adv) => sum + adv.amount, 0);
 
-                let deductions = p.status === PayrollStatus.PAID ? p.deductions : (totalPenalties + advancesTotal);
-                let netSalary = p.status === PayrollStatus.PAID ? p.netSalary : Math.max(0, p.baseSalary + p.bonus - deductions);
+                const salaryType = p.salaryType || employee.salaryType || "MONTHLY";
+                const hourlyRate = p.hourlyRate || employee.hourlyRate || 0;
+                const taxPercent = p.taxPercent !== null && p.taxPercent !== undefined ? p.taxPercent : (employee.taxPercent ?? 12);
+
+                let baseSalary = p.baseSalary;
+                let workedHours = p.workedHours || 0;
+                if (salaryType === "HOURLY" && p.status !== PayrollStatus.PAID) {
+                    const hoursData = await this.calculateMonthlyAttendanceHours(employee.id, p.month, p.year);
+                    workedHours = hoursData.workedHours;
+                    baseSalary = Math.round(workedHours * hourlyRate);
+                }
+
+                const grossSalary = baseSalary + p.bonus;
+                const taxAmount = Math.round(grossSalary * (taxPercent / 100));
+
+                let deductions = p.status === PayrollStatus.PAID ? p.deductions : (totalPenalties + advancesTotal + taxAmount);
+                let netSalary = p.status === PayrollStatus.PAID ? p.netSalary : Math.max(0, grossSalary - deductions);
 
                 if (p.status !== PayrollStatus.PAID) {
-                    if (deductions !== p.deductions || netSalary !== p.netSalary) {
+                    if (deductions !== p.deductions || netSalary !== p.netSalary || baseSalary !== p.baseSalary || !p.taxAmount) {
                         await prisma.payroll.update({
                             where: { id: p.id },
-                            data: { deductions, netSalary },
+                            data: {
+                                baseSalary,
+                                workedHours,
+                                deductions,
+                                netSalary,
+                                taxPercent,
+                                taxAmount,
+                                grossSalary,
+                                salaryType,
+                                hourlyRate,
+                            },
                         });
                     }
                 }
 
                 return {
                     ...p,
+                    baseSalary,
+                    workedHours,
                     deductions,
                     netSalary,
+                    grossSalary,
+                    taxPercent,
+                    taxAmount,
+                    salaryType,
+                    hourlyRate,
                     breakdown: {
                         penalties,
                         advances,
                         penaltySummary: empSummary,
-                        baseSalary: p.baseSalary,
+                        baseSalary,
                         bonus: p.bonus,
+                        grossSalary,
+                        taxPercent,
+                        taxAmount,
                         deductions,
                         netSalary,
                     },
@@ -2409,6 +2553,9 @@ export class PayrollService {
                         firstName: true,
                         lastName: true,
                         salary: true,
+                        salaryType: true,
+                        hourlyRate: true,
+                        taxPercent: true,
                         department: { select: { id: true, name: true } },
                         position: { select: { id: true, title: true } },
                         user: { select: { email: true, companyName: true } },
@@ -2446,19 +2593,48 @@ export class PayrollService {
                 const totalAdvances = advances.reduce((sum, a) => sum + a.amount, 0);
                 const empSummary = summaryMap[p.employeeId];
                 const totalPenalties = empSummary ? empSummary.totalFines : 0;
-                const newDeductions = totalAdvances + totalPenalties;
-                const newNet = Math.max(0, p.baseSalary + p.bonus - newDeductions);
 
-                if (newDeductions !== p.deductions || newNet !== p.netSalary) {
+                const salaryType = p.salaryType || p.employee?.salaryType || "MONTHLY";
+                const hourlyRate = p.hourlyRate || p.employee?.hourlyRate || 0;
+                const taxPercent = p.taxPercent !== null && p.taxPercent !== undefined ? p.taxPercent : (p.employee?.taxPercent ?? 12);
+
+                let baseSalary = p.baseSalary;
+                let workedHours = p.workedHours || 0;
+                if (salaryType === "HOURLY") {
+                    const hoursData = await this.calculateMonthlyAttendanceHours(p.employeeId, p.month, p.year);
+                    workedHours = hoursData.workedHours;
+                    baseSalary = Math.round(workedHours * hourlyRate);
+                }
+
+                const grossSalary = baseSalary + p.bonus;
+                const taxAmount = Math.round(grossSalary * (taxPercent / 100));
+                const newDeductions = totalAdvances + totalPenalties + taxAmount;
+                const newNet = Math.max(0, grossSalary - newDeductions);
+
+                if (newDeductions !== p.deductions || newNet !== p.netSalary || baseSalary !== p.baseSalary || !p.taxAmount) {
                     await prisma.payroll.update({
                         where: { id: p.id },
                         data: {
+                            baseSalary,
+                            workedHours,
+                            salaryType,
+                            hourlyRate,
+                            taxPercent,
+                            taxAmount,
+                            grossSalary,
                             deductions: newDeductions,
                             netSalary: newNet,
                         },
                     });
                     return {
                         ...p,
+                        baseSalary,
+                        workedHours,
+                        salaryType,
+                        hourlyRate,
+                        taxPercent,
+                        taxAmount,
+                        grossSalary,
                         deductions: newDeductions,
                         netSalary: newNet,
                         penaltyDetails: empSummary,
@@ -2472,6 +2648,114 @@ export class PayrollService {
         );
 
         return syncedPayrolls;
+    }
+
+    async getEmployeeCompensations(currentUser?: any) {
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
+        const employees = await prisma.employee.findMany({
+            where: {
+                user: {
+                    role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
+                    ...(companyFilter ? { companyName: companyFilter } : {}),
+                },
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                salary: true,
+                salaryType: true,
+                hourlyRate: true,
+                taxPercent: true,
+                department: { select: { id: true, name: true } },
+                position: { select: { id: true, title: true } },
+                user: { select: { email: true, companyName: true } },
+            },
+            orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+        });
+
+        return employees;
+    }
+
+    async updateEmployeeCompensation(
+        employeeId: string,
+        payload: {
+            salaryType?: "MONTHLY" | "HOURLY";
+            salary?: number;
+            hourlyRate?: number;
+            taxPercent?: number;
+        },
+        currentUser?: any,
+    ) {
+        let callerRole = currentUser?.role;
+        let callerCompany: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller) {
+                callerRole = caller.role;
+                callerCompany = caller.companyName || null;
+            }
+        }
+
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            include: { user: { select: { companyName: true } } },
+        });
+
+        if (!employee) {
+            throw new AppError("Xodim topilmadi", 404);
+        }
+
+        if (
+            callerCompany &&
+            employee.user?.companyName &&
+            callerRole !== "SUPER_ADMIN" &&
+            employee.user.companyName !== callerCompany
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        const updatedEmployee = await prisma.employee.update({
+            where: { id: employeeId },
+            data: {
+                ...(payload.salaryType !== undefined && { salaryType: payload.salaryType }),
+                ...(payload.salary !== undefined && { salary: Number(payload.salary) }),
+                ...(payload.hourlyRate !== undefined && { hourlyRate: Number(payload.hourlyRate) }),
+                ...(payload.taxPercent !== undefined && { taxPercent: Number(payload.taxPercent) }),
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                salary: true,
+                salaryType: true,
+                hourlyRate: true,
+                taxPercent: true,
+                department: { select: { id: true, name: true } },
+                position: { select: { id: true, title: true } },
+                user: { select: { email: true, companyName: true } },
+            },
+        });
+
+        const now = new Date();
+        await this.syncPayrollDeductionsAndNet(employeeId, now.getMonth() + 1, now.getFullYear()).catch((err) => {
+            console.warn("Could not sync payroll after compensation update:", err);
+        });
+
+        return updatedEmployee;
     }
 
     async updateStatus(id: string, status: PayrollStatus, currentUser?: any) {
@@ -2593,7 +2877,7 @@ export class PayrollService {
 
         const company = payroll.employee?.user?.companyName || callerCompany || null;
 
-        // Accountant marks payment as disbursed/awaiting employee receipt confirmation
+        
         const updated = await prisma.payroll.update({
             where: { id: payrollId },
             data: {
@@ -2654,7 +2938,7 @@ export class PayrollService {
             throw new AppError("Ish haqi varaqasi topilmadi", 404);
         }
 
-        // Find employee record if current user is linked
+        
         const employeeRecord = await prisma.employee.findFirst({
             where: {
                 OR: [
@@ -2710,7 +2994,7 @@ export class PayrollService {
             },
         });
 
-        // Ensure single payment record is created in history
+        
         const existingRecord = await prisma.payrollPaymentRecord.findFirst({
             where: { payrollId: payroll.id },
         });
@@ -3065,6 +3349,382 @@ export class PayrollService {
         });
     }
 
+    async syncRecurringExpensesForCompany(companyName?: string | null) {
+        try {
+            const rules = await prisma.companyRecurringExpense.findMany({
+                where: {
+                    isActive: true,
+                    ...(companyName ? { companyName } : {}),
+                },
+            });
+
+            if (!rules || rules.length === 0) return;
+
+            const now = new Date();
+            const nowYear = now.getFullYear();
+            const nowMonth = now.getMonth() + 1; 
+            const nowDay = now.getDate();
+
+            for (const rule of rules) {
+                const sYear = rule.startYear || nowYear;
+                const sMonth = rule.startMonth || 1;
+
+                for (let y = sYear; y <= nowYear; y++) {
+                    const fromM = (y === sYear) ? sMonth : 1;
+                    const toM = (y === nowYear) ? nowMonth : 12;
+
+                    for (let m = fromM; m <= toM; m++) {
+                        
+                        if (y === nowYear && m === nowMonth && nowDay < (rule.recurringDay || 1)) {
+                            continue;
+                        }
+
+                        const existing = await prisma.companyExpense.findFirst({
+                            where: {
+                                recurringGroupId: rule.id,
+                                month: m,
+                                year: y,
+                                ...(rule.companyName ? { companyName: rule.companyName } : {}),
+                            },
+                        });
+
+                        if (!existing) {
+                            const daysInM = new Date(y, m, 0).getDate();
+                            const actualDay = Math.min(Math.max(1, rule.recurringDay || 1), daysInM);
+                            const expDate = new Date(Date.UTC(y, m - 1, actualDay, 12, 0, 0));
+
+                            await prisma.companyExpense.create({
+                                data: {
+                                    title: rule.title,
+                                    category: rule.category,
+                                    amount: rule.amount,
+                                    date: expDate,
+                                    month: m,
+                                    year: y,
+                                    description: rule.description,
+                                    paymentMethod: rule.paymentMethod || "BANK_TRANSFER",
+                                    receiptUrl: rule.receiptUrl,
+                                    isRecurring: true,
+                                    recurringGroupId: rule.id,
+                                    recurringDay: actualDay,
+                                    companyName: rule.companyName,
+                                    createdById: rule.createdById,
+                                },
+                            });
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Error syncing recurring company expenses:", err);
+        }
+    }
+
+    async getCompanyExpenses(
+        params?: {
+            month?: number | string;
+            year?: number | string;
+            category?: string;
+            search?: string;
+        },
+        currentUser?: any,
+    ) {
+        let callerCompany: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                callerCompany = caller.companyName || null;
+            } else if (caller && caller.role === "SUPER_ADMIN") {
+                callerCompany = caller.companyName || null;
+            }
+        }
+
+        await this.syncRecurringExpensesForCompany(callerCompany);
+
+        const where: any = {
+            ...(callerCompany ? { companyName: callerCompany } : {}),
+        };
+
+        if (params?.month && params.month !== "ALL") {
+            where.month = Number(params.month);
+        }
+        if (params?.year) {
+            where.year = Number(params.year);
+        }
+        if (params?.category && params.category !== "ALL") {
+            where.category = params.category;
+        }
+        if (params?.search && params.search.trim()) {
+            const s = params.search.trim();
+            where.OR = [
+                { title: { contains: s, mode: "insensitive" } },
+                { description: { contains: s, mode: "insensitive" } },
+            ];
+        }
+
+        return prisma.companyExpense.findMany({
+            where,
+            orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        });
+    }
+
+    async createCompanyExpense(
+        payload: {
+            title: string;
+            category?: string;
+            amount: number | string;
+            date?: string;
+            month?: number | string;
+            year?: number | string;
+            description?: string;
+            paymentMethod?: string;
+            receiptUrl?: string;
+            isRecurring?: boolean;
+            recurringDay?: number | string;
+            recurringScope?: "ALL_YEAR" | "FROM_SELECTED_MONTH" | "SELECTED_MONTHS";
+            recurringMonths?: number[];
+        },
+        currentUser?: any,
+    ) {
+        let callerCompany: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller) {
+                callerCompany = caller.companyName || null;
+            }
+        }
+
+        if (!payload.title || !payload.amount) {
+            throw new AppError("Xarajat nomi va summasi talab qilinadi", 400);
+        }
+
+        const numAmount = Number(payload.amount);
+        if (isNaN(numAmount) || numAmount < 0) {
+            throw new AppError("Xarajat summasi musbat son bo'lishi kerak", 400);
+        }
+
+        const expDate = payload.date ? new Date(payload.date) : new Date();
+        const baseMonth = payload.month ? Number(payload.month) : expDate.getMonth() + 1;
+        const targetYear = payload.year ? Number(payload.year) : expDate.getFullYear();
+
+        if (payload.isRecurring) {
+            const preferredDay = payload.recurringDay
+                ? Number(payload.recurringDay)
+                : (payload.date ? new Date(payload.date).getDate() : 5);
+
+            const rule = await prisma.companyRecurringExpense.create({
+                data: {
+                    title: payload.title.trim(),
+                    category: payload.category || "OTHER",
+                    amount: numAmount,
+                    startMonth: baseMonth,
+                    startYear: targetYear,
+                    recurringDay: preferredDay,
+                    description: payload.description ? payload.description.trim() : null,
+                    paymentMethod: payload.paymentMethod || "BANK_TRANSFER",
+                    receiptUrl: payload.receiptUrl || null,
+                    isActive: true,
+                    companyName: callerCompany,
+                    createdById: currentUser?.id || null,
+                },
+            });
+
+            await this.syncRecurringExpensesForCompany(callerCompany);
+
+            const created = await prisma.companyExpense.findFirst({
+                where: {
+                    recurringGroupId: rule.id,
+                    month: baseMonth,
+                    year: targetYear,
+                    ...(callerCompany ? { companyName: callerCompany } : {}),
+                },
+            });
+
+            return created || rule;
+        }
+
+        return prisma.companyExpense.create({
+            data: {
+                title: payload.title.trim(),
+                category: payload.category || "OTHER",
+                amount: numAmount,
+                date: expDate,
+                month: baseMonth,
+                year: targetYear,
+                description: payload.description ? payload.description.trim() : null,
+                paymentMethod: payload.paymentMethod || "BANK_TRANSFER",
+                receiptUrl: payload.receiptUrl || null,
+                isRecurring: false,
+                companyName: callerCompany,
+                createdById: currentUser?.id || null,
+            },
+        });
+    }
+
+    async updateCompanyExpense(
+        id: string,
+        payload: {
+            title?: string;
+            category?: string;
+            amount?: number | string;
+            date?: string;
+            month?: number | string;
+            year?: number | string;
+            description?: string;
+            paymentMethod?: string;
+            receiptUrl?: string;
+            isRecurring?: boolean;
+            recurringDay?: number | string;
+            updateScope?: "ONLY_THIS" | "ALL_RECURRING";
+        },
+        currentUser?: any,
+    ) {
+        let callerRole = currentUser?.role;
+        let callerCompany: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller) {
+                callerRole = caller.role;
+                callerCompany = caller.companyName || null;
+            }
+        }
+
+        const existing = await prisma.companyExpense.findUnique({
+            where: { id },
+        });
+
+        if (!existing) {
+            throw new AppError("Xarajat topilmadi", 404);
+        }
+
+        if (
+            callerCompany &&
+            existing.companyName &&
+            callerRole !== "SUPER_ADMIN" &&
+            existing.companyName !== callerCompany
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        const dataToUpdate: any = {};
+        if (payload.title !== undefined) dataToUpdate.title = payload.title.trim();
+        if (payload.category !== undefined) dataToUpdate.category = payload.category;
+        if (payload.amount !== undefined) {
+            const num = Number(payload.amount);
+            if (isNaN(num) || num < 0) throw new AppError("Noto'g'ri summa", 400);
+            dataToUpdate.amount = num;
+        }
+        if (payload.description !== undefined) dataToUpdate.description = payload.description?.trim() || null;
+        if (payload.paymentMethod !== undefined) dataToUpdate.paymentMethod = payload.paymentMethod;
+        if (payload.receiptUrl !== undefined) dataToUpdate.receiptUrl = payload.receiptUrl;
+
+        if (payload.updateScope === "ALL_RECURRING" && existing.recurringGroupId) {
+            await prisma.companyRecurringExpense.updateMany({
+                where: {
+                    id: existing.recurringGroupId,
+                    ...(callerCompany ? { companyName: callerCompany } : {}),
+                },
+                data: {
+                    ...(payload.title !== undefined ? { title: payload.title.trim() } : {}),
+                    ...(payload.category !== undefined ? { category: payload.category } : {}),
+                    ...(payload.amount !== undefined ? { amount: Number(payload.amount) } : {}),
+                    ...(payload.description !== undefined ? { description: payload.description?.trim() || null } : {}),
+                    ...(payload.paymentMethod !== undefined ? { paymentMethod: payload.paymentMethod } : {}),
+                    ...(payload.receiptUrl !== undefined ? { receiptUrl: payload.receiptUrl } : {}),
+                },
+            });
+
+            await prisma.companyExpense.updateMany({
+                where: {
+                    recurringGroupId: existing.recurringGroupId,
+                    ...(callerCompany ? { companyName: callerCompany } : {}),
+                },
+                data: dataToUpdate,
+            });
+            return prisma.companyExpense.findUnique({ where: { id } });
+        }
+
+        if (payload.date !== undefined) {
+            const d = new Date(payload.date);
+            dataToUpdate.date = d;
+            dataToUpdate.month = payload.month ? Number(payload.month) : d.getMonth() + 1;
+            dataToUpdate.year = payload.year ? Number(payload.year) : d.getFullYear();
+        } else {
+            if (payload.month !== undefined) dataToUpdate.month = Number(payload.month);
+            if (payload.year !== undefined) dataToUpdate.year = Number(payload.year);
+        }
+
+        return prisma.companyExpense.update({
+            where: { id },
+            data: dataToUpdate,
+        });
+    }
+
+    async deleteCompanyExpense(
+        id: string,
+        params?: { deleteScope?: string; scope?: string },
+        currentUser?: any,
+    ) {
+        let callerRole = currentUser?.role;
+        let callerCompany: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller) {
+                callerRole = caller.role;
+                callerCompany = caller.companyName || null;
+            }
+        }
+
+        const existing = await prisma.companyExpense.findUnique({
+            where: { id },
+        });
+
+        if (!existing) {
+            throw new AppError("Xarajat topilmadi", 404);
+        }
+
+        if (
+            callerCompany &&
+            existing.companyName &&
+            callerRole !== "SUPER_ADMIN" &&
+            existing.companyName !== callerCompany
+        ) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
+        const scope = params?.deleteScope || params?.scope;
+        if (scope === "ALL_RECURRING" && existing.recurringGroupId) {
+            await prisma.companyRecurringExpense.deleteMany({
+                where: {
+                    id: existing.recurringGroupId,
+                    ...(callerCompany ? { companyName: callerCompany } : {}),
+                },
+            });
+            return prisma.companyExpense.deleteMany({
+                where: {
+                    recurringGroupId: existing.recurringGroupId,
+                    ...(callerCompany ? { companyName: callerCompany } : {}),
+                },
+            });
+        }
+
+        return prisma.companyExpense.delete({
+            where: { id },
+        });
+    }
+
     async getCompanyExpensesAnalytics(query: { year?: number | string }, currentUser?: any) {
         let callerRole = currentUser?.role;
         let callerCompany: string | null = null;
@@ -3080,9 +3740,11 @@ export class PayrollService {
             }
         }
 
+        await this.syncRecurringExpensesForCompany(callerCompany);
+
         const targetYear = Number(query.year) || new Date().getFullYear();
 
-        // 1. Fetch all company employees with strict company filtering
+        
         const employees = await prisma.employee.findMany({
             where: {
                 ...(callerCompany ? { user: { companyName: callerCompany } } : {}),
@@ -3098,7 +3760,7 @@ export class PayrollService {
         const empMap = new Map<string, typeof employees[0]>();
         employees.forEach((e) => empMap.set(e.id, e));
 
-        // 2. Fetch all payroll records for this year and company
+        
         const payrolls = employeeIds.length > 0
             ? await prisma.payroll.findMany({
                 where: {
@@ -3118,7 +3780,7 @@ export class PayrollService {
             })
             : [];
 
-        // 3. Fetch all advances for this year and company
+        
         const advances = employeeIds.length > 0
             ? await prisma.payrollAdvance.findMany({
                 where: {
@@ -3139,7 +3801,7 @@ export class PayrollService {
             })
             : [];
 
-        // 4. Fetch all penalties for this year and company
+        
         const penalties = employeeIds.length > 0
             ? await prisma.employeePenalty.findMany({
                 where: {
@@ -3159,12 +3821,33 @@ export class PayrollService {
             })
             : [];
 
+        
+        const manualExpenses = await prisma.companyExpense.findMany({
+            where: {
+                year: targetYear,
+                ...(callerCompany ? { companyName: callerCompany } : {}),
+            },
+            orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        });
+
         const monthNamesUz = [
             "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
             "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"
         ];
 
-        // 5. Build month-by-month financial metrics
+        const categoryLabels: Record<string, string> = {
+            RENT: "Ofis ijarasi",
+            UTILITIES: "Kommunal to'lovlar",
+            SOFTWARE: "Dasturiy ta'minot & IT",
+            OFFICE: "Ofis va kanselyariya",
+            MARKETING: "Marketing & Reklama",
+            HARDWARE: "Texnika va uskunalar",
+            TRAVEL: "Xizmat safari & Transport",
+            TAXES: "Soliqlar & Badallar",
+            OTHER: "Boshqa xarajatlar",
+        };
+
+        
         const monthlyAnalytics: any[] = [];
         let yearlyTotalExpense = 0;
         let yearlyTotalBaseSalary = 0;
@@ -3172,11 +3855,13 @@ export class PayrollService {
         let yearlyTotalAdvances = 0;
         let yearlyTotalPenalties = 0;
         let yearlyTotalNetSalary = 0;
+        let yearlyTotalManualExpenses = 0;
 
         for (let m = 1; m <= 12; m++) {
             const mPayrolls = payrolls.filter((p) => p.month === m);
             const mAdvances = advances.filter((a) => a.month === m);
             const mPenalties = penalties.filter((p) => p.month === m);
+            const mManual = manualExpenses.filter((e) => e.month === m);
 
             const mBaseSalary = mPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0);
             const mBonuses = mPayrolls.reduce((sum, p) => sum + (p.bonus || 0), 0);
@@ -3184,13 +3869,11 @@ export class PayrollService {
             const mNetSalary = mPayrolls.reduce((sum, p) => sum + (p.netSalary || 0), 0);
             const mAdvanceTotal = mAdvances.reduce((sum, a) => sum + (a.amount || 0), 0);
             const mPenaltyTotal = mPenalties.reduce((sum, p) => sum + (p.amount || 0), 0);
+            const mManualTotal = mManual.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-            // Total company expense for month:
-            // Net salary payable/paid + advances + bonuses (if outside net)
-            // Total outlay from company budget = Net Salary + Advances (or Base + Bonus - Deductions + Advances)
-            const mTotalExpense = mPayrolls.length > 0
-                ? (mNetSalary + mAdvanceTotal)
-                : mAdvanceTotal;
+            
+            
+            const mTotalExpense = (mPayrolls.length > 0 ? mNetSalary : 0) + mAdvanceTotal + mManualTotal;
 
             yearlyTotalExpense += mTotalExpense;
             yearlyTotalBaseSalary += mBaseSalary;
@@ -3198,15 +3881,17 @@ export class PayrollService {
             yearlyTotalAdvances += mAdvanceTotal;
             yearlyTotalPenalties += mPenaltyTotal;
             yearlyTotalNetSalary += mNetSalary;
+            yearlyTotalManualExpenses += mManualTotal;
 
-            // Breakdown percentages
-            const grossPositives = mBaseSalary + mBonuses + mAdvanceTotal;
+            
+            const grossPositives = mBaseSalary + mBonuses + mAdvanceTotal + mManualTotal;
             const pctBaseSalary = grossPositives > 0 ? Math.round((mBaseSalary / grossPositives) * 1000) / 10 : 0;
             const pctBonuses = grossPositives > 0 ? Math.round((mBonuses / grossPositives) * 1000) / 10 : 0;
             const pctAdvances = grossPositives > 0 ? Math.round((mAdvanceTotal / grossPositives) * 1000) / 10 : 0;
+            const pctManualExpenses = grossPositives > 0 ? Math.round((mManualTotal / grossPositives) * 1000) / 10 : 0;
             const pctPenalties = grossPositives > 0 ? Math.round((mPenaltyTotal / grossPositives) * 1000) / 10 : 0;
 
-            // Department distribution for this month
+            
             const deptMap = new Map<string, {
                 departmentId: string;
                 departmentName: string;
@@ -3272,7 +3957,32 @@ export class PayrollService {
                 percentage: mTotalExpense > 0 ? Math.round((d.totalExpense / mTotalExpense) * 1000) / 10 : 0,
             })).sort((a, b) => b.totalExpense - a.totalExpense);
 
-            // Employee breakdown for drilldown
+            
+            const catMap = new Map<string, { category: string; categoryName: string; totalAmount: number; count: number }>();
+            mManual.forEach((exp) => {
+                const c = exp.category || "OTHER";
+                if (!catMap.has(c)) {
+                    catMap.set(c, {
+                        category: c,
+                        categoryName: categoryLabels[c] || c,
+                        totalAmount: 0,
+                        count: 0,
+                    });
+                }
+                const item = catMap.get(c)!;
+                item.totalAmount += (exp.amount || 0);
+                item.count += 1;
+            });
+
+            const manualExpensesByCategory = Array.from(catMap.values()).map((c) => ({
+                category: c.category,
+                categoryName: c.categoryName,
+                totalAmount: c.totalAmount,
+                count: c.count,
+                percentage: mManualTotal > 0 ? Math.round((c.totalAmount / mManualTotal) * 1000) / 10 : 0,
+            })).sort((a, b) => b.totalAmount - a.totalAmount);
+
+            
             const empDetailMap = new Map<string, any>();
             mPayrolls.forEach((p) => {
                 empDetailMap.set(p.employeeId, {
@@ -3325,22 +4035,27 @@ export class PayrollService {
                 deductions: mDeductions,
                 netSalary: mNetSalary,
                 advances: mAdvanceTotal,
+                manualExpenses: mManualTotal,
                 penalties: mPenaltyTotal,
                 payrollCount: mPayrolls.length,
                 advancesCount: mAdvances.length,
+                manualExpensesCount: mManual.length,
                 activeEmployeesCount: employeeList.length,
                 percentages: {
                     baseSalary: pctBaseSalary,
                     bonuses: pctBonuses,
                     advances: pctAdvances,
+                    manualExpenses: pctManualExpenses,
                     penalties: pctPenalties,
                 },
                 departmentBreakdown,
+                manualExpensesByCategory,
+                manualExpensesList: mManual,
                 employeeList,
             });
         }
 
-        // 6. Find Max and Min expense months
+        
         const activeMonths = monthlyAnalytics.filter((m) => m.totalExpense > 0);
         let maxExpenseMonth: any = null;
         let minExpenseMonth: any = null;
@@ -3363,6 +4078,7 @@ export class PayrollService {
             yearlyTotalBaseSalary,
             yearlyTotalBonuses,
             yearlyTotalAdvances,
+            yearlyTotalManualExpenses,
             yearlyTotalPenalties,
             yearlyTotalNetSalary,
             averageMonthlyExpense,

@@ -21,6 +21,8 @@ import {
     deletePaymentRecord,
     clearAllPaymentRecords,
     fetchPenaltiesSummary,
+    fetchEmployeeCompensations,
+    updateEmployeeCompensation,
 } from "@/src/services/payroll-service";
 import { fetchAllUsers } from "@/src/services/user-service";
 import PayslipModal from "./PayslipModal";
@@ -48,6 +50,24 @@ export default function PayrollManager() {
     const [calculating, setCalculating] = useState(false);
     const [batchGenerating, setBatchGenerating] = useState(false);
 
+    const [isCompensationModalOpen, setIsCompensationModalOpen] = useState(false);
+    const [compensationsList, setCompensationsList] = useState<any[]>([]);
+    const [compLoading, setCompLoading] = useState(false);
+    const [compSearch, setCompSearch] = useState("");
+    const [editingCompEmp, setEditingCompEmp] = useState<any | null>(null);
+    const [compForm, setCompForm] = useState<{
+        salaryType: "MONTHLY" | "HOURLY";
+        salary: string | number;
+        hourlyRate: string | number;
+        taxPercent: string | number;
+    }>({
+        salaryType: "MONTHLY",
+        salary: "",
+        hourlyRate: "",
+        taxPercent: 12,
+    });
+    const [savingComp, setSavingComp] = useState(false);
+
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [manualForm, setManualForm] = useState({
         employeeId: "",
@@ -55,7 +75,6 @@ export default function PayrollManager() {
         bonus: "0",
         deductions: "0",
     });
-
 
     const [dueReminders, setDueReminders] = useState<any | null>(null);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -276,6 +295,52 @@ export default function PayrollManager() {
             await loadData();
         } catch (err: any) {
             alert(err.message || "Error");
+        }
+    };
+
+    const handleOpenCompensationModal = async () => {
+        setIsCompensationModalOpen(true);
+        setCompLoading(true);
+        try {
+            const data = await fetchEmployeeCompensations();
+            setCompensationsList(data || []);
+        } catch (err: any) {
+            console.error("Failed to fetch compensations:", err);
+        } finally {
+            setCompLoading(false);
+        }
+    };
+
+    const handleStartEditComp = (emp: any) => {
+        setEditingCompEmp(emp);
+        setCompForm({
+            salaryType: emp.salaryType === "HOURLY" ? "HOURLY" : "MONTHLY",
+            salary: emp.salary || "",
+            hourlyRate: emp.hourlyRate || "",
+            taxPercent: emp.taxPercent !== undefined && emp.taxPercent !== null ? emp.taxPercent : 12,
+        });
+    };
+
+    const handleSaveCompensation = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingCompEmp) return;
+        setSavingComp(true);
+        try {
+            await updateEmployeeCompensation(editingCompEmp.id, {
+                salaryType: compForm.salaryType,
+                salary: Number(compForm.salary) || 0,
+                hourlyRate: Number(compForm.hourlyRate) || 0,
+                taxPercent: Number(compForm.taxPercent) || 0,
+            });
+            alert(t("compensationUpdated") || "To'lov sozlamalari saqlandi!");
+            setEditingCompEmp(null);
+            const data = await fetchEmployeeCompensations();
+            setCompensationsList(data || []);
+            await loadData();
+        } catch (err: any) {
+            alert(err.message || "Xatolik yuz berdi");
+        } finally {
+            setSavingComp(false);
         }
     };
 
@@ -837,6 +902,14 @@ export default function PayrollManager() {
                     </button>
 
                     <button
+                        onClick={handleOpenCompensationModal}
+                        className="px-3.5 py-2.5 bg-blue-50 text-blue-900 border border-blue-300 text-xs font-bold uppercase tracking-wider hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+                    >
+                        <span>⚙️</span>
+                        {t("compensationSettingsBtn") || "Oylik & Soatbay"}
+                    </button>
+
+                    <button
                         onClick={handleOpenScheduleModal}
                         className="px-3.5 py-2.5 bg-indigo-50 text-indigo-900 border border-indigo-300 text-xs font-bold uppercase tracking-wider hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
                     >
@@ -1187,16 +1260,38 @@ export default function PayrollManager() {
                                             </span>
                                         </td>
                                         <td className="p-4 font-bold text-gray-800">
-                                            <div>{formatMoney(p.baseSalary)}</div>
-                                            <div className="text-[10px] font-normal text-blue-700 font-mono mt-0.5" title={`${totalWorkingDaysInMonth} ish kuni hisobida`}>
-                                                ~{formatMoney(dailyRate)} / kun
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span>{formatMoney(p.baseSalary)}</span>
+                                                {p.salaryType === "HOURLY" || emp.salaryType === "HOURLY" ? (
+                                                    <span className="px-1.5 py-0.2 text-[9px] font-bold bg-blue-100 text-blue-900 border border-blue-200 rounded-xs">
+                                                        ⏱️ Soatbay
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-1.5 py-0.2 text-[9px] font-bold bg-gray-100 text-gray-700 border border-gray-200 rounded-xs">
+                                                        📅 Oylik
+                                                    </span>
+                                                )}
                                             </div>
+                                            {p.salaryType === "HOURLY" || emp.salaryType === "HOURLY" ? (
+                                                <div className="text-[10px] font-normal text-blue-700 font-mono mt-0.5">
+                                                    {p.workedHours || 0} soat × {formatMoney(p.hourlyRate || emp.hourlyRate || 0)}/soat
+                                                </div>
+                                            ) : (
+                                                <div className="text-[10px] font-normal text-blue-700 font-mono mt-0.5" title={`${totalWorkingDaysInMonth} ish kuni hisobida`}>
+                                                    ~{formatMoney(dailyRate)} / kun
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="p-4 font-bold text-emerald-600">
                                             +{formatMoney(p.bonus)}
                                         </td>
                                         <td className="p-4 font-bold text-rose-600">
                                             <div>-{formatMoney(rowDeductions)}</div>
+                                            {p.taxAmount > 0 && (
+                                                <div className="text-[9px] font-medium text-amber-800 font-mono mt-0.5">
+                                                    Soliq ({p.taxPercent || 12}%): -{formatMoney(p.taxAmount)}
+                                                </div>
+                                            )}
                                             {p.status === "PAID" ? (
                                                 statusFilter === "PAID" ? (
                                                     <div className="text-[9px] font-normal text-gray-400 font-mono mt-0.5">
@@ -1402,15 +1497,33 @@ export default function PayrollManager() {
                                         <th className="p-3">{t("netSalary")}</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
+                                 <tbody className="divide-y divide-gray-100">
                                     {autoCalcResults.map((item, idx) => (
                                         <tr key={idx} className="hover:bg-gray-50">
                                             <td className="p-3">
-                                                <span className="font-bold text-black block">{item.firstName} {item.lastName}</span>
-                                                <span className="text-[10px] text-gray-400">{item.department} • {item.position}</span>
+                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                    <span className="font-bold text-black">{item.firstName} {item.lastName}</span>
+                                                    {item.salaryType === "HOURLY" ? (
+                                                        <span className="inline-flex items-center px-1.5 py-0.2 bg-blue-100 text-blue-800 text-[9px] font-black rounded">
+                                                            ⏱️ Soatbay
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded">
+                                                            📅 Oylik
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="text-[10px] text-gray-400 block">{item.department} • {item.position}</span>
                                             </td>
-                                            <td className="p-3 font-bold text-gray-700">
-                                                {formatMoney(item.baseSalary)}
+                                            <td className="p-3">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-gray-900">{formatMoney(item.baseSalary)}</span>
+                                                    {item.salaryType === "HOURLY" ? (
+                                                        <span className="text-[10px] text-blue-600 font-medium">
+                                                            {item.workedHours || 0} soat × {formatMoney(item.hourlyRate || 0)}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
                                             </td>
                                             <td className="p-3">
                                                 <div className="flex flex-col text-[11px]">
@@ -1430,20 +1543,28 @@ export default function PayrollManager() {
                                                 </div>
                                             </td>
                                             <td className="p-3">
-                                                {item.manualPenalties && item.manualPenalties.length > 0 ? (
-                                                    <div className="flex flex-col gap-1 text-[10px]">
-                                                        {item.manualPenalties.map((mp: any) => (
-                                                            <div key={mp.id} className="text-rose-700 font-medium">
-                                                                • {mp.reason}: <span className="font-bold">-{formatMoney(mp.amount)}</span>
-                                                            </div>
-                                                        ))}
-                                                        <span className="font-bold text-rose-800 text-[11px]">
-                                                            {t("totalManualPenalties", { amount: formatMoney(item.manualPenaltiesTotal) })}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-400 text-[11px]">-</span>
-                                                )}
+                                                <div className="flex flex-col gap-1 text-[10px]">
+                                                    {item.manualPenalties && item.manualPenalties.length > 0 && (
+                                                        <>
+                                                            {item.manualPenalties.map((mp: any) => (
+                                                                <div key={mp.id} className="text-rose-700 font-medium">
+                                                                    • {mp.reason}: <span className="font-bold">-{formatMoney(mp.amount)}</span>
+                                                                </div>
+                                                            ))}
+                                                            <span className="font-bold text-rose-800 text-[11px]">
+                                                                {t("totalManualPenalties", { amount: formatMoney(item.manualPenaltiesTotal) })}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                    {item.taxAmount > 0 && (
+                                                        <div className="text-amber-800 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                                            🏛️ Soliq ({item.taxPercent || 12}%): <span className="font-bold">-{formatMoney(item.taxAmount)}</span>
+                                                        </div>
+                                                    )}
+                                                    {(!item.manualPenalties || item.manualPenalties.length === 0) && (!item.taxAmount || item.taxAmount === 0) && (
+                                                        <span className="text-gray-400 text-[11px]">-</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="p-3">
                                                 {item.advances && item.advances.length > 0 ? (
@@ -1473,8 +1594,13 @@ export default function PayrollManager() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="p-3 font-black text-black text-sm">
-                                                {formatMoney(item.netSalary)}
+                                            <td className="p-3">
+                                                <span className="font-black text-black text-sm block">
+                                                    {formatMoney(item.netSalary)}
+                                                </span>
+                                                <span className="text-[10px] text-gray-500 block">
+                                                    Yalpi: {formatMoney(item.grossSalary || (item.baseSalary + item.bonus))}
+                                                </span>
                                             </td>
                                         </tr>
                                     ))}
@@ -2254,6 +2380,270 @@ export default function PayrollManager() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {isCompensationModalOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white border-2 border-black w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+                            <div>
+                                <h3 className="text-base font-black uppercase tracking-tight text-black flex items-center gap-2">
+                                    <span>⚙️</span> {t("compensationModalTitle") || "Xodimlarning Oylik va Soatbay To'lov Sozlamalari"}
+                                </h3>
+                                <p className="text-xs font-medium text-gray-500">
+                                    {t("compensationModalDesc") || "Xodimlarning to'lov turi (Oylik / Soatbay), stavkasi va soliq ushlab qolish foizini boshqarish"}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setIsCompensationModalOpen(false);
+                                    setEditingCompEmp(null);
+                                }}
+                                className="text-lg font-bold text-gray-400 hover:text-black"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                placeholder={t("searchPlaceholder") || "Xodim ismi bo'yicha qidirish..."}
+                                value={compSearch}
+                                onChange={(e) => setCompSearch(e.target.value)}
+                                className="w-full sm:w-80 p-2.5 bg-gray-50 border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
+                            />
+                        </div>
+
+                        {compLoading ? (
+                            <div className="py-12 text-center text-xs font-bold uppercase text-gray-400">
+                                {t("loading") || "Yuklanmoqda..."}
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto border border-gray-200">
+                                <table className="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr className="bg-gray-100 text-[10px] font-black uppercase tracking-wider text-gray-600">
+                                            <th className="p-3">{t("employee") || "Xodim"}</th>
+                                            <th className="p-3">{t("departmentPosition") || "Bo'lim / Lavozim"}</th>
+                                            <th className="p-3">{t("salaryType") || "To'lov Turi"}</th>
+                                            <th className="p-3">{t("amount") || "Stavka / Oylik"}</th>
+                                            <th className="p-3">{t("taxPercent") || "Soliq (%)"}</th>
+                                            <th className="p-3 text-right">{t("actions") || "Amallar"}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {compensationsList
+                                            .filter((emp) => {
+                                                if (!compSearch) return true;
+                                                const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+                                                const dept = (emp.department?.name || "").toLowerCase();
+                                                return fullName.includes(compSearch.toLowerCase()) || dept.includes(compSearch.toLowerCase());
+                                            })
+                                            .map((emp) => {
+                                                const isHourly = emp.salaryType === "HOURLY";
+                                                return (
+                                                    <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="p-3">
+                                                            <span className="font-bold text-black block">
+                                                                {emp.firstName} {emp.lastName}
+                                                            </span>
+                                                            <span className="text-[10px] text-gray-400 font-mono">
+                                                                {emp.user?.email || ""}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3">
+                                                            <span className="font-medium text-gray-700 block">
+                                                                {emp.department?.name || "-"}
+                                                            </span>
+                                                            <span className="text-[10px] text-gray-400">
+                                                                {emp.position?.title || "-"}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {isHourly ? (
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300 rounded-xs">
+                                                                    ⏱️ {t("typeHourly") || "Soatbay"}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xs">
+                                                                    📅 {t("typeMonthly") || "Oylik"}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3 font-bold text-gray-900">
+                                                            {isHourly ? (
+                                                                <div>
+                                                                    <span>{formatMoney(emp.hourlyRate || 0)}</span>
+                                                                    <span className="text-[10px] text-gray-500 font-normal block">/ soat</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div>
+                                                                    <span>{formatMoney(emp.salary || 0)}</span>
+                                                                    <span className="text-[10px] text-gray-500 font-normal block">/ oy</span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3 font-bold text-amber-800">
+                                                            {emp.taxPercent !== undefined && emp.taxPercent !== null ? emp.taxPercent : 12}%
+                                                        </td>
+                                                        <td className="p-3 text-right">
+                                                            <button
+                                                                onClick={() => handleStartEditComp(emp)}
+                                                                className="px-3 py-1 bg-black text-white text-[11px] font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                                                            >
+                                                                {t("editRule") || "Tahrirlash"}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {editingCompEmp && (
+                            <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                                <div className="bg-white border-2 border-black w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+                                    <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                                        <div>
+                                            <h4 className="text-sm font-black uppercase text-black">
+                                                {editingCompEmp.firstName} {editingCompEmp.lastName}
+                                            </h4>
+                                            <p className="text-[11px] text-gray-500">
+                                                {editingCompEmp.department?.name || "-"} • {editingCompEmp.position?.title || "-"}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setEditingCompEmp(null)}
+                                            className="text-sm font-bold text-gray-400 hover:text-black"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
+                                    <form onSubmit={handleSaveCompensation} className="flex flex-col gap-3 text-xs">
+                                        <div>
+                                            <label className="block font-bold uppercase text-gray-600 mb-1">
+                                                {t("salaryType") || "To'lov Turi"} *
+                                            </label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCompForm({ ...compForm, salaryType: "MONTHLY" })}
+                                                    className={`p-2.5 text-center font-bold border transition-colors ${
+                                                        compForm.salaryType === "MONTHLY"
+                                                            ? "bg-black text-white border-black"
+                                                            : "bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100"
+                                                    }`}
+                                                >
+                                                    📅 {t("typeMonthly") || "Oylik"}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCompForm({ ...compForm, salaryType: "HOURLY" })}
+                                                    className={`p-2.5 text-center font-bold border transition-colors ${
+                                                        compForm.salaryType === "HOURLY"
+                                                            ? "bg-black text-white border-black"
+                                                            : "bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100"
+                                                    }`}
+                                                >
+                                                    ⏱️ {t("typeHourly") || "Soatbay"}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {compForm.salaryType === "MONTHLY" ? (
+                                            <div>
+                                                <label className="block font-bold uppercase text-gray-600 mb-1">
+                                                    {t("monthlySalary") || "Oylik Maosh (UZS)"} *
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="5000000"
+                                                    value={compForm.salary}
+                                                    onChange={(e) => setCompForm({ ...compForm, salary: e.target.value })}
+                                                    className="w-full p-2.5 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
+                                                    required
+                                                />
+                                                <span className="text-[10px] text-gray-400 mt-0.5 block">
+                                                    Dam olish kunlari ishlasa-ishlamasa ushbu fiksirlangan maosh hisoblanadi.
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <label className="block font-bold uppercase text-gray-600 mb-1">
+                                                    {t("hourlyRate") || "Soatlik Stavka (UZS / soat)"} *
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="35000"
+                                                    value={compForm.hourlyRate}
+                                                    onChange={(e) => setCompForm({ ...compForm, hourlyRate: e.target.value })}
+                                                    className="w-full p-2.5 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
+                                                    required
+                                                />
+                                                <span className="text-[10px] text-gray-400 mt-0.5 block">
+                                                    Faqat ishlagan soatlari (davomat check-in/out) bo'yicha to'lanadi.
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <label className="block font-bold uppercase text-gray-600 mb-1">
+                                                {t("taxPercent") || "Daromad Solig'i Foizi (%)"} *
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.1"
+                                                placeholder="12"
+                                                value={compForm.taxPercent}
+                                                onChange={(e) => setCompForm({ ...compForm, taxPercent: e.target.value })}
+                                                className="w-full p-2.5 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
+                                                required
+                                            />
+                                            <span className="text-[10px] text-gray-400 mt-0.5 block">
+                                                O'zbekiston Respublikasi standart daromad solig'i stavkasi: 12%
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-200 mt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingCompEmp(null)}
+                                                className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-black hover:bg-gray-100"
+                                            >
+                                                {t("cancel") || "Bekor qilish"}
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={savingComp}
+                                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:bg-neutral-800 disabled:opacity-50"
+                                            >
+                                                {savingComp ? (t("saving") || "Saqlanmoqda...") : (t("saveCompensation") || "Saqlash")}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-end pt-3 border-t border-gray-200">
+                            <button
+                                onClick={() => {
+                                    setIsCompensationModalOpen(false);
+                                    setEditingCompEmp(null);
+                                }}
+                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:bg-neutral-800"
+                            >
+                                {t("close") || "Yopish"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

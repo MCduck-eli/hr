@@ -172,6 +172,9 @@ model Employee {
   positionId          String?
   position            Position?               @relation(fields: [positionId], references: [id])
   salary              Float?
+  salaryType          String                  @default("MONTHLY")
+  hourlyRate          Float?                  @default(0)
+  taxPercent          Float?                  @default(12)
   managerId           String?
   manager             Employee?               @relation("EmployeeManager", fields: [managerId], references: [id])
   subordinates        Employee[]              @relation("EmployeeManager")
@@ -300,6 +303,12 @@ model Payroll {
   month         Int
   year          Int
   baseSalary    Float
+  salaryType    String?       @default("MONTHLY")
+  hourlyRate    Float?        @default(0)
+  workedHours   Float?        @default(0)
+  grossSalary   Float?        @default(0)
+  taxPercent    Float?        @default(12)
+  taxAmount     Float?        @default(0)
   bonus         Float         @default(0)
   deductions    Float         @default(0)
   netSalary     Float
@@ -409,6 +418,53 @@ model PayrollPaymentRecord {
   @@index([employeeId])
   @@index([month, year])
   @@index([companyName])
+}
+
+model CompanyExpense {
+  id               String   @id @default(uuid())
+  title            String
+  category         String   @default("OTHER") // RENT, UTILITIES, SOFTWARE, OFFICE, MARKETING, HARDWARE, TRAVEL, TAXES, OTHER
+  amount           Float
+  date             DateTime @default(now())
+  month            Int
+  year             Int
+  description      String?
+  paymentMethod    String?  @default("BANK_TRANSFER") // BANK_TRANSFER, CASH, CARD, OTHER
+  receiptUrl       String?
+  isRecurring      Boolean  @default(false)
+  recurringGroupId String?
+  recurringDay     Int?
+  companyName      String?
+  createdById      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([companyName])
+  @@index([month, year])
+  @@index([category])
+  @@index([isRecurring])
+  @@index([recurringGroupId])
+}
+
+model CompanyRecurringExpense {
+  id            String   @id @default(uuid())
+  title         String
+  category      String   @default("OTHER") // RENT, UTILITIES, SOFTWARE, OFFICE, MARKETING, HARDWARE, TRAVEL, TAXES, OTHER
+  amount        Float
+  startMonth    Int
+  startYear     Int
+  recurringDay  Int      @default(5)
+  description   String?
+  paymentMethod String?  @default("BANK_TRANSFER") // BANK_TRANSFER, CASH, CARD, OTHER
+  receiptUrl    String?
+  isActive      Boolean  @default(true)
+  companyName   String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyName])
+  @@index([isActive])
 }
 
 model PerformanceReview {

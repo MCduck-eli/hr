@@ -232,7 +232,11 @@ export class LifecycleService {
             });
 
             if (caller) {
-                if (caller.role === "EMPLOYEE" && employee.userId !== caller.id) {
+                if (
+                    (caller.role === "EMPLOYEE" || caller.role === "ACCOUNTANT" || caller.role === "RECRUITER") &&
+                    employee.userId !== caller.id &&
+                    caller.role === "EMPLOYEE"
+                ) {
                     throw new AppError("Unauthorized to view this employee's journey", 403);
                 }
 

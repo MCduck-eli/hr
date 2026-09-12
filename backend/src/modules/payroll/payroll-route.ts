@@ -172,6 +172,18 @@ payrollRouter.post(
     payrollController.generateBatch,
 );
 
+payrollRouter.get(
+    "/employee-compensations",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.getEmployeeCompensations,
+);
+
+payrollRouter.put(
+    "/employee/:id/compensation",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.updateEmployeeCompensation,
+);
+
 payrollRouter.post(
     "/",
     authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
@@ -183,6 +195,30 @@ payrollRouter.get(
     "/company-expenses",
     authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
     payrollController.getCompanyExpensesAnalytics,
+);
+
+payrollRouter.get(
+    "/company-expenses/items",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.getCompanyExpenses,
+);
+
+payrollRouter.post(
+    "/company-expenses/items",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.createCompanyExpense,
+);
+
+payrollRouter.put(
+    "/company-expenses/items/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.updateCompanyExpense,
+);
+
+payrollRouter.delete(
+    "/company-expenses/items/:id",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "ACCOUNTANT"),
+    payrollController.deleteCompanyExpense,
 );
 
 payrollRouter.get(

@@ -428,6 +428,96 @@ export class PayrollController {
             next(error);
         }
     }
+
+    async getCompanyExpenses(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.getCompanyExpenses(
+                req.query as any,
+                (req as any).user,
+            );
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async createCompanyExpense(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.createCompanyExpense(
+                req.body,
+                (req as any).user,
+            );
+            res.status(201).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateCompanyExpense(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.updateCompanyExpense(
+                req.params.id,
+                req.body,
+                (req as any).user,
+            );
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteCompanyExpense(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+        try {
+            await payrollService.deleteCompanyExpense(
+                req.params.id,
+                req.query as any,
+                (req as any).user,
+            );
+            res.status(200).json({
+                status: "success",
+                message: "Company expense deleted",
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getEmployeeCompensations(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.getEmployeeCompensations((req as any).user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateEmployeeCompensation(req: Request<{ id: string }>, res: Response, next: NextFunction) {
+        try {
+            const result = await payrollService.updateEmployeeCompensation(
+                req.params.id,
+                req.body,
+                (req as any).user,
+            );
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const payrollController = new PayrollController();

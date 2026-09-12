@@ -56,7 +56,7 @@ lifecycleRouter.patch(
 
 lifecycleRouter.get(
     "/employee/:employeeId/journey",
-    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE", "ACCOUNTANT", "RECRUITER"),
     lifecycleController.getEmployeeJourney,
 );
 

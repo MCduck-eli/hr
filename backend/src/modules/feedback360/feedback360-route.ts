@@ -78,7 +78,7 @@ feedback360Router.post(
 
 feedback360Router.get(
     "/report/:employeeId",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE", "ACCOUNTANT", "DIRECTOR", "CEO", "RECRUITER"),
     feedback360Controller.getTargetReport,
 );
 

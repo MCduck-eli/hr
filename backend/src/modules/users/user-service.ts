@@ -326,6 +326,10 @@ export class UserService {
                         ...(resolvedDepartmentId && { departmentId: resolvedDepartmentId }),
                         ...(resolvedPositionId && { positionId: resolvedPositionId }),
                         ...(leaveBalance !== undefined && { leaveBalance }),
+                        ...(payload.salary !== undefined && { salary: Number(payload.salary) }),
+                        ...(payload.salaryType !== undefined && { salaryType: payload.salaryType }),
+                        ...(payload.hourlyRate !== undefined && { hourlyRate: Number(payload.hourlyRate) }),
+                        ...(payload.taxPercent !== undefined && { taxPercent: Number(payload.taxPercent) }),
                         ...(assignedCourseIds &&
                             assignedCourseIds.length > 0 && {
                                 courseProgresses: {
@@ -700,6 +704,10 @@ export class UserService {
                         ...(statusExpiresAt !== undefined && {
                             statusExpiresAt,
                         }),
+                        ...(payload.salary !== undefined && { salary: Number(payload.salary) }),
+                        ...(payload.salaryType !== undefined && { salaryType: payload.salaryType }),
+                        ...(payload.hourlyRate !== undefined && { hourlyRate: Number(payload.hourlyRate) }),
+                        ...(payload.taxPercent !== undefined && { taxPercent: Number(payload.taxPercent) }),
                     },
                 },
             },
