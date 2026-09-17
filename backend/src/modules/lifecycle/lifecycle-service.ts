@@ -1,5 +1,8 @@
+import crypto from "crypto";
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
+import { hashPassword } from "../../utils/password";
+import { notificationService } from "../notification/notification-service";
 
 export class LifecycleService {
     async createTemplate(
@@ -766,11 +769,22 @@ export class LifecycleService {
     }
 
     async getAllOffboardingRequests(currentUser?: any) {
+        let companyNameFilter: string | null = currentUser?.companyName || null;
+        if (currentUser?.id && (!companyNameFilter || currentUser.role !== "SUPER_ADMIN")) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyNameFilter = caller.companyName || null;
+            }
+        }
+
         return prisma.offboardingRequest.findMany({
             where: {
                 employee: {
                     user: {
-                        ...(currentUser?.companyName ? { companyName: currentUser.companyName } : {}),
+                        ...(companyNameFilter ? { companyName: companyNameFilter } : {}),
                     },
                 },
             },
@@ -798,9 +812,21 @@ export class LifecycleService {
             reason: string;
             lastWorkingDay: string;
             exitInterviewNotes?: string;
+            customTasks?: any[];
         },
         currentUser?: any,
     ) {
+        let callerCompany: string | null = currentUser?.companyName || null;
+        if (currentUser?.id && (!callerCompany || currentUser.role !== "SUPER_ADMIN")) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                callerCompany = caller.companyName || null;
+            }
+        }
+
         const employee = await prisma.employee.findFirst({
             where: {
                 OR: [{ id: employeeIdentifier }, { userId: employeeIdentifier }],
@@ -812,11 +838,18 @@ export class LifecycleService {
             throw new AppError("Xodim topilmadi", 404);
         }
 
+        const isSelf = currentUser?.id && employee.userId === currentUser.id;
+        const isManagerial = ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"].includes(currentUser?.role);
+
+        if (!isSelf && !isManagerial) {
+            throw new AppError("Ruxsat berilmadi", 403);
+        }
+
         if (
-            currentUser?.companyName &&
+            callerCompany &&
             employee.user?.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
-            employee.user.companyName !== currentUser.companyName
+            currentUser?.role !== "SUPER_ADMIN" &&
+            employee.user.companyName !== callerCompany
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
         }
@@ -888,6 +921,22 @@ export class LifecycleService {
                 description: `Oxirgi ish kuni: ${new Date(payload.lastWorkingDay).toISOString().split("T")[0]}. Sababi: ${payload.reason}`,
             },
         });
+
+        const targetCompany = employee.user?.companyName || callerCompany;
+        if (targetCompany) {
+            await notificationService.notifyAllUsers({
+                title: "🏁 Yangi offboarding arizasi (Ishdan ketish)",
+                message: `${employee.firstName} ${employee.lastName} ishdan bo'shash bo'yicha ariza topshirdi. Oxirgi ish kuni: ${new Date(payload.lastWorkingDay).toISOString().split("T")[0]}. Sababi: ${payload.reason}`,
+                type: "OFFBOARDING_TASK",
+                targetRoles: ["HR_ADMIN", "DIRECTOR"],
+                companyName: targetCompany,
+                metadata: {
+                    employeeId: employee.id,
+                    offboardingId: offboarding.id,
+                    type: "OFFBOARDING",
+                },
+            }).catch((err) => console.error("Offboarding notification error:", err));
+        }
 
         return prisma.offboardingRequest.findUnique({
             where: { id: offboarding.id },
@@ -994,6 +1043,10 @@ export class LifecycleService {
             },
         });
 
+        if (allCompleted) {
+            await this.finalizeEmployeeTermination(existing.offboarding.employeeId);
+        }
+
         return updated;
     }
 
@@ -1045,14 +1098,7 @@ export class LifecycleService {
         });
 
         if (allCompleted) {
-            await prisma.employeeLifecycleEvent.create({
-                data: {
-                    employeeId: existing.offboarding.employeeId,
-                    eventType: "TERMINATED",
-                    title: "Offboarding muvaffaqiyatli yakunlandi",
-                    description: "Barcha aylanma varaqasi (Checklist) topshiriqlari va aktivlar to'liq topshirildi.",
-                },
-            });
+            await this.finalizeEmployeeTermination(existing.offboarding.employeeId);
         }
 
         return task;
@@ -1181,6 +1227,22 @@ export class LifecycleService {
             },
         });
 
+        const exitCompany = employee.user?.companyName || currentUser?.companyName;
+        if (exitCompany) {
+            await notificationService.notifyAllUsers({
+                title: "📝 Exit Interview topshirildi",
+                message: `${employee.firstName} ${employee.lastName} Exit Interview so'rovnomasini to'ldirdi.`,
+                type: "OFFBOARDING_TASK",
+                targetRoles: ["HR_ADMIN", "DIRECTOR"],
+                companyName: exitCompany,
+                metadata: {
+                    employeeId: employee.id,
+                    offboardingId: offboarding.id,
+                    type: "EXIT_INTERVIEW",
+                },
+            }).catch((err) => console.error("Exit interview notification error:", err));
+        }
+
         return offboarding;
     }
 
@@ -1189,6 +1251,17 @@ export class LifecycleService {
         status: any,
         currentUser?: any,
     ) {
+        let callerCompany: string | null = currentUser?.companyName || null;
+        if (currentUser?.id && (!callerCompany || currentUser.role !== "SUPER_ADMIN")) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                callerCompany = caller.companyName || null;
+            }
+        }
+
         const offboarding = await prisma.offboardingRequest.findUnique({
             where: { id: offboardingId },
             include: { employee: { include: { user: true } } },
@@ -1199,15 +1272,15 @@ export class LifecycleService {
         }
 
         if (
-            currentUser?.companyName &&
+            callerCompany &&
             offboarding.employee.user?.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
-            offboarding.employee.user.companyName !== currentUser.companyName
+            currentUser?.role !== "SUPER_ADMIN" &&
+            offboarding.employee.user.companyName !== callerCompany
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
         }
 
-        return prisma.offboardingRequest.update({
+        const updated = await prisma.offboardingRequest.update({
             where: { id: offboardingId },
             data: {
                 status,
@@ -1215,6 +1288,96 @@ export class LifecycleService {
             },
             include: { tasks: true },
         });
+
+        if (status === "COMPLETED") {
+            await this.finalizeEmployeeTermination(offboarding.employeeId);
+        } else if (status === "CANCELLED") {
+            // If cancelled, ensure employee is active
+            await prisma.employee.update({
+                where: { id: offboarding.employeeId },
+                data: {
+                    status: "ACTIVE",
+                },
+            }).catch(() => {});
+
+            await prisma.employeeLifecycleEvent.create({
+                data: {
+                    employeeId: offboarding.employeeId,
+                    eventType: "OFFBOARDING_CANCELLED",
+                    title: "Offboarding bekor qilindi",
+                    description: "HR tomonidan ishdan bo'shash jarayoni bekor qilindi va xodim faol holatda qoldirildi.",
+                },
+            }).catch(() => {});
+
+            if (offboarding.employee.userId) {
+                await notificationService.createAndSendNotification({
+                    userId: offboarding.employee.userId,
+                    title: "🏁 Offboarding arizangiz bekor qilindi",
+                    message: "Sizning ishdan bo'shash bo'yicha arizangiz HR bo'limi tomonidan bekor qilindi.",
+                    type: "GENERAL",
+                }).catch(() => {});
+            }
+        }
+
+        return updated;
+    }
+
+    async finalizeEmployeeTermination(employeeId: string) {
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            include: { user: true },
+        });
+
+        if (!employee) return;
+
+        // 1. Mark employee status as TERMINATED
+        await prisma.employee.update({
+            where: { id: employeeId },
+            data: {
+                status: "TERMINATED",
+            },
+        }).catch(() => {});
+
+        // 2. Delete active device tokens / sessions
+        if (employee.userId) {
+            await prisma.userDeviceToken.deleteMany({
+                where: { userId: employee.userId },
+            }).catch(() => {});
+        }
+
+        // 3. Clean up active non-financial relations (leave requests, feedback reviews, manager links)
+        await prisma.leaveRequest.updateMany({
+            where: { employeeId: employee.id, status: "PENDING" },
+            data: { status: "REJECTED" },
+        }).catch(() => {});
+
+        await prisma.feedbackAssignment.deleteMany({
+            where: { reviewerId: employee.id, isCompleted: false },
+        }).catch(() => {});
+
+        await prisma.employee.updateMany({
+            where: { managerId: employee.id },
+            data: { managerId: null },
+        }).catch(() => {});
+
+        // 4. Record Lifecycle Event (Financial records: Payroll, PayrollAdvance, Payslip are 100% kept for 6+ months)
+        const existingEvent = await prisma.employeeLifecycleEvent.findFirst({
+            where: {
+                employeeId: employee.id,
+                eventType: "TERMINATED",
+            },
+        });
+
+        if (!existingEvent) {
+            await prisma.employeeLifecycleEvent.create({
+                data: {
+                    employeeId: employee.id,
+                    eventType: "TERMINATED",
+                    title: "Xodim ishdan bo'shatildi (Offboarding yakunlandi)",
+                    description: "Barcha aylanma varaqasi topshiriqlari va aktivlar to'liq topshirildi. Tizimga kirish huquqlari bekor qilindi. Barcha oylik to'lovlar tarixi hisobotlar uchun 6 oy davomida saqlanadi.",
+                },
+            }).catch(() => {});
+        }
     }
 
     async exportEmployeeJourneyCSV(

@@ -54,6 +54,12 @@ export class AuthService {
             throw new Error("Email yoki parol noto'g'ri");
         }
 
+        if (user.employee && user.employee.status === "TERMINATED") {
+            throw new Error(
+                "Ushbu xodimning hisobi ishdan bo'shatilganligi sababli to'liq yopilgan va tizimga kirish huquqlari bekor qilingan.",
+            );
+        }
+
         const token = generateToken({
             id: user.id,
             email: user.email,

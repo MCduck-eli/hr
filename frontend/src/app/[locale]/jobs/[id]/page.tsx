@@ -31,7 +31,7 @@ export default function JobApplyPage() {
         if (value.trim().length >= 2) {
             setSearchingLocation(true);
             try {
-                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
                 const res = await fetch(`${API_URL}/recruitment/search-location?q=${encodeURIComponent(value.trim())}`);
                 const data = await res.json();
                 if (data?.data && Array.isArray(data.data)) {

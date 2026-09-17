@@ -22,7 +22,7 @@ export class Feedback360Controller {
 
     async updateCycle(req: Request<{ id: string }>, res: Response, next: NextFunction) {
         try {
-            const result = await feedback360Service.updateCycle(req.params.id, req.body);
+            const result = await feedback360Service.updateCycle(req.params.id, req.body, (req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -31,7 +31,7 @@ export class Feedback360Controller {
 
     async deleteCycle(req: Request<{ id: string }>, res: Response, next: NextFunction) {
         try {
-            const result = await feedback360Service.deleteCycle(req.params.id);
+            const result = await feedback360Service.deleteCycle(req.params.id, (req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -42,7 +42,7 @@ export class Feedback360Controller {
         try {
             const cycleId = req.query.cycleId as string;
             const targetId = req.query.targetId as string;
-            const result = await feedback360Service.getAssignments(cycleId, targetId);
+            const result = await feedback360Service.getAssignments(cycleId, targetId, (req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -55,6 +55,7 @@ export class Feedback360Controller {
                 req.body.cycleId,
                 req.body.targetId,
                 req.body.reviewers,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {

@@ -66,7 +66,7 @@ export class OkrService {
 
     async createObjective(
         payload: {
-            cycleId: string;
+            cycleId?: string;
             level: "COMPANY" | "DEPARTMENT" | "INDIVIDUAL";
             title: string;
             description?: string;
@@ -75,7 +75,7 @@ export class OkrService {
             parentId?: string;
             minExpectedProgress?: number;
             isIndividualForEach?: boolean;
-            keyResults: {
+            keyResults?: {
                 title: string;
                 initialValue?: number;
                 targetValue: number;
@@ -95,6 +95,62 @@ export class OkrService {
             }
         }
 
+        let resolvedEmployeeId = payload.employeeId;
+        let resolvedUserId: string | null = null;
+
+        if (payload.level === "INDIVIDUAL" && payload.employeeId) {
+            const emp = await prisma.employee.findFirst({
+                where: {
+                    OR: [
+                        { id: payload.employeeId },
+                        { userId: payload.employeeId },
+                    ],
+                },
+                include: { user: true },
+            });
+            if (emp) {
+                resolvedEmployeeId = emp.id;
+                resolvedUserId = emp.userId;
+                if (!companyName && emp.user?.companyName) {
+                    companyName = emp.user.companyName;
+                }
+            }
+        }
+
+        let cycleId = payload.cycleId;
+        if (!cycleId) {
+            let currentCycle = await prisma.okrCycle.findFirst({
+                where: {
+                    isCurrent: true,
+                    ...(companyName ? { companyName } : {}),
+                },
+            });
+            if (!currentCycle) {
+                currentCycle = await prisma.okrCycle.findFirst({
+                    where: companyName ? { companyName } : {},
+                    orderBy: { startDate: "desc" },
+                });
+            }
+            if (!currentCycle) {
+                const now = new Date();
+                const quarterEnd = new Date(now.getFullYear(), now.getMonth() + 3, 0);
+                currentCycle = await prisma.okrCycle.create({
+                    data: {
+                        title: `Q${Math.floor(now.getMonth() / 3) + 1} ${now.getFullYear()} Sikl`,
+                        startDate: now,
+                        endDate: quarterEnd,
+                        isCurrent: true,
+                        companyName,
+                    },
+                });
+            }
+            cycleId = currentCycle.id;
+        }
+
+        const rawKrs = (payload.keyResults && payload.keyResults.length > 0)
+            ? payload.keyResults
+            : [{ title: payload.title || "Asosiy vazifa ijrosi", initialValue: 0, targetValue: 100, unit: "%" }];
+
         if (payload.isIndividualForEach && payload.level === "DEPARTMENT" && payload.departmentId) {
             const deptEmployees = await prisma.employee.findMany({
                 where: {
@@ -110,7 +166,7 @@ export class OkrService {
             for (const emp of deptEmployees) {
                 const indObj = await prisma.objective.create({
                     data: {
-                        cycleId: payload.cycleId,
+                        cycleId: cycleId!,
                         level: "INDIVIDUAL",
                         title: payload.title,
                         description: payload.description,
@@ -120,7 +176,7 @@ export class OkrService {
                         minExpectedProgress: payload.minExpectedProgress,
                         companyName,
                         keyResults: {
-                            create: (payload.keyResults || []).map((kr) => ({
+                            create: rawKrs.map((kr) => ({
                                 title: kr.title,
                                 initialValue: kr.initialValue ?? 0,
                                 currentValue: kr.initialValue ?? 0,
@@ -160,7 +216,7 @@ export class OkrService {
             for (const emp of allEmployees) {
                 const indObj = await prisma.objective.create({
                     data: {
-                        cycleId: payload.cycleId,
+                        cycleId: cycleId!,
                         level: "INDIVIDUAL",
                         title: payload.title,
                         description: payload.description,
@@ -170,7 +226,7 @@ export class OkrService {
                         minExpectedProgress: payload.minExpectedProgress,
                         companyName,
                         keyResults: {
-                            create: (payload.keyResults || []).map((kr) => ({
+                            create: rawKrs.map((kr) => ({
                                 title: kr.title,
                                 initialValue: kr.initialValue ?? 0,
                                 currentValue: kr.initialValue ?? 0,
@@ -196,28 +252,9 @@ export class OkrService {
             return createdObjectives[0] || null;
         }
 
-        let resolvedEmployeeId = payload.employeeId;
-        let resolvedUserId: string | null = null;
-
-        if (payload.level === "INDIVIDUAL" && payload.employeeId) {
-            const emp = await prisma.employee.findFirst({
-                where: {
-                    OR: [
-                        { id: payload.employeeId },
-                        { userId: payload.employeeId },
-                    ],
-                },
-                select: { id: true, userId: true },
-            });
-            if (emp) {
-                resolvedEmployeeId = emp.id;
-                resolvedUserId = emp.userId;
-            }
-        }
-
         const objective = await prisma.objective.create({
             data: {
-                cycleId: payload.cycleId,
+                cycleId: cycleId!,
                 level: payload.level,
                 title: payload.title,
                 description: payload.description,
@@ -227,7 +264,7 @@ export class OkrService {
                 minExpectedProgress: payload.minExpectedProgress,
                 companyName,
                 keyResults: {
-                    create: (payload.keyResults || []).map((kr) => ({
+                    create: rawKrs.map((kr) => ({
                         title: kr.title,
                         initialValue: kr.initialValue ?? 0,
                         currentValue: kr.initialValue ?? 0,
@@ -241,6 +278,7 @@ export class OkrService {
                 keyResults: true,
             },
         });
+
 
         if (payload.level === "INDIVIDUAL" && resolvedUserId) {
             await notificationService.createAndSendNotification({

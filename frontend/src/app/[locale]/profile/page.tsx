@@ -6,12 +6,16 @@ import { useParams, useRouter } from "next/navigation";
 import QuickActions from "@/src/components/dashboard/quick-actions";
 import CareerPathRequirements from "@/src/components/profile/CareerPathRequirements";
 import EmployeeJourneyTimeline from "@/src/components/lifecycle/EmployeeJourneyTimeline";
+import EmployeePayslipsSection from "@/src/components/payroll/EmployeePayslipsSection";
+import PayrollManager from "@/src/components/payroll/PayrollManager";
+import EmployeeTestModal from "@/src/components/profile/EmployeeTestModal";
+import EmployeeEnpsModal from "@/src/components/profile/EmployeeEnpsModal";
 import { fetchMyPendingTasks, fetchTargetReport, fetchCycles } from "@/src/services/feedback360-service";
+import { fetchMyLatestEnps } from "@/src/services/enps-service";
 import { checkInKeyResult } from "@/src/services/okr-service";
 import { fetchOffboardingDetails } from "@/src/services/offboarding-service";
 import ExitInterviewModal from "@/src/components/offboarding/ExitInterviewModal";
-import EmployeePayslipsSection from "@/src/components/payroll/EmployeePayslipsSection";
-import PayrollManager from "@/src/components/payroll/PayrollManager";
+import EmployeeResignationModal from "@/src/components/offboarding/EmployeeResignationModal";
 
 export default function EmployeeProfilePage() {
     const t = useTranslations("DashboardProfile");
@@ -26,8 +30,8 @@ export default function EmployeeProfilePage() {
     const [activeTab, setActiveTab] = useState<"profile" | "payroll">("profile");
 
     const [checkInKr, setCheckInKr] = useState<any>(null);
-    const [checkInValue, setCheckInValue] = useState<number>(0);
     const [checkInComment, setCheckInComment] = useState("");
+    const [checkInFile, setCheckInFile] = useState<File | null>(null);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
 
@@ -38,6 +42,11 @@ export default function EmployeeProfilePage() {
 
     const [offboardingData, setOffboardingData] = useState<any>(null);
     const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+    const [isResignationModalOpen, setIsResignationModalOpen] = useState(false);
+    const [isDiscTestModalOpen, setIsDiscTestModalOpen] = useState(false);
+    const [localDiscAssessment, setLocalDiscAssessment] = useState<any>(null);
+    const [isEnpsModalOpen, setIsEnpsModalOpen] = useState(false);
+    const [latestEnps, setLatestEnps] = useState<any>(null);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -69,7 +78,7 @@ export default function EmployeeProfilePage() {
         const fetchDashboardData = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const API_URL = process.env.NEXT_PUBLIC_API_URL;
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
 
                 let targetUserId: any =
                     params?.id || params?.userId || params?.employeeId;
@@ -140,7 +149,11 @@ export default function EmployeeProfilePage() {
                 }
 
                 const data = await res.json();
-                setDashboardData(data.data || data);
+                const dData = data.data || data;
+                setDashboardData(dData);
+                if (dData.discAssessment) {
+                    setLocalDiscAssessment(dData.discAssessment);
+                }
             } catch (err) {
             } finally {
                 setLoading(false);
@@ -166,18 +179,23 @@ export default function EmployeeProfilePage() {
                 try {
                     const cyclesData = await fetchCycles();
                     setCycles(cyclesData || []);
-
-                    let cycleId = selectedCycleId;
-                    if (!cycleId && cyclesData?.length > 0) {
-                        cycleId = cyclesData[0].id;
-                        setSelectedCycleId(cycleId);
-                    }
-
-                    if (targetEmployeeId) {
-                        const report = await fetchTargetReport(targetEmployeeId, cycleId || undefined);
-                        setFeedbackReport(report);
+                    if (cyclesData?.length > 0) {
+                        setSelectedCycleId(cyclesData[0].id);
                     }
                 } catch (e) {}
+
+                try {
+                    const enpsData = await fetchMyLatestEnps();
+                    setLatestEnps(enpsData);
+                } catch (e) {}
+
+                const cycleId = selectedCycleId || (cycles.length > 0 ? cycles[0].id : undefined);
+                if (targetEmployeeId) {
+                    try {
+                        const report = await fetchTargetReport(targetEmployeeId, cycleId);
+                        setFeedbackReport(report);
+                    } catch (e) {}
+                }
 
                 const empId = targetEmployeeId || targetUserId;
                 if (empId) {
@@ -228,7 +246,7 @@ export default function EmployeeProfilePage() {
     const positionTitle = dashboardData?.position || dashboardData?.user?.employee?.position || null;
     const departmentName = dashboardData?.user?.employee?.department || null;
     const salary = dashboardData?.salary || dashboardData?.user?.employee?.salary || null;
-    const discAssessment = dashboardData?.discAssessment || null;
+    const discAssessment = localDiscAssessment || dashboardData?.discAssessment || null;
 
     const overallScore = feedbackReport?.competencies?.length > 0 
         ? (feedbackReport.competencies.reduce((acc: any, curr: any) => acc + curr.averageScore, 0) / feedbackReport.competencies.length).toFixed(1)
@@ -309,13 +327,13 @@ export default function EmployeeProfilePage() {
         try {
             const formData = new FormData();
             if (checkInComment) formData.append("comment", checkInComment);
-            if (checkInValue && typeof checkInValue !== "number") {
-                formData.append("proofImage", checkInValue as any);
+            if (checkInFile) {
+                formData.append("proofImage", checkInFile);
             }
 
             await checkInKeyResult(checkInKr.id, formData);
             setCheckInKr(null);
-            setCheckInValue(0);
+            setCheckInFile(null);
             setCheckInComment("");
             setRefreshKey(prev => prev + 1);
         } catch (err: any) {
@@ -621,104 +639,123 @@ export default function EmployeeProfilePage() {
                     </div>
 
                     <div className="flex flex-col gap-6">
-                        <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
-                            {t("myGoalsOkr")}
-                        </h2>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 pb-4 gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl">🎯</span>
+                                <h2 className="text-lg font-bold uppercase tracking-wider text-black">
+                                    {t("myGoalsOkr") || "MAQSADLAR VA OKR"}
+                                </h2>
+                            </div>
+                            <span className="text-xs font-bold text-gray-500">
+                                {okrs.length} ta maqsad biriktirilgan
+                            </span>
+                        </div>
+                        
                         <div className="flex flex-col gap-4">
                             {okrs.length === 0 ? (
-                                <p className="text-sm text-gray-500">{t("noOkrsInCycle")}</p>
+                                <div className="p-8 border border-dashed border-gray-300 bg-gray-50 text-center flex flex-col items-center justify-center gap-2">
+                                    <span className="text-3xl">📋</span>
+                                    <p className="text-sm text-gray-500 font-medium">{t("noOkrsInCycle") || "Hozircha biriktirilgan OKR maqsadlar mavjud emas."}</p>
+                                </div>
                             ) : (
                                 okrs.map((okr: any) => (
-                                    <div key={okr.id} className="border border-gray-200 bg-white p-6 flex flex-col gap-4">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex flex-col gap-1">
-                                                <h3 className="text-lg font-bold">{okr.title}</h3>
-                                                {okr.description && <p className="text-sm text-gray-500">{okr.description}</p>}
+                                    <div key={okr.id} className="border-2 border-black bg-white p-5 md:p-6 flex flex-col gap-4 shadow-xs">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                                            <div className="flex flex-col gap-1.5 flex-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                                                        okr.level === "INDIVIDUAL"
+                                                            ? "bg-purple-100 text-purple-800 border border-purple-300"
+                                                            : okr.level === "DEPARTMENT"
+                                                            ? "bg-blue-100 text-blue-800 border border-blue-300"
+                                                            : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                                    }`}>
+                                                        {okr.level === "INDIVIDUAL" ? "👤 Shaxsiy OKR" : okr.level === "DEPARTMENT" ? `🏢 Bo'lim OKR${okr.department?.name ? ` (${okr.department.name})` : ""}` : "🌐 Kompaniya OKR"}
+                                                    </span>
+                                                    {okr.cycle?.title && (
+                                                        <span className="text-[10px] font-bold text-gray-500">
+                                                            • Sikl: {okr.cycle.title}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <h3 className="text-lg font-black text-black">{okr.title}</h3>
+                                                {okr.description && <p className="text-xs text-gray-600 font-medium">{okr.description}</p>}
                                             </div>
-                                            <div className="flex flex-col items-end gap-1">
-                                                <span className="text-2xl font-bold tracking-tighter">{Math.round(okr.progress)}%</span>
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("overall")}</span>
+                                            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 gap-1 shrink-0">
+                                                <span className="text-2xl font-black font-mono tracking-tighter text-black">{Math.round(okr.progress)}%</span>
+                                                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500">{t("overall") || "UMUMIY IJRO"}</span>
                                             </div>
                                         </div>
+
                                         {okr.keyResults?.length > 0 && (
-                                            <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-gray-100">
-                                                {okr.keyResults.map((kr: any) => (
-                                                    <div key={kr.id} className="flex flex-col gap-2 text-sm relative group">
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="font-medium text-gray-700">{kr.title}</span>
-                                                            <div className="flex items-center gap-4 w-1/3">
-                                                                <div className="flex-1 h-1.5 bg-gray-200 overflow-hidden">
-                                                                    <div className="h-full bg-black transition-all" style={{ width: `${kr.progress}%` }} />
-                                                                </div>
-                                                                <span className="text-[10px] font-bold uppercase tracking-widest w-20 text-right">{kr.currentValue} / {kr.targetValue} {kr.unit}</span>
-                                                                {kr.checkIns?.some((ci: any) => ci.status === 'PENDING') ? (
-                                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500 shrink-0">
-                                                                        {t("pending")}
+                                            <div className="flex flex-col gap-3 pt-3 border-t border-gray-100">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                                    Asosiy Natijalar (Key Results)
+                                                </span>
+                                                {okr.keyResults.map((kr: any) => {
+                                                    const latestCheckIn = kr.checkIns?.[0];
+                                                    const isPending = latestCheckIn?.status === "PENDING";
+                                                    const isRejected = latestCheckIn?.status === "REJECTED";
+                                                    const isApproved = kr.progress >= 100 || latestCheckIn?.status === "APPROVED";
+
+                                                    return (
+                                                        <div key={kr.id} className="p-3.5 bg-gray-50 border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-gray-400 transition-colors">
+                                                            <div className="flex flex-col gap-1 flex-1">
+                                                                <span className="text-sm font-bold text-black">{kr.title}</span>
+                                                                <div className="flex items-center gap-3 w-full max-w-md">
+                                                                    <div className="flex-1 h-2 bg-gray-200 overflow-hidden">
+                                                                        <div 
+                                                                            className={`h-full transition-all ${isApproved ? "bg-emerald-600" : isPending ? "bg-amber-500" : isRejected ? "bg-rose-500" : "bg-black"}`} 
+                                                                            style={{ width: `${Math.min(100, Math.max(0, kr.progress))}%` }} 
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-xs font-mono font-bold text-gray-700 whitespace-nowrap">
+                                                                        {kr.currentValue} / {kr.targetValue} {kr.unit || ""} ({Math.round(kr.progress)}%)
                                                                     </span>
-                                                                ) : kr.progress < 100 ? (
-                                                                    <button 
+                                                                </div>
+                                                                {latestCheckIn?.comment && (
+                                                                    <div className="text-[11px] text-gray-500 italic mt-0.5">
+                                                                        Topshirilgan hisobot: "{latestCheckIn.comment}"
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                                                                {isPending ? (
+                                                                    <span className="px-2.5 py-1 bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                                                                        <span>⏳</span> Tekshiruvda (Kutilmoqda)
+                                                                    </span>
+                                                                ) : isApproved ? (
+                                                                    <span className="px-2.5 py-1 bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                                                                        <span>✓</span> Bajarildi (Tasdiqlangan)
+                                                                    </span>
+                                                                ) : isRejected ? (
+                                                                    <button
                                                                         onClick={() => {
                                                                             setCheckInKr(kr);
-                                                                            setCheckInValue(kr.currentValue);
                                                                             setCheckInComment("");
+                                                                            setCheckInFile(null);
                                                                         }}
-                                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 shrink-0"
+                                                                        className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
                                                                     >
-                                                                        {t("update")}
+                                                                        <span>🔄</span> Qayta topshirish
                                                                     </button>
                                                                 ) : (
-                                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-green-600 shrink-0">
-                                                                        {t("approved")}
-                                                                    </span>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setCheckInKr(kr);
+                                                                            setCheckInComment("");
+                                                                            setCheckInFile(null);
+                                                                        }}
+                                                                        className="px-3.5 py-1.5 bg-black hover:bg-gray-800 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                                                    >
+                                                                        <span>🚀</span> Natijani topshirish
+                                                                    </button>
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        {checkInKr?.id === kr.id && (
-                                                            <form onSubmit={handleCheckIn} className="mt-2 p-4 bg-gray-50 border border-gray-200 flex flex-col gap-3 relative animate-in fade-in slide-in-from-top-2 duration-200">
-                                                                <div className="flex justify-between items-center mb-1">
-                                                                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">{t("updateProgress")}</span>
-                                                                    <button type="button" onClick={() => setCheckInKr(null)} className="text-gray-400 hover:text-black">
-                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                                                                    </button>
-                                                                </div>
-                                                                <div className="flex items-center gap-4">
-                                                                    <div className="flex-[2] flex flex-col gap-1">
-                                                                        <label className="text-[10px] font-bold uppercase text-gray-400">{t("resultImageOptional")}</label>
-                                                                        <input 
-                                                                            type="file"
-                                                                            accept="image/*"
-                                                                            onChange={(e) => {
-                                                                                if (e.target.files && e.target.files[0]) {
-                                                                                    setCheckInValue(e.target.files[0] as any);
-                                                                                }
-                                                                            }}
-                                                                            className="border border-gray-200 p-1.5 text-sm focus:border-black outline-none w-full bg-white file:mr-4 file:py-1 file:px-3 file:border-0 file:text-xs file:font-bold file:uppercase file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
-                                                                        />
-                                                                    </div>
-                                                                    <div className="flex-[3] flex flex-col gap-1">
-                                                                        <label className="text-[10px] font-bold uppercase text-gray-400">{t("commentOptional")}</label>
-                                                                        <input 
-                                                                            type="text" 
-                                                                            value={checkInComment}
-                                                                            onChange={(e) => setCheckInComment(e.target.value)}
-                                                                            className="border border-gray-200 p-2 text-sm focus:border-black outline-none w-full"
-                                                                            placeholder={t("whatWasDone")}
-                                                                        />
-                                                                    </div>
-                                                                    <div className="flex items-end pb-1">
-                                                                        <button 
-                                                                            type="submit" 
-                                                                            disabled={isCheckingIn}
-                                                                            className="bg-black text-white px-4 py-2 h-[38px] text-xs font-bold uppercase tracking-widest hover:bg-gray-800 disabled:opacity-50"
-                                                                        >
-                                                                            {isCheckingIn ? "..." : t("done")}
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </form>
-                                                        )}
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -888,15 +925,23 @@ export default function EmployeeProfilePage() {
                                     </div>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => {
-                                    const locale = window.location.pathname.split("/")[1] || "uz";
-                                    router.push(`/${locale}/disc`);
-                                }}
-                                className="mt-1 w-full py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center"
-                            >
-                                {t("fullDiscAnalysis")}
-                            </button>
+                            <div className="grid grid-cols-2 gap-2 mt-1">
+                                <button
+                                    onClick={() => setIsDiscTestModalOpen(true)}
+                                    className="py-2 bg-black text-white text-[11px] font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center"
+                                >
+                                    🔄 Qayta topshirish
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const locale = window.location.pathname.split("/")[1] || "uz";
+                                        router.push(`/${locale}/disc`);
+                                    }}
+                                    className="py-2 border border-black bg-white text-black text-[11px] font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors text-center"
+                                >
+                                    {t("fullDiscAnalysis")}
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div className="border border-dashed border-black bg-neutral-50 p-5 flex flex-col gap-3">
@@ -912,18 +957,46 @@ export default function EmployeeProfilePage() {
                                 {t("discHint")}
                             </p>
                             <button
-                                onClick={() => {
-                                    const locale = window.location.pathname.split("/")[1] || "uz";
-                                    router.push(`/${locale}/disc`);
-                                }}
-                                className="w-full py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center flex items-center justify-center gap-1.5"
+                                onClick={() => setIsDiscTestModalOpen(true)}
+                                className="w-full py-2.5 bg-black text-white text-xs font-black uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center flex items-center justify-center gap-1.5"
                             >
-                                {t("takeDiscTest")}
+                                🧠 {t("takeDiscTest")}
                             </button>
                         </div>
                     )}
 
-                    {offboardingData && (
+                    <div className="border border-black bg-white p-5 flex flex-col gap-3 shadow-xs">
+                        <div className="flex items-center justify-between border-b border-black pb-2.5">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
+                                💬 eNPS / Kompaniya Qoniqish So'rovi
+                            </span>
+                            {latestEnps ? (
+                                <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                                    latestEnps.score >= 9 ? "bg-emerald-600 text-white" :
+                                    latestEnps.score >= 7 ? "bg-amber-500 text-white" : "bg-rose-600 text-white"
+                                }`}>
+                                    Baho: {latestEnps.score} / 10
+                                </span>
+                            ) : (
+                                <span className="px-2 py-0.5 text-[9px] font-bold uppercase bg-gray-100 text-gray-700">
+                                    Kutilmoqda
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-600 leading-relaxed">
+                            {latestEnps 
+                                ? `Oxirgi baholangan sana: ${new Date(latestEnps.submittedAt).toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" })}`
+                                : "Kompaniyada ishlash tajribangizni baholang va o'z takliflaringizni bildiring."}
+                        </p>
+                        <button
+                            onClick={() => setIsEnpsModalOpen(true)}
+                            className="w-full py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center flex items-center justify-center gap-1.5"
+                        >
+                            {latestEnps ? "🔄 Qayta baholash (eNPS)" : "💬 eNPS Bahosini Berish"}
+                        </button>
+                    </div>
+
+                    {offboardingData && offboardingData.status !== "CANCELLED" ? (
                         <div className="border-2 border-red-300 bg-red-50/40 p-5 flex flex-col gap-3 shadow-xs">
                             <div className="flex items-center justify-between border-b border-red-200 pb-2">
                                 <span className="text-[11px] font-black uppercase tracking-wider text-red-900 flex items-center gap-1.5">
@@ -985,12 +1058,38 @@ export default function EmployeeProfilePage() {
                             ) : (
                                 <button
                                     onClick={() => setIsExitModalOpen(true)}
-                                    className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-colors text-center shadow-xs"
+                                    className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-colors text-center shadow-xs cursor-pointer"
                                 >
                                     {t("exitInterviewBtn")}
                                 </button>
                             )}
                         </div>
+                    ) : (
+                        currentUser?.role !== "SUPER_ADMIN" &&
+                        currentUser?.role !== "DIRECTOR" &&
+                        (dashboardData?.user?.employee?.id || currentUser?.employee?.id) && (
+                            <div className="border border-gray-200 bg-gray-50/70 p-4 flex flex-col gap-2 rounded-xs">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                                        <span>🏁</span> {t("offboardingTitle") || "Ishdan ketish (Offboarding)"}
+                                    </span>
+                                    {offboardingData?.status === "CANCELLED" && (
+                                        <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-gray-200 text-gray-700">
+                                            Oldingi ariza bekor qilingan
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-[11px] text-gray-500 font-normal">
+                                    Ishdan ketish bo'yicha arizani to'g'ridan-to'g'ri o'z kompaniyangiz HR bo'limiga yuborishingiz mumkin.
+                                </p>
+                                <button
+                                    onClick={() => setIsResignationModalOpen(true)}
+                                    className="w-full py-2 px-3 bg-white hover:bg-rose-50 border border-rose-300 text-rose-700 text-xs font-bold uppercase tracking-wider transition-colors text-center cursor-pointer mt-1"
+                                >
+                                    🏁 Ishdan ketish arizasini topshirish
+                                </button>
+                            </div>
+                        )
                     )}
 
                     <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
@@ -1009,6 +1108,141 @@ export default function EmployeeProfilePage() {
                     employeeId={offboardingData.employeeId}
                     onSuccess={() => setRefreshKey((k) => k + 1)}
                 />
+            )}
+
+            <EmployeeResignationModal
+                isOpen={isResignationModalOpen}
+                onClose={() => setIsResignationModalOpen(false)}
+                employeeId={dashboardData?.user?.employee?.id || currentUser?.employee?.id}
+                onSuccess={() => setRefreshKey((k) => k + 1)}
+            />
+
+            <EmployeeTestModal
+                isOpen={isDiscTestModalOpen}
+                onClose={() => setIsDiscTestModalOpen(false)}
+                onSuccess={(profile) => {
+                    if (profile.assessment) {
+                        setLocalDiscAssessment(profile.assessment);
+                    }
+                    setIsDiscTestModalOpen(false);
+                    setRefreshKey((k) => k + 1);
+                }}
+                locale={locale}
+            />
+
+            <EmployeeEnpsModal
+                isOpen={isEnpsModalOpen}
+                onClose={() => setIsEnpsModalOpen(false)}
+                onSuccess={(data) => {
+                    setLatestEnps(data);
+                    setIsEnpsModalOpen(false);
+                    setRefreshKey((k) => k + 1);
+                }}
+            />
+
+            {checkInKr && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white border-2 border-black max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between pb-4 border-b border-gray-200">
+                            <div className="flex items-center gap-2">
+                                <span className="text-2xl">🎯</span>
+                                <div>
+                                    <h3 className="text-base font-black uppercase tracking-tight text-black">
+                                        OKR Natijasini Topshirish
+                                    </h3>
+                                    <p className="text-xs text-gray-500 font-medium line-clamp-1">
+                                        {checkInKr.title}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setCheckInKr(null)}
+                                className="text-gray-400 hover:text-black text-sm font-bold p-1 cursor-pointer"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCheckIn} className="flex flex-col gap-4 mt-4">
+                            <div className="p-3 bg-gray-50 border border-gray-200 flex flex-col gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                                    Maqsadli ko'rsatkich
+                                </span>
+                                <span className="text-sm font-black text-black">
+                                    {checkInKr.targetValue} {checkInKr.unit || ""} (100% bajarilgan deb topshiriladi)
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-black uppercase tracking-wider text-black">
+                                    Bajarilgan ish bo'yicha hisobot / izoh
+                                </label>
+                                <textarea
+                                    value={checkInComment}
+                                    onChange={(e) => setCheckInComment(e.target.value)}
+                                    placeholder="Ushbu vazifani qanday bajarganingiz, erishilgan natijalar haqida qisqacha yozing..."
+                                    rows={3}
+                                    className="border-2 border-gray-200 p-3 text-sm focus:border-black outline-none w-full font-medium"
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-black uppercase tracking-wider text-black">
+                                    Tasdiqlovchi rasm yoki fayl (Ixtiyoriy)
+                                </label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                            setCheckInFile(e.target.files[0]);
+                                        }
+                                    }}
+                                    className="border border-gray-300 p-2 text-xs font-medium w-full bg-gray-50 file:mr-3 file:py-1 file:px-3 file:border-0 file:text-xs file:font-bold file:uppercase file:bg-black file:text-white hover:file:bg-gray-800 cursor-pointer"
+                                />
+                                {checkInFile && (
+                                    <div className="mt-2 p-2 border border-gray-200 bg-gray-50 rounded-sm flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={URL.createObjectURL(checkInFile)}
+                                                alt="Preview"
+                                                className="w-12 h-12 object-cover border border-gray-300"
+                                            />
+                                            <span className="text-xs font-bold text-gray-700 truncate max-w-[200px]">
+                                                {checkInFile.name}
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCheckInFile(null)}
+                                            className="text-xs font-bold text-red-600 hover:text-red-800 uppercase tracking-wider cursor-pointer"
+                                        >
+                                            O'chirish
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                                <button
+                                    type="button"
+                                    onClick={() => setCheckInKr(null)}
+                                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-xs font-bold uppercase tracking-wider text-black transition-colors cursor-pointer"
+                                >
+                                    Bekor qilish
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isCheckingIn}
+                                    className="px-6 py-2 bg-black hover:bg-gray-800 text-white text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                                >
+                                    {isCheckingIn ? "Yuborilmoqda..." : "🚀 Natijani Topshirish"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
                 </>
             )}

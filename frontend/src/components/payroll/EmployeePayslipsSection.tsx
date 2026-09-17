@@ -22,13 +22,13 @@ export default function EmployeePayslipsSection() {
         setLoading(true);
         try {
             const [payrollsData, advancesData] = await Promise.all([
-                fetchMyPayrolls(),
+                fetchMyPayrolls().catch(() => []),
                 fetchMyAdvances().catch(() => []),
             ]);
-            setPayrolls(payrollsData || []);
-            setAdvances(advancesData || []);
+            setPayrolls(Array.isArray(payrollsData) ? payrollsData : []);
+            setAdvances(Array.isArray(advancesData) ? advancesData : []);
         } catch (err: any) {
-            console.error("Failed to fetch my payrolls or advances", err);
+            console.warn("Failed to fetch my payrolls or advances", err);
         } finally {
             setLoading(false);
         }

@@ -8,6 +8,19 @@ export class UserService {
     async getAllUsers(currentUser?: any) {
         await employeeStatusService.checkAndTransitionEmployeeStatuses();
 
+        // Auto-terminate any employee whose offboarding request is marked COMPLETED
+        await prisma.employee.updateMany({
+            where: {
+                status: { not: "TERMINATED" },
+                offboarding: { status: "COMPLETED" },
+            },
+            data: {
+                status: "TERMINATED",
+                statusConfigId: null,
+                statusExpiresAt: null,
+            },
+        }).catch(() => {});
+
         let companyNameFilter: string | null = null;
         if (currentUser?.id) {
             const caller = await prisma.user.findUnique({
@@ -19,7 +32,20 @@ export class UserService {
             }
         }
 
-        const whereClause: any = {};
+        const whereClause: any = {
+            OR: [
+                { employee: null },
+                {
+                    employee: {
+                        status: { not: "TERMINATED" },
+                        OR: [
+                            { offboarding: null },
+                            { offboarding: { status: { not: "COMPLETED" } } },
+                        ],
+                    },
+                },
+            ],
+        };
         if (companyNameFilter) {
             whereClause.companyName = companyNameFilter;
             whereClause.role = { not: "SUPER_ADMIN" };
@@ -41,6 +67,7 @@ export class UserService {
                         department: true,
                         position: true,
                         grade: true,
+                        offboarding: true,
                         statusConfig: {
                             include: { nextStatus: true },
                         },

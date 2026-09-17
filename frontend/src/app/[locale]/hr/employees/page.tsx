@@ -60,7 +60,9 @@ export default function HREmployeesPage() {
                 (user: any) =>
                     user.role !== "SUPER_ADMIN" &&
                     user.role !== "DIRECTOR" &&
-                    user.id !== currentUserId,
+                    user.id !== currentUserId &&
+                    user.employee?.status !== "TERMINATED" &&
+                    user.employee?.offboarding?.status !== "COMPLETED",
             );
             setUsers(filteredUsers);
         } catch (err: any) {

@@ -8,6 +8,7 @@ import EmployeeForm from "@/src/components/hr/employees/employee-form";
 import DepartmentModal from "@/src/components/hr/employees/department-modal";
 import { fetchAllUsers, createUser, updateUser, deleteUser } from "@/src/services/user-service";
 import { fetchDepartments, createDepartment, deleteDepartment } from "@/src/services/department-service";
+import ExecutiveAnalyticsDashboard from "@/src/components/analytics/ExecutiveAnalyticsDashboard";
 
 export default function DirectorDashboard() {
     const t = useTranslations("DirectorDashboard");
@@ -17,7 +18,7 @@ export default function DirectorDashboard() {
     const router = useRouter();
 
     const [companyName, setCompanyName] = useState("");
-    const [activeTab, setActiveTab] = useState<"employees" | "departments">("employees");
+    const [activeTab, setActiveTab] = useState<"employees" | "departments" | "analytics">("analytics");
 
     const [users, setUsers] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
@@ -269,6 +270,16 @@ export default function DirectorDashboard() {
 
             <div className="flex items-center gap-4 border-b border-gray-200 pb-2">
                 <button
+                    onClick={() => setActiveTab("analytics")}
+                    className={`pb-3 text-xs font-black uppercase tracking-wider transition-all relative ${
+                        activeTab === "analytics"
+                            ? "text-black border-b-2 border-black"
+                            : "text-gray-400 hover:text-black"
+                    }`}
+                >
+                    📊 Executive BI Analitika & 9-Box
+                </button>
+                <button
                     onClick={() => setActiveTab("employees")}
                     className={`pb-3 text-xs font-black uppercase tracking-wider transition-all relative ${
                         activeTab === "employees"
@@ -289,6 +300,12 @@ export default function DirectorDashboard() {
                     🏢 {t("departmentsTab")} ({departments.length})
                 </button>
             </div>
+
+            {activeTab === "analytics" && (
+                <div className="flex flex-col gap-6">
+                    <ExecutiveAnalyticsDashboard />
+                </div>
+            )}
 
             {activeTab === "employees" && (
                 <div className="bg-white border border-gray-200 rounded-sm shadow-sm flex flex-col">

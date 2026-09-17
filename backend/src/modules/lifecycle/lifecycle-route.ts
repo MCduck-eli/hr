@@ -88,7 +88,6 @@ lifecycleRouter.get(
 
 lifecycleRouter.post(
     "/employee/:employeeId/offboarding",
-    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
     lifecycleController.startOffboarding,
 );
 

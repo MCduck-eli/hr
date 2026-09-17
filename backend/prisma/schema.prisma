@@ -83,6 +83,7 @@ enum TaskStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+  CANCELLED
 }
 
 enum EventType {
@@ -172,9 +173,6 @@ model Employee {
   positionId          String?
   position            Position?               @relation(fields: [positionId], references: [id])
   salary              Float?
-  salaryType          String                  @default("MONTHLY")
-  hourlyRate          Float?                  @default(0)
-  taxPercent          Float?                  @default(12)
   managerId           String?
   manager             Employee?               @relation("EmployeeManager", fields: [managerId], references: [id])
   subordinates        Employee[]              @relation("EmployeeManager")
@@ -207,6 +205,7 @@ model Employee {
   penalties           EmployeePenalty[]
   advances            PayrollAdvance[]
   paymentRecords      PayrollPaymentRecord[]
+  enpsResponses       EnpsResponse[]
 }
 
 model EmployeeStatusConfig {
@@ -303,12 +302,6 @@ model Payroll {
   month         Int
   year          Int
   baseSalary    Float
-  salaryType    String?       @default("MONTHLY")
-  hourlyRate    Float?        @default(0)
-  workedHours   Float?        @default(0)
-  grossSalary   Float?        @default(0)
-  taxPercent    Float?        @default(12)
-  taxAmount     Float?        @default(0)
   bonus         Float         @default(0)
   deductions    Float         @default(0)
   netSalary     Float
@@ -812,6 +805,7 @@ enum LifecycleEventType {
   PERFORMANCE_REVIEWED
   OFFBOARDING_STARTED
   EXIT_INTERVIEW_COMPLETED
+  OFFBOARDING_CANCELLED
   TERMINATED
 }
 
@@ -1194,4 +1188,38 @@ model UserDeviceToken {
   deviceOs  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model EnpsQuestion {
+  id          String         @id @default(uuid())
+  companyName String?
+  question    String
+  description String?
+  minScale    Int            @default(0)
+  maxScale    Int            @default(10)
+  minLabel    String         @default("Tavsiya qilmayman")
+  maxLabel    String         @default("Albatta tavsiya qilaman")
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  responses   EnpsResponse[]
+
+  @@index([companyName])
+}
+
+model EnpsResponse {
+  id          String        @id @default(uuid())
+  employeeId  String
+  employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  companyName String?
+  questionId  String?
+  question    EnpsQuestion? @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  score       Int
+  comment     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([companyName])
+  @@index([employeeId])
+  @@index([questionId])
 }

@@ -622,8 +622,8 @@ export default function OffboardingManagerModal({
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-bold text-gray-500 uppercase block">{t("assetsReturnedHeader")}</span>
-                                    <span className={`font-bold ${currentOffboarding.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
-                                        {currentOffboarding.isAssetsReturned ? t("yes") : t("pending")}
+                                    <span className={`font-bold ${currentOffboarding.status === "CANCELLED" ? "text-gray-500" : currentOffboarding.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
+                                        {currentOffboarding.status === "CANCELLED" ? (t("selectStatus.cancelled") || "Bekor qilingan") : currentOffboarding.isAssetsReturned ? t("yes") : t("pending")}
                                     </span>
                                 </div>
                             </div>

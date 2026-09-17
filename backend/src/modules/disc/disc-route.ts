@@ -15,20 +15,20 @@ discRouter.get("/questions", discController.getQuestions);
 
 discRouter.post(
     "/questions",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     validate(createQuestionSchema),
     discController.createQuestion,
 );
 
 discRouter.put(
     "/questions/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     discController.updateQuestion,
 );
 
 discRouter.delete(
     "/questions/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     discController.deleteQuestion,
 );
 
@@ -42,7 +42,7 @@ discRouter.get("/my-profile", discController.getMyDiscProfile);
 
 discRouter.get(
     "/team-analytics",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "DEPARTMENT_HEAD"),
     discController.getTeamDiscAnalytics,
 );
 

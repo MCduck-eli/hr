@@ -404,7 +404,7 @@ export class PayrollController {
 
     async checkDueReminders(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await payrollService.checkAndNotifyDuePayments((req as any).user);
+            const result = await payrollService.checkAndNotifyDuePayments(req.query as any, (req as any).user);
             res.status(200).json({
                 status: "success",
                 data: result,

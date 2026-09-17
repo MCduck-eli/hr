@@ -44,7 +44,7 @@ export default function OkrManager() {
         startDate: "",
         endDate: "",
         isCurrent: true,
-        minExpectedProgress: 0
+        minExpectedProgress: 0 as number | string
     });
 
     useEffect(() => {
@@ -113,13 +113,7 @@ export default function OkrManager() {
                 const data = await res.json();
                 setEmployees(
                     data.data?.filter(
-                        (u: any) =>
-                            u.employee &&
-                            u.role !== "SUPER_ADMIN" &&
-                            u.role !== "DIRECTOR" &&
-                            u.role !== "HR_ADMIN" &&
-                            u.id !== currentUserId &&
-                            u.employee?.id !== currentUserEmpId
+                        (u: any) => u.employee && u.role !== "SUPER_ADMIN"
                     ) || []
                 );
             }
@@ -241,6 +235,7 @@ export default function OkrManager() {
         try {
             const payload = {
                 ...cycleForm,
+                minExpectedProgress: Number(cycleForm.minExpectedProgress) || 0,
                 startDate: new Date(cycleForm.startDate).toISOString(),
                 endDate: new Date(cycleForm.endDate).toISOString(),
             };
@@ -737,7 +732,7 @@ export default function OkrManager() {
                                     type="number"
                                     className="border border-gray-200 p-3 text-sm focus:border-black outline-none"
                                     value={cycleForm.minExpectedProgress}
-                                    onChange={(e) => setCycleForm({...cycleForm, minExpectedProgress: parseFloat(e.target.value)})}
+                                    onChange={(e) => setCycleForm({...cycleForm, minExpectedProgress: e.target.value === "" ? "" : Number(e.target.value)})}
                                     required
                                 />
                             </div>

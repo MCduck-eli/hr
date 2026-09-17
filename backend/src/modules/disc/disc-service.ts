@@ -2,6 +2,22 @@ import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 
 export class DiscService {
+    private async resolveCallerCompany(currentUser?: any): Promise<string | null> {
+        if (!currentUser?.id) return null;
+        if (currentUser.role === "SUPER_ADMIN" && !currentUser.companyName) return null;
+        if (currentUser.companyName) return currentUser.companyName;
+
+        const caller = await prisma.user.findUnique({
+            where: { id: currentUser.id },
+            select: { role: true, companyName: true },
+        });
+
+        if (caller && caller.role !== "SUPER_ADMIN") {
+            return caller.companyName || null;
+        }
+        return currentUser.companyName || null;
+    }
+
     async createQuestion(payload: {
         text: string;
         order?: number;
@@ -12,14 +28,7 @@ export class DiscService {
             score?: number;
         }[];
     }, currentUser?: any) {
-        let resolvedCompany = payload.companyName || null;
-        if (!resolvedCompany && currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { companyName: true },
-            });
-            resolvedCompany = caller?.companyName || null;
-        }
+        const resolvedCompany = await this.resolveCallerCompany(currentUser) || payload.companyName || null;
 
         return prisma.discQuestion.create({
             data: {
@@ -44,16 +53,7 @@ export class DiscService {
             score?: number;
         }[];
     }, currentUser?: any) {
-        let companyFilter: string | null = null;
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller && caller.role !== "SUPER_ADMIN") {
-                companyFilter = caller.companyName || null;
-            }
-        }
+        const companyFilter = await this.resolveCallerCompany(currentUser);
 
         const question = await prisma.discQuestion.findFirst({
             where: {
@@ -93,16 +93,7 @@ export class DiscService {
     }
 
     async deleteQuestion(id: string, currentUser?: any) {
-        let companyFilter: string | null = null;
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller && caller.role !== "SUPER_ADMIN") {
-                companyFilter = caller.companyName || null;
-            }
-        }
+        const companyFilter = await this.resolveCallerCompany(currentUser);
 
         const question = await prisma.discQuestion.findFirst({
             where: {
@@ -117,16 +108,7 @@ export class DiscService {
     }
 
     async getQuestions(currentUser?: any) {
-        let companyFilter: string | null = null;
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller && caller.role !== "SUPER_ADMIN") {
-                companyFilter = caller.companyName || null;
-            }
-        }
+        const companyFilter = await this.resolveCallerCompany(currentUser);
 
         if (companyFilter) {
             const companyCount = await prisma.discQuestion.count({
@@ -199,40 +181,40 @@ export class DiscService {
                         text: "Hamkasblar o'rtasida ziddiyat (konflikt) paydo bo'lsa, nima qilasiz?",
                         order: 7,
                         options: [
-                            { text: "Muammoni ochiq yuzma-yuz muhokama qilib, zudlik bilan yechim topaman.", discType: "D" as const, score: 1 },
-                            { text: "Hazil va iliq munosabat bilan vaziyatni yumshatishga harakat qilaman.", discType: "I" as const, score: 1 },
-                            { text: "Ikkala tomonni tinglab, oradagi munosabatni saqlab qolishga ko'maklashaman.", discType: "S" as const, score: 1 },
-                            { text: "Faktlar va qoidalarga asoslanib, kim qayerda haq yoki nohaqligini aniqlayman.", discType: "C" as const, score: 1 },
+                            { text: "Muammoni to'g'ridan-to'g'ri ochiq muhokama qilib, zudlik bilan yechim talab qilaman.", discType: "D" as const, score: 1 },
+                            { text: "Vaziyatni yumshatib, hazil va ijobiy muloqot bilan tomonlarni yarashtiraman.", discType: "I" as const, score: 1 },
+                            { text: "Har ikki tomonni sabr bilan tinglab, o'zaro tushunish va murosa yo'lini topaman.", discType: "S" as const, score: 1 },
+                            { text: "Faktlar, dalillar va qoidalarga tayanib, xolis va mantiqiy xulosaga kelaman.", discType: "C" as const, score: 1 },
                         ],
                     },
                     {
-                        text: "Sizga qanday ish muhiti ko'proq yoqadi?",
+                        text: "Sizga yangi vazifalar topshirilganda nimani afzal ko'rasiz?",
                         order: 8,
                         options: [
-                            { text: "Tez sur'atlarda o'suvchi, raqobatbardosh va chaqiriqlarga boy.", discType: "D" as const, score: 1 },
-                            { text: "Ijtimoiy, ochiq, ko'p muloqot va tadbirlarga boy.", discType: "I" as const, score: 1 },
-                            { text: "Tinch, ahil, barqaror va o'zaro mehr-oqibatli.", discType: "S" as const, score: 1 },
-                            { text: "Strukturaviy, aniq qoidalarga ega, tahliliy va sokin.", discType: "C" as const, score: 1 },
+                            { text: "Menga faqat maqsad va muddat aytilsin, qanday qilishni o'zim hal qilaman.", discType: "D" as const, score: 1 },
+                            { text: "Ijodiy erkinlik va yangi odamlar bilan hamkorlik qilish imkoniyati berilsin.", discType: "I" as const, score: 1 },
+                            { text: "Jamoa bilan aniq rollar taqsimlangan va ishonchli muhit bo'lsin.", discType: "S" as const, score: 1 },
+                            { text: "Batafsil texnik topshiriq, mezonlar va aniq talablar ko'rsatilsin.", discType: "C" as const, score: 1 },
                         ],
                     },
                     {
-                        text: "Qaror qabul qilishda asosan nimaga tayanasiz?",
+                        text: "Qanday ish muhiti sizning unumdorligingizni oshiradi?",
                         order: 9,
                         options: [
-                            { text: "Intuisiya, tezkor fikrlash va yakuniy samara.", discType: "D" as const, score: 1 },
-                            { text: "Tuyg'ular, odamlarning munosabati va umumiy kayfiyat.", discType: "I" as const, score: 1 },
-                            { text: "O'tmishdagi sinovdan o'tgan tajribalar va jamoa xavfsizligi.", discType: "S" as const, score: 1 },
-                            { text: "Statistika, qonun-qoidalar, tahliliy jadvallar va dalillar.", discType: "C" as const, score: 1 },
+                            { text: "Raqobatbardosh, tezkor va yangi cho'qqilarni zabt etadigan dinamik muhit.", discType: "D" as const, score: 1 },
+                            { text: "Do'stona, qizg'in muloqotga boy va energiya beruvchi muhit.", discType: "I" as const, score: 1 },
+                            { text: "Tinch, barqaror, o'zaro hurmat va yordamga asoslangan muhit.", discType: "S" as const, score: 1 },
+                            { text: "Tartibli, tizimli, aniq reja va sifat standartlari ustuvor bo'lgan muhit.", discType: "C" as const, score: 1 },
                         ],
                     },
                     {
-                        text: "Sizni eng ko'p bezovta qiladigan holat nima?",
+                        text: "O'z mehnatingiz natijasini qanday baholaysiz?",
                         order: 10,
                         options: [
-                            { text: "Samarasizlik, sustkashlik va vaqtni behuda sarflash.", discType: "D" as const, score: 1 },
-                            { text: "E'tibordan chetda qolish, monotonlik va qattiq cheklovlar.", discType: "I" as const, score: 1 },
-                            { text: "To'satdan o'zgarishlar, noaniqlik va jamoadagi beqarorlik.", discType: "S" as const, score: 1 },
-                            { text: "Xatolar, tartibsizlik, yuzakilik va mantiqsizlik.", discType: "C" as const, score: 1 },
+                            { text: "Erishilgan aniq raqamlar, g'alabalar va natijadorlik bilan.", discType: "D" as const, score: 1 },
+                            { text: "Jamoa va mijozlarning minnatdorchiligi hamda e'tirofi bilan.", discType: "I" as const, score: 1 },
+                            { text: "Loyiha muammosiz, barqaror va barcha a'zolar xursand bo'lgani bilan.", discType: "S" as const, score: 1 },
+                            { text: "Ish 100% xatosiz, yuqori sifat va mukammallikda bajarilgani bilan.", discType: "C" as const, score: 1 },
                         ],
                     },
                 ];
@@ -374,16 +356,7 @@ export class DiscService {
     }
 
     async getTeamDiscAnalytics(departmentId?: string, currentUser?: any) {
-        let companyFilter: string | null = null;
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller && caller.role !== "SUPER_ADMIN") {
-                companyFilter = caller.companyName || null;
-            }
-        }
+        const companyFilter = await this.resolveCallerCompany(currentUser);
 
         const where: any = {
             user: {

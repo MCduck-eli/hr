@@ -297,6 +297,7 @@ export class PayrollService {
             }),
             prisma.employee.findMany({
                 where: {
+                    status: { not: "TERMINATED" },
                     user: {
                         role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
                         ...(companyFilter ? { companyName: companyFilter } : {}),
@@ -1579,7 +1580,7 @@ export class PayrollService {
         });
 
         if (!employee) {
-            throw new AppError("Xodim profili topilmadi", 404);
+            return [];
         }
 
         const now = new Date();
@@ -1831,6 +1832,7 @@ export class PayrollService {
         }
 
         const employeeWhere: any = {
+            status: { not: "TERMINATED" },
             user: {
                 role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
             },
@@ -2275,7 +2277,7 @@ export class PayrollService {
         });
 
         if (!employee) {
-            throw new AppError("Xodim profili topilmadi", 404);
+            return [];
         }
 
         const now = new Date();
@@ -2664,6 +2666,7 @@ export class PayrollService {
 
         const employees = await prisma.employee.findMany({
             where: {
+                status: { not: "TERMINATED" },
                 user: {
                     role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
                     ...(companyFilter ? { companyName: companyFilter } : {}),
@@ -3179,7 +3182,7 @@ export class PayrollService {
         return { count: result.count };
     }
 
-    async checkAndNotifyDuePayments(currentUser?: any) {
+    async checkAndNotifyDuePayments(query?: { month?: number; year?: number }, currentUser?: any) {
         let companyFilter: string | null = null;
         if (currentUser?.id) {
             const caller = await prisma.user.findUnique({
@@ -3194,8 +3197,8 @@ export class PayrollService {
         const schedule = await this.getPayrollSchedule(currentUser);
         const now = new Date();
         const currentDay = now.getDate();
-        const currentMonth = now.getMonth() + 1;
-        const currentYear = now.getFullYear();
+        const targetMonth = query?.month ? Number(query.month) : (now.getMonth() + 1);
+        const targetYear = query?.year ? Number(query.year) : now.getFullYear();
         const lead = schedule.notificationLeadDays || 2;
 
         const salaryPayDay = schedule.salaryPayDay || 5;
@@ -3205,6 +3208,7 @@ export class PayrollService {
         const isAdvanceDue = schedule.isAdvanceEnabled && ((currentDay >= advancePayDay - lead && currentDay <= advancePayDay + 5) || currentDay > advancePayDay);
 
         const employeeWhere: any = {
+            status: { not: "TERMINATED" },
             user: {
                 role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
             },
@@ -3227,20 +3231,20 @@ export class PayrollService {
 
         const pendingPayrolls = await prisma.payroll.findMany({
             where: {
-                month: currentMonth,
-                year: currentYear,
+                month: targetMonth,
+                year: targetYear,
                 status: PayrollStatus.PENDING,
-                ...(companyFilter ? { employee: { user: { companyName: companyFilter } } } : {}),
+                employee: employeeWhere,
             },
             include: { employee: { select: { id: true, firstName: true, lastName: true } } },
         });
 
         const pendingAdvances = await prisma.payrollAdvance.findMany({
             where: {
-                month: currentMonth,
-                year: currentYear,
+                month: targetMonth,
+                year: targetYear,
                 status: PayrollStatus.PENDING,
-                ...(companyFilter ? { employee: { user: { companyName: companyFilter } } } : {}),
+                employee: employeeWhere,
             },
             include: { employee: { select: { id: true, firstName: true, lastName: true } } },
         });
@@ -3248,7 +3252,7 @@ export class PayrollService {
         if (isSalaryDue && pendingPayrolls.length > 0) {
             await notificationService.notifyAllUsers({
                 title: "Oylik maosh to'lovi muddati",
-                message: `${currentMonth}-oy uchun ${pendingPayrolls.length} nafar xodimga oylik maosh to'lash vaqti keldi.`,
+                message: `${targetMonth}-oy uchun ${pendingPayrolls.length} nafar xodimga oylik maosh to'lash vaqti keldi.`,
                 type: "PAYROLL_DUE_REMINDER" as any,
                 targetRoles: ["ACCOUNTANT"],
                 companyName: companyFilter || undefined,
@@ -3258,7 +3262,7 @@ export class PayrollService {
         if (isAdvanceDue && pendingAdvances.length > 0) {
             await notificationService.notifyAllUsers({
                 title: "Avans to'lovi muddati",
-                message: `${currentMonth}-oy uchun ${pendingAdvances.length} nafar xodimga avans to'lash vaqti keldi.`,
+                message: `${targetMonth}-oy uchun ${pendingAdvances.length} nafar xodimga avans to'lash vaqti keldi.`,
                 type: "ADVANCE_DUE_REMINDER" as any,
                 targetRoles: ["ACCOUNTANT"],
                 companyName: companyFilter || undefined,
@@ -3745,12 +3749,95 @@ export class PayrollService {
         const targetYear = Number(query.year) || new Date().getFullYear();
 
         
-        const employees = await prisma.employee.findMany({
+        const payrolls = await prisma.payroll.findMany({
             where: {
-                ...(callerCompany ? { user: { companyName: callerCompany } } : {}),
+                year: targetYear,
+                employee: {
+                    user: {
+                        role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
+                    },
+                },
+                ...(callerCompany ? {
+                    OR: [
+                        { companyName: callerCompany },
+                        { employee: { user: { companyName: callerCompany } } },
+                    ],
+                } : {}),
             },
             include: {
-                user: { select: { id: true, email: true, companyName: true } },
+                employee: {
+                    include: {
+                        department: true,
+                        position: true,
+                        user: { select: { role: true, companyName: true, email: true } },
+                    },
+                },
+            },
+        });
+
+        const advances = await prisma.payrollAdvance.findMany({
+            where: {
+                year: targetYear,
+                employee: {
+                    user: {
+                        role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
+                    },
+                },
+                ...(callerCompany ? {
+                    OR: [
+                        { companyName: callerCompany },
+                        { employee: { user: { companyName: callerCompany } } },
+                    ],
+                } : {}),
+                status: { in: [PayrollStatus.PAID, PayrollStatus.AWAITING_CONFIRMATION] },
+            },
+            include: {
+                employee: {
+                    include: {
+                        department: true,
+                        position: true,
+                        user: { select: { role: true, companyName: true, email: true } },
+                    },
+                },
+            },
+        });
+
+        const penalties = await prisma.employeePenalty.findMany({
+            where: {
+                year: targetYear,
+                employee: {
+                    user: {
+                        role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
+                    },
+                },
+                ...(callerCompany ? {
+                    OR: [
+                        { companyName: callerCompany },
+                        { employee: { user: { companyName: callerCompany } } },
+                    ],
+                } : {}),
+            },
+            include: {
+                rule: true,
+                employee: {
+                    include: {
+                        department: true,
+                        position: true,
+                        user: { select: { role: true, companyName: true, email: true } },
+                    },
+                },
+            },
+        });
+
+        const employees = await prisma.employee.findMany({
+            where: {
+                user: {
+                    role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
+                    ...(callerCompany ? { companyName: callerCompany } : {}),
+                },
+            },
+            include: {
+                user: { select: { id: true, email: true, companyName: true, role: true } },
                 department: { select: { id: true, name: true } },
                 position: { select: { id: true, title: true } },
             },
@@ -3759,67 +3846,6 @@ export class PayrollService {
         const employeeIds = employees.map((e) => e.id);
         const empMap = new Map<string, typeof employees[0]>();
         employees.forEach((e) => empMap.set(e.id, e));
-
-        
-        const payrolls = employeeIds.length > 0
-            ? await prisma.payroll.findMany({
-                where: {
-                    year: targetYear,
-                    employeeId: { in: employeeIds },
-                    ...(callerCompany ? { companyName: callerCompany } : {}),
-                },
-                include: {
-                    employee: {
-                        include: {
-                            department: true,
-                            position: true,
-                            user: { select: { companyName: true, email: true } },
-                        },
-                    },
-                },
-            })
-            : [];
-
-        
-        const advances = employeeIds.length > 0
-            ? await prisma.payrollAdvance.findMany({
-                where: {
-                    year: targetYear,
-                    employeeId: { in: employeeIds },
-                    ...(callerCompany ? { companyName: callerCompany } : {}),
-                    status: { in: [PayrollStatus.PAID, PayrollStatus.AWAITING_CONFIRMATION] },
-                },
-                include: {
-                    employee: {
-                        include: {
-                            department: true,
-                            position: true,
-                            user: { select: { companyName: true, email: true } },
-                        },
-                    },
-                },
-            })
-            : [];
-
-        
-        const penalties = employeeIds.length > 0
-            ? await prisma.employeePenalty.findMany({
-                where: {
-                    year: targetYear,
-                    employeeId: { in: employeeIds },
-                    ...(callerCompany ? { companyName: callerCompany } : {}),
-                },
-                include: {
-                    rule: true,
-                    employee: {
-                        include: {
-                            department: true,
-                            position: true,
-                        },
-                    },
-                },
-            })
-            : [];
 
         
         const manualExpenses = await prisma.companyExpense.findMany({
@@ -3856,8 +3882,46 @@ export class PayrollService {
         let yearlyTotalPenalties = 0;
         let yearlyTotalNetSalary = 0;
         let yearlyTotalManualExpenses = 0;
+        const now = new Date();
+        const nowYear = now.getFullYear();
+        const nowMonth = now.getMonth() + 1;
 
         for (let m = 1; m <= 12; m++) {
+            const isFutureMonth = (targetYear > nowYear) || (targetYear === nowYear && m > nowMonth);
+            if (isFutureMonth) {
+                monthlyAnalytics.push({
+                    month: m,
+                    monthName: monthNamesUz[m - 1],
+                    year: targetYear,
+                    totalExpense: 0,
+                    baseSalary: 0,
+                    bonuses: 0,
+                    deductions: 0,
+                    netSalary: 0,
+                    advances: 0,
+                    manualExpenses: 0,
+                    penalties: 0,
+                    payrollCount: 0,
+                    advancesCount: 0,
+                    manualExpensesCount: 0,
+                    activeEmployeesCount: 0,
+                    percentages: {
+                        baseSalary: 0,
+                        netSalary: 0,
+                        bonuses: 0,
+                        advances: 0,
+                        manualExpenses: 0,
+                        penalties: 0,
+                    },
+                    departmentBreakdown: [],
+                    manualExpensesByCategory: [],
+                    manualExpensesList: [],
+                    employeeList: [],
+                    isFutureMonth: true,
+                });
+                continue;
+            }
+
             const mPayrolls = payrolls.filter((p) => p.month === m);
             const mAdvances = advances.filter((a) => a.month === m);
             const mPenalties = penalties.filter((p) => p.month === m);
@@ -3867,13 +3931,12 @@ export class PayrollService {
             const mBonuses = mPayrolls.reduce((sum, p) => sum + (p.bonus || 0), 0);
             const mDeductions = mPayrolls.reduce((sum, p) => sum + (p.deductions || 0), 0);
             const mNetSalary = mPayrolls.reduce((sum, p) => sum + (p.netSalary || 0), 0);
+            const mTaxTotal = mPayrolls.reduce((sum, p) => sum + (p.taxAmount || Math.round((p.grossSalary || (p.baseSalary + (p.bonus || 0))) * ((p.taxPercent ?? 12) / 100))), 0);
             const mAdvanceTotal = mAdvances.reduce((sum, a) => sum + (a.amount || 0), 0);
             const mPenaltyTotal = mPenalties.reduce((sum, p) => sum + (p.amount || 0), 0);
             const mManualTotal = mManual.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-            
-            
-            const mTotalExpense = (mPayrolls.length > 0 ? mNetSalary : 0) + mAdvanceTotal + mManualTotal;
+            const mTotalExpense = (mPayrolls.length > 0 ? mNetSalary : 0) + mTaxTotal + mAdvanceTotal + mManualTotal;
 
             yearlyTotalExpense += mTotalExpense;
             yearlyTotalBaseSalary += mBaseSalary;
@@ -3883,13 +3946,12 @@ export class PayrollService {
             yearlyTotalNetSalary += mNetSalary;
             yearlyTotalManualExpenses += mManualTotal;
 
-            
-            const grossPositives = mBaseSalary + mBonuses + mAdvanceTotal + mManualTotal;
-            const pctBaseSalary = grossPositives > 0 ? Math.round((mBaseSalary / grossPositives) * 1000) / 10 : 0;
-            const pctBonuses = grossPositives > 0 ? Math.round((mBonuses / grossPositives) * 1000) / 10 : 0;
-            const pctAdvances = grossPositives > 0 ? Math.round((mAdvanceTotal / grossPositives) * 1000) / 10 : 0;
-            const pctManualExpenses = grossPositives > 0 ? Math.round((mManualTotal / grossPositives) * 1000) / 10 : 0;
-            const pctPenalties = grossPositives > 0 ? Math.round((mPenaltyTotal / grossPositives) * 1000) / 10 : 0;
+            const pctNetSalary = mTotalExpense > 0 ? Math.round((mNetSalary / mTotalExpense) * 1000) / 10 : 0;
+            const pctTaxes = mTotalExpense > 0 ? Math.round((mTaxTotal / mTotalExpense) * 1000) / 10 : 0;
+            const pctBonuses = mTotalExpense > 0 ? Math.round((mBonuses / mTotalExpense) * 1000) / 10 : 0;
+            const pctAdvances = mTotalExpense > 0 ? Math.round((mAdvanceTotal / mTotalExpense) * 1000) / 10 : 0;
+            const pctManualExpenses = mTotalExpense > 0 ? Math.round((mManualTotal / mTotalExpense) * 1000) / 10 : 0;
+            const pctPenalties = mTotalExpense > 0 ? Math.round((mPenaltyTotal / mTotalExpense) * 1000) / 10 : 0;
 
             
             const deptMap = new Map<string, {
@@ -4034,6 +4096,7 @@ export class PayrollService {
                 bonuses: mBonuses,
                 deductions: mDeductions,
                 netSalary: mNetSalary,
+                taxes: mTaxTotal,
                 advances: mAdvanceTotal,
                 manualExpenses: mManualTotal,
                 penalties: mPenaltyTotal,
@@ -4042,7 +4105,9 @@ export class PayrollService {
                 manualExpensesCount: mManual.length,
                 activeEmployeesCount: employeeList.length,
                 percentages: {
-                    baseSalary: pctBaseSalary,
+                    baseSalary: pctNetSalary,
+                    netSalary: pctNetSalary,
+                    taxes: pctTaxes,
                     bonuses: pctBonuses,
                     advances: pctAdvances,
                     manualExpenses: pctManualExpenses,

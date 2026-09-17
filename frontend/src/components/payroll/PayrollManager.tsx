@@ -148,11 +148,12 @@ export default function PayrollManager() {
                 fetchAllPayrolls({
                     month: selectedMonth,
                     year: selectedYear,
-                    status: statusFilter === "ALL" ? undefined : statusFilter,
-                    search: searchQuery || undefined,
                 }),
                 fetchAllUsers(),
-                fetchDueReminders().catch(() => null),
+                fetchDueReminders({
+                    month: selectedMonth,
+                    year: selectedYear,
+                }).catch(() => null),
                 fetchAdvances({
                     month: selectedMonth,
                     year: selectedYear,
@@ -214,11 +215,10 @@ export default function PayrollManager() {
 
     useEffect(() => {
         loadData();
-    }, [selectedMonth, selectedYear, statusFilter]);
+    }, [selectedMonth, selectedYear]);
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        loadData();
     };
 
     const handleRunAutoCalculation = async () => {
@@ -821,8 +821,49 @@ export default function PayrollManager() {
     const totalAwaitingCount = awaitingPayrollCount + awaitingAdvancesCount;
     const unpaidTotalCount = pendingCount + awaitingPayrollCount;
 
-    const hasDueSalaries = dueReminders?.salaryDue?.isDue && (dueReminders?.salaryDue?.pendingCount > 0);
-    const hasDueAdvances = dueReminders?.advanceDue?.isDue && (dueReminders?.advanceDue?.pendingCount > 0);
+    const totalGrossSalary = payrolls.reduce((acc, p) => acc + (p.grossSalary || (p.baseSalary + (p.bonus || 0))), 0);
+    const totalTaxAmount = payrolls.reduce((acc, p) => acc + (p.taxAmount || Math.round((p.grossSalary || (p.baseSalary + (p.bonus || 0))) * ((p.taxPercent ?? 12) / 100))), 0);
+    const totalPaidAdvances = advancesList.filter((a) => a.status === "PAID").reduce((acc, a) => acc + Number(a.amount || 0), 0);
+    const totalCompanyOutflow = totalNetSalary + totalTaxAmount + totalPaidAdvances;
+    const totalFineSavings = Math.max(0, totalGrossSalary - totalTaxAmount - (totalNetSalary + totalPaidAdvances));
+
+    const hasDueSalaries = dueReminders?.salaryDue?.isDue && (pendingCount > 0);
+    const hasDueAdvances = dueReminders?.advanceDue?.isDue && (awaitingAdvancesCount > 0 || (dueReminders?.advanceDue?.pendingCount > 0));
+
+    const netSalaryPercent = totalGrossSalary > 0 ? Math.round((totalNetSalary / totalGrossSalary) * 100) : 0;
+    const taxPercentShare = totalGrossSalary > 0 ? Math.round((totalTaxAmount / totalGrossSalary) * 100) : 0;
+
+    const departmentExpensesMap: Record<string, { name: string; totalNet: number; totalGross: number; count: number }> = {};
+    payrolls.forEach((p) => {
+        const deptName = p.employee?.department?.name || "Boshqa";
+        if (!departmentExpensesMap[deptName]) {
+            departmentExpensesMap[deptName] = { name: deptName, totalNet: 0, totalGross: 0, count: 0 };
+        }
+        departmentExpensesMap[deptName].totalNet += (p.netSalary || 0);
+        departmentExpensesMap[deptName].totalGross += (p.grossSalary || (p.baseSalary + (p.bonus || 0)));
+        departmentExpensesMap[deptName].count += 1;
+    });
+    const departmentExpensesList = Object.values(departmentExpensesMap).sort((a, b) => b.totalNet - a.totalNet);
+
+    const monthlyEmployees = payrolls.filter((p) => (p.salaryType || p.employee?.salaryType) !== "HOURLY");
+    const hourlyEmployees = payrolls.filter((p) => (p.salaryType || p.employee?.salaryType) === "HOURLY");
+    const totalMonthlyNet = monthlyEmployees.reduce((acc, p) => acc + (p.netSalary || 0), 0);
+    const totalHourlyNet = hourlyEmployees.reduce((acc, p) => acc + (p.netSalary || 0), 0);
+    const totalHourlyHours = hourlyEmployees.reduce((acc, p) => acc + (p.workedHours || 0), 0);
+
+    const displayedPayrolls = payrolls.filter((p) => {
+        if (statusFilter === "PENDING") return p.status === "PENDING";
+        if (statusFilter === "AWAITING_CONFIRMATION") return p.status === "AWAITING_CONFIRMATION";
+        if (statusFilter === "PAID") return p.status === "PAID";
+        if (statusFilter === "CANCELLED") return p.status === "CANCELLED";
+        return true;
+    }).filter((p) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        const empName = `${p.employee?.firstName || ''} ${p.employee?.lastName || ''}`.toLowerCase();
+        const empEmail = (p.employee?.user?.email || '').toLowerCase();
+        return empName.includes(q) || empEmail.includes(q);
+    });
 
     return (
         <div className="flex flex-col gap-8 w-full">
@@ -962,12 +1003,12 @@ export default function PayrollManager() {
                             <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
                                 {hasDueSalaries && (
                                     <span className="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 font-bold">
-                                        📅 {t("dueSalaryNotice", { count: dueReminders.salaryDue.pendingCount, month: getMonthName(selectedMonth) })}
+                                        📅 {t("dueSalaryNotice", { count: pendingCount, month: getMonthName(selectedMonth) })}
                                     </span>
                                 )}
                                 {hasDueAdvances && (
                                     <span className="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold">
-                                        💳 {t("dueAdvanceNotice", { count: dueReminders.advanceDue.pendingCount })}
+                                        💳 {t("dueAdvanceNotice", { count: awaitingAdvancesCount || dueReminders?.advanceDue?.pendingCount || 0 })}
                                     </span>
                                 )}
                             </div>
@@ -1054,6 +1095,201 @@ export default function PayrollManager() {
                 </div>
             </div>
 
+            {/* Oylik Xarajatlar Taqsimoti & Shaffoflik Paneli */}
+            {payrolls.length > 0 && (
+                <div className="bg-white border-2 border-black p-6 flex flex-col gap-6 shadow-sm">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl">📊</span>
+                                <h3 className="text-sm font-black uppercase tracking-wide text-black">
+                                    {getMonthName(selectedMonth)} {selectedYear} — {t("expensesTransparencyTitle")}
+                                </h3>
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-black uppercase rounded">
+                                    {payrolls.length} ta xodim
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-500 font-medium mt-1">
+                                {t("expensesTransparencyDesc")}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="text-left md:text-right bg-gray-50 md:bg-transparent p-3 md:p-0 rounded border md:border-none border-gray-200">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                                    {t("totalCompanyOutflow")}
+                                </span>
+                                <span className="text-xl font-black text-black tracking-tight">
+                                    {formatMoney(totalCompanyOutflow)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Visual Stacked Progress Bar */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between text-xs font-bold text-gray-700">
+                            <span>Umumiy Oylik Hisobi (Gross Fond: {formatMoney(totalGrossSalary)})</span>
+                            <span className="text-gray-500 text-[11px]">100%</span>
+                        </div>
+                        <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden flex shadow-inner">
+                            {totalNetSalary > 0 && (
+                                <div
+                                    style={{ width: `${totalGrossSalary > 0 ? (totalNetSalary / totalGrossSalary) * 100 : 0}%` }}
+                                    className="bg-emerald-500 hover:bg-emerald-600 transition-all cursor-pointer relative"
+                                    title={`Xodimlar Sof Maoshi: ${formatMoney(totalNetSalary)}`}
+                                />
+                            )}
+                            {totalTaxAmount > 0 && (
+                                <div
+                                    style={{ width: `${totalGrossSalary > 0 ? (totalTaxAmount / totalGrossSalary) * 100 : 0}%` }}
+                                    className="bg-amber-500 hover:bg-amber-600 transition-all cursor-pointer relative"
+                                    title={`Daromad Solig'i (12%): ${formatMoney(totalTaxAmount)}`}
+                                />
+                            )}
+                            {totalPaidAdvances > 0 && (
+                                <div
+                                    style={{ width: `${totalGrossSalary > 0 ? (totalPaidAdvances / totalGrossSalary) * 100 : 0}%` }}
+                                    className="bg-purple-500 hover:bg-purple-600 transition-all cursor-pointer relative"
+                                    title={`To'langan Avanslar: ${formatMoney(totalPaidAdvances)}`}
+                                />
+                            )}
+                            {totalBonuses > 0 && (
+                                <div
+                                    style={{ width: `${totalGrossSalary > 0 ? (totalBonuses / totalGrossSalary) * 100 : 0}%` }}
+                                    className="bg-blue-500 hover:bg-blue-600 transition-all cursor-pointer relative"
+                                    title={`Bonuslar: ${formatMoney(totalBonuses)}`}
+                                />
+                            )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold mt-1">
+                            <span className="flex items-center gap-1.5 text-emerald-800">
+                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                                Sof Maosh ({netSalaryPercent}%)
+                            </span>
+                            <span className="flex items-center gap-1.5 text-amber-800">
+                                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                                Soliq 12% ({taxPercentShare}%)
+                            </span>
+                            {totalPaidAdvances > 0 && (
+                                <span className="flex items-center gap-1.5 text-purple-800">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span>
+                                    Avanslar ({totalGrossSalary > 0 ? Math.round((totalPaidAdvances / totalGrossSalary) * 100) : 0}%)
+                                </span>
+                            )}
+                            {totalBonuses > 0 && (
+                                <span className="flex items-center gap-1.5 text-blue-800">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
+                                    Bonuslar ({totalGrossSalary > 0 ? Math.round((totalBonuses / totalGrossSalary) * 100) : 0}%)
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 4 Detail Metric Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase text-emerald-900">💵 {t("categoryNetSalary")}</span>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-200 text-emerald-900 rounded">{paidCount}/{payrolls.length} to'landi</span>
+                                </div>
+                                <div className="text-xl font-black text-emerald-950 mt-2">
+                                    {formatMoney(totalNetSalary)}
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-emerald-700 font-medium mt-2">
+                                Xodimlar kartasiga / qo'liga o'tkaziladigan sof ish haqi
+                            </p>
+                        </div>
+
+                        <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase text-amber-900">🏛️ {t("categoryTax")}</span>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded">12% stavka</span>
+                                </div>
+                                <div className="text-xl font-black text-amber-950 mt-2">
+                                    {formatMoney(totalTaxAmount)}
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-amber-700 font-medium mt-2">
+                                Daromad solig'i sifatida davlat budjetiga o'tkaziladigan summa
+                            </p>
+                        </div>
+
+                        <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase text-purple-900">💳 {t("categoryAdvances")}</span>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-purple-200 text-purple-900 rounded">{advancesList.filter(a => a.status === "PAID").length} ta avans</span>
+                                </div>
+                                <div className="text-xl font-black text-purple-950 mt-2">
+                                    {formatMoney(totalPaidAdvances)}
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-purple-700 font-medium mt-2">
+                                Joriy oy hisobidan muddatidan oldin to'lab berilgan avanslar
+                            </p>
+                        </div>
+
+                        <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase text-rose-900">🛡️ {t("categorySavings")}</span>
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-rose-200 text-rose-900 rounded">Tejalgan</span>
+                                </div>
+                                <div className="text-xl font-black text-rose-950 mt-2">
+                                    -{formatMoney(totalFineSavings)}
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-rose-700 font-medium mt-2">
+                                {t("categorySavingsDesc")}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Compensation Type Breakdown (Monthly vs Hourly) */}
+                    <div className="pt-2 border-t border-gray-100 flex flex-col gap-3">
+                        <span className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                            <span>⏱️</span> {t("salaryTypeBreakdownTitle")}
+                        </span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-sm flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-lg">📅</span>
+                                    <div>
+                                        <span className="text-xs font-bold text-gray-900 block">{t("fixedMonthlyWorkers")}</span>
+                                        <span className="text-[11px] text-gray-500 font-medium">{monthlyEmployees.length} nafar xodim</span>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-sm font-black text-emerald-950 block">{formatMoney(totalMonthlyNet)}</span>
+                                    <span className="text-[10px] text-gray-400 font-bold">
+                                        {totalNetSalary > 0 ? Math.round((totalMonthlyNet / totalNetSalary) * 100) : 0}% ulush
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-sm flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-lg">⏱️</span>
+                                    <div>
+                                        <span className="text-xs font-bold text-gray-900 block">{t("hourlyWorkers")}</span>
+                                        <span className="text-[11px] text-blue-700 font-medium">{hourlyEmployees.length} nafar xodim • {totalHourlyHours} soat ishlangan</span>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-sm font-black text-blue-950 block">{formatMoney(totalHourlyNet)}</span>
+                                    <span className="text-[10px] text-gray-400 font-bold">
+                                        {totalNetSalary > 0 ? Math.round((totalHourlyNet / totalNetSalary) * 100) : 0}% ulush
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2">
                     {[
@@ -1137,13 +1373,22 @@ export default function PayrollManager() {
                                 <th className="p-4">{t("baseSalary")}</th>
                                 <th className="p-4">{t("bonuses")}</th>
                                 <th className="p-4">{t("deductions")}</th>
-                                <th className="p-4">{t("netSalary")}</th>
+                                <th className="p-4">{statusFilter === "PAID" ? "JAMI TO'LANGAN (AVANSLAR BILAN)" : "YIG'ILGAN ISH HAQI"}</th>
                                 <th className="p-4">{t("status")}</th>
                                 <th className="p-4 text-right">{t("actions")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {payrolls.map((p) => {
+                            {displayedPayrolls.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="p-12 text-center text-xs font-bold text-gray-500 bg-white">
+                                        {statusFilter === "PENDING" && pendingCount === 0
+                                            ? "🎉 Ushbu oy uchun barcha xodimlarning oylik maoshi to'langan!"
+                                            : "Tanlangan filtr bo'yicha maosh yozuvlari topilmadi."}
+                                    </td>
+                                </tr>
+                            ) : (
+                                displayedPayrolls.map((p) => {
                                 const emp = p.employee || {};
                                 const empAdvances = advancesList.filter((a) => a.employeeId === emp.id);
                                 const empAwaitingAdvances = empAdvances.filter((a) => a.status === "AWAITING_CONFIRMATION" || a.status === "PENDING");
@@ -1173,25 +1418,24 @@ export default function PayrollManager() {
 
                                 const postPaydayDisciplinary = (empPenaltyObj?.disciplinaryPenalties || []).filter((dp: any) => {
                                     if (p.status !== "PAID") return true;
-                                    const dpDate = new Date(dp.date || dp.createdAt);
+                                    const dpDate = new Date(dp.date);
                                     return dpDate.getDate() > cutoffDay;
-                                }).reduce((sum: number, dp: any) => sum + (dp.amount || 0), 0);
+                                }).reduce((sum: number, dp: any) => sum + (dp.fineAmount || dp.amount || 0), 0);
 
-                                const postPaydayLates = (empPenaltyObj?.lateAttendances || []).filter((la: any) => {
-                                    if (p.status !== "PAID") return true;
-                                    const laDate = new Date(la.date);
-                                    return laDate.getDate() > cutoffDay;
-                                }).reduce((sum: number, la: any) => sum + (la.fineAmount || 0), 0);
+                                const postPaydayPenaltyTotal = postPaydayAbsences + postPaydayDisciplinary;
 
-                                const postPaydayPenaltyTotal = postPaydayAbsences + postPaydayDisciplinary + postPaydayLates;
-                                const postPaydayDeductions = postPaydayAdvancesTotal + postPaydayPenaltyTotal;
+                                const grossFund = p.grossSalary || (p.baseSalary + (p.bonus || 0));
+                                const taxAmountCalc = p.taxAmount || Math.round(grossFund * ((p.taxPercent ?? 12) / 100));
+                                const standardDeductions = taxAmountCalc + empPenaltyTotal;
+                                const accruedNetSalary = Math.max(0, grossFund - standardDeductions);
 
                                 const rowDeductions = p.status === "PAID"
-                                    ? (statusFilter === "PAID" ? p.deductions : postPaydayDeductions)
-                                    : (totalPaidAdvances + empPenaltyTotal);
+                                    ? p.deductions
+                                    : (empPenaltyTotal + totalPaidAdvances + taxAmountCalc);
+
                                 const rowNetSalary = p.status === "PAID"
                                     ? p.netSalary
-                                    : Math.max(0, p.baseSalary + p.bonus - rowDeductions);
+                                    : Math.max(0, grossFund - rowDeductions);
 
                                 const limitInfo = getEmployeeAvailableAdvanceLimit(emp.id, selectedMonth, selectedYear);
 
@@ -1207,59 +1451,38 @@ export default function PayrollManager() {
                                 }
                                 if (totalWorkingDaysInMonth === 0) totalWorkingDaysInMonth = 22;
 
-                                const dailyRate = Math.round(p.baseSalary / totalWorkingDaysInMonth);
-
-                                const salaryPaidDateStr = p.confirmedAt
-                                    ? new Date(p.confirmedAt).toLocaleDateString()
-                                    : p.disbursedAt
+                                const dailyRate = totalWorkingDaysInMonth > 0 ? Math.round(p.baseSalary / totalWorkingDaysInMonth) : 0;
+                                const salaryPaidDateStr = p.disbursedAt
                                     ? new Date(p.disbursedAt).toLocaleDateString()
-                                    : p.updatedAt
-                                    ? new Date(p.updatedAt).toLocaleDateString()
-                                    : "";
+                                    : (p.confirmedAt ? new Date(p.confirmedAt).toLocaleDateString() : "");
 
                                 return (
-                                    <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="p-4">
+                                    <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
+                                        <td className="p-4 font-bold text-black">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
-                                                    {emp.firstName ? emp.firstName[0] : "X"}
+                                                <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs uppercase">
+                                                    {emp.user?.name ? emp.user.name[0] : (emp.firstName ? emp.firstName[0] : "E")}
                                                 </div>
                                                 <div>
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <span className="font-bold text-black">
-                                                            {emp.firstName} {emp.lastName}
-                                                        </span>
-                                                        {p.status === "PENDING" && (
-                                                            <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-rose-100 text-rose-950 border border-rose-300">
-                                                                ⚠️ To'lanmagan
-                                                            </span>
-                                                        )}
-                                                        {p.status === "AWAITING_CONFIRMATION" && (
-                                                            <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-orange-100 text-orange-950 border border-orange-300 animate-pulse">
-                                                                ⏳ Tasdiqlanmagan
-                                                            </span>
-                                                        )}
+                                                    <p className="text-black font-bold flex items-center gap-2">
+                                                        <span>{emp.user?.name || `${emp.firstName || ""} ${emp.lastName || ""}`.trim() || "Xodim"}</span>
                                                         {p.status === "PAID" && (
-                                                            <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded-xs bg-emerald-100 text-emerald-950 border border-emerald-300">
+                                                            <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-1.5 py-0.2 rounded-xs uppercase">
                                                                 ✓ To'langan
                                                             </span>
                                                         )}
-                                                    </div>
-                                                    <span className="text-[10px] text-gray-400 block">
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-400 font-normal">
                                                         {emp.user?.email || ""}
-                                                    </span>
+                                                    </p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4">
-                                            <span className="font-medium text-gray-700 block">
-                                                {emp.department?.name || "-"}
-                                            </span>
-                                            <span className="text-[10px] text-gray-400">
-                                                {emp.position?.title || "-"}
-                                            </span>
+                                        <td className="p-4 text-gray-500">
+                                            <div>{emp.department?.name || "-"}</div>
+                                            <div className="text-[10px] text-gray-400">{emp.position?.title || "-"}</div>
                                         </td>
-                                        <td className="p-4 font-bold text-gray-800">
+                                        <td className="p-4 font-bold text-black">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span>{formatMoney(p.baseSalary)}</span>
                                                 {p.salaryType === "HOURLY" || emp.salaryType === "HOURLY" ? (
@@ -1286,68 +1509,62 @@ export default function PayrollManager() {
                                             +{formatMoney(p.bonus)}
                                         </td>
                                         <td className="p-4 font-bold text-rose-600">
-                                            <div>-{formatMoney(rowDeductions)}</div>
-                                            {p.taxAmount > 0 && (
-                                                <div className="text-[9px] font-medium text-amber-800 font-mono mt-0.5">
-                                                    Soliq ({p.taxPercent || 12}%): -{formatMoney(p.taxAmount)}
-                                                </div>
-                                            )}
-                                            {p.status === "PAID" ? (
-                                                statusFilter === "PAID" ? (
+                                            {statusFilter === "PAID" ? (
+                                                <>
+                                                    <div>-{formatMoney(rowDeductions)}</div>
+                                                    {p.taxAmount > 0 && (
+                                                        <div className="text-[9px] font-medium text-amber-800 font-mono mt-0.5">
+                                                            Soliq ({p.taxPercent || 12}%): -{formatMoney(p.taxAmount)}
+                                                        </div>
+                                                    )}
                                                     <div className="text-[9px] font-normal text-gray-400 font-mono mt-0.5">
                                                         To'langan oylikdan ushlangan
                                                     </div>
-                                                ) : (
-                                                    <div className="text-[9px] font-normal text-rose-600 font-mono mt-0.5">
-                                                        {rowDeductions > 0 ? (
-                                                            postPaydayPenaltyTotal > 0 && postPaydayAdvancesTotal > 0
-                                                                ? `Yangi davr: Avans -${formatMoney(postPaydayAdvancesTotal)} | Jarima -${formatMoney(postPaydayPenaltyTotal)}`
-                                                                : postPaydayPenaltyTotal > 0
-                                                                ? `Yangi davr: -${formatMoney(postPaydayPenaltyTotal)}`
-                                                                : `Yangi davr: -${formatMoney(postPaydayAdvancesTotal)}`
-                                                        ) : (
-                                                            `Jarima va avanslar to'langan (0 UZS)`
-                                                        )}
-                                                    </div>
-                                                )
+                                                </>
                                             ) : (
-                                                empPenaltyTotal > 0 && (
-                                                    <div className="text-[9px] font-normal text-rose-500 font-mono mt-0.5" title="Avanslar va Jarimalar jamlangan">
-                                                        {totalPaidAdvances > 0 ? `Avans: -${formatMoney(totalPaidAdvances)} | Jarima: -${formatMoney(empPenaltyTotal)}` : `Jarima: -${formatMoney(empPenaltyTotal)}`}
-                                                    </div>
-                                                )
+                                                <>
+                                                    <div>-{formatMoney(standardDeductions)}</div>
+                                                    {taxAmountCalc > 0 && (
+                                                        <div className="text-[9px] font-medium text-amber-800 font-mono mt-0.5">
+                                                            Soliq ({p.taxPercent || 12}%): -{formatMoney(taxAmountCalc)}
+                                                        </div>
+                                                    )}
+                                                    {empPenaltyTotal > 0 && (
+                                                        <div className="text-[9px] font-medium text-rose-700 font-mono mt-0.5">
+                                                            Jarima / Davomat: -{formatMoney(empPenaltyTotal)}
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </td>
                                         <td className="p-4 font-black text-black text-sm">
-                                            {p.status === "PAID" ? (
-                                                statusFilter === "PAID" ? (
-                                                    <div>
-                                                        <div className="text-gray-900 font-bold flex items-center gap-1.5 flex-wrap">
-                                                            <span>{formatMoney(p.netSalary)}</span>
-                                                            <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-xs uppercase">✓ To'langan</span>
-                                                        </div>
-                                                        <div className="text-[10px] font-semibold text-emerald-700 font-mono mt-0.5">
-                                                            {salaryPaidDateStr ? `${salaryPaidDateStr} da to'landi` : "To'liq to'langan"}
-                                                        </div>
+                                            {statusFilter === "PAID" ? (
+                                                <div>
+                                                    <div className="text-gray-900 font-black text-base flex items-center gap-1.5 flex-wrap">
+                                                        <span>{formatMoney(p.netSalary + totalPaidAdvances)}</span>
+                                                        <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-xs uppercase">
+                                                            ✓ To'langan
+                                                        </span>
                                                     </div>
-                                                ) : (
-                                                    <div>
-                                                        <div className="text-gray-900 font-bold flex items-center gap-1.5 flex-wrap">
-                                                            <span>{formatMoney(limitInfo.grossEarnedSoFar)}</span>
-                                                            <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-xs uppercase">✓ To'langan</span>
-                                                        </div>
-                                                        <div className="text-[10px] font-semibold text-emerald-700 font-mono mt-0.5">
-                                                            {limitInfo.passedWorkingDays === 0
-                                                                ? "0 dan to'planmoqda"
-                                                                : `+${limitInfo.passedWorkingDays} ish kuni to'plandi`}
-                                                        </div>
+                                                    <div className="text-[10px] font-medium text-gray-500 mt-0.5 flex flex-wrap items-center gap-1 font-mono">
+                                                        {totalPaidAdvances > 0 ? (
+                                                            <span>
+                                                                Avans: <strong className="text-purple-700">{formatMoney(totalPaidAdvances)}</strong> + Oylik: <strong className="text-emerald-700">{formatMoney(p.netSalary)}</strong>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-emerald-700">
+                                                                {salaryPaidDateStr ? `${salaryPaidDateStr} da to'landi` : "To'liq to'langan"}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                )
+                                                </div>
                                             ) : (
                                                 <div>
-                                                    <div className="text-gray-900 font-black">{formatMoney(rowNetSalary)}</div>
-                                                    <div className="text-[10px] font-semibold text-amber-700 font-mono mt-0.5">
-                                                        To'lanishi kutilayotgan sof oylik
+                                                    <div className="text-gray-900 font-black text-base">
+                                                        {formatMoney(accruedNetSalary)}
+                                                    </div>
+                                                    <div className="text-[10px] font-medium text-emerald-700 mt-0.5 font-mono">
+                                                        Hisoblangan sof maosh
                                                     </div>
                                                 </div>
                                             )}
@@ -1394,8 +1611,8 @@ export default function PayrollManager() {
                                                     </span>
                                                 )}
 
-                                                {/* Paid Advances */}
-                                                {empPaidAdvances.map((adv) => (
+                                                {/* Paid Advances - Only displayed in PAID tab to keep Barchasi clean */}
+                                                {statusFilter === "PAID" && empPaidAdvances.map((adv) => (
                                                     <div key={adv.id} className="flex flex-col items-start gap-0.5">
                                                         <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs border bg-emerald-50 text-emerald-800 border-emerald-300">
                                                             {adv.isEarly ? "⚡ Muddatidan oldin avans to'landi" : "✓ Avans to'landi"}
@@ -1458,7 +1675,7 @@ export default function PayrollManager() {
                                         </td>
                                     </tr>
                                 );
-                            })}
+                            }))}
                         </tbody>
                     </table>
                 </div>

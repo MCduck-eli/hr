@@ -12,14 +12,15 @@ export const createCycleSchema = z.object({
 
 export const createObjectiveSchema = z.object({
     body: z.object({
-        cycleId: z.string().uuid(),
+        cycleId: z.string().optional().nullable(),
         level: z.enum(["COMPANY", "DEPARTMENT", "INDIVIDUAL"]),
         title: z.string().min(1),
         description: z.string().optional().nullable(),
-        departmentId: z.string().uuid().optional().nullable(),
-        employeeId: z.string().uuid().optional().nullable(),
-        parentId: z.string().uuid().optional().nullable(),
+        departmentId: z.string().optional().nullable(),
+        employeeId: z.string().optional().nullable(),
+        parentId: z.string().optional().nullable(),
         minExpectedProgress: z.coerce.number().optional().nullable(),
+        isIndividualForEach: z.boolean().optional().nullable(),
         executionMode: z.string().optional().nullable(),
         keyResults: z
             .array(
@@ -53,10 +54,11 @@ export const updateObjectiveSchema = z.object({
         level: z.enum(["COMPANY", "DEPARTMENT", "INDIVIDUAL"]).optional(),
         title: z.string().min(1).optional(),
         description: z.string().optional().nullable(),
-        departmentId: z.string().uuid().optional().nullable(),
-        employeeId: z.string().uuid().optional().nullable(),
-        parentId: z.string().uuid().optional().nullable(),
+        departmentId: z.string().optional().nullable(),
+        employeeId: z.string().optional().nullable(),
+        parentId: z.string().optional().nullable(),
         minExpectedProgress: z.coerce.number().optional().nullable(),
+        isIndividualForEach: z.boolean().optional().nullable(),
         executionMode: z.string().optional().nullable(),
         keyResults: z
             .array(
@@ -71,3 +73,4 @@ export const updateObjectiveSchema = z.object({
             .optional(),
     }),
 });
+

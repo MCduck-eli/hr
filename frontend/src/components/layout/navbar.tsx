@@ -172,6 +172,12 @@ export default function Navbar() {
                                     {t("feedback")}
                                 </Link>
                                 <Link
+                                    href={`/${locale}/hr/analytics`}
+                                    className="hover:text-black transition-colors"
+                                >
+                                    📊 {t("analytics") || "BI Analitika"}
+                                </Link>
+                                <Link
                                     href={`/${locale}/hr/payroll`}
                                     className="hover:text-black transition-colors"
                                 >

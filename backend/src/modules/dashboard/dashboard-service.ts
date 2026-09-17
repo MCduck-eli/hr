@@ -370,40 +370,76 @@ export class DashboardService {
         let currentCycle = await prisma.okrCycle.findFirst({
             where: {
                 isCurrent: true,
-                ...(user.companyName ? { companyName: user.companyName } : {}),
+                ...(user.companyName ? { OR: [{ companyName: user.companyName }, { companyName: null }] } : {}),
             },
         });
 
         if (!currentCycle) {
             currentCycle = await prisma.okrCycle.findFirst({
-                where: user.companyName ? { companyName: user.companyName } : {},
+                where: user.companyName ? { OR: [{ companyName: user.companyName }, { companyName: null }] } : {},
                 orderBy: { startDate: "desc" },
             });
         }
 
-        const employeeOkrs = await prisma.objective.findMany({
-            where: {
-                ...(currentCycle ? { cycleId: currentCycle.id } : {}),
-                ...(user.companyName ? { companyName: user.companyName } : {}),
-                OR: [
-                    { level: "COMPANY" },
-                    ...(employee.departmentId ? [{ level: "DEPARTMENT" as const, departmentId: employee.departmentId }] : []),
-                    {
-                        level: "INDIVIDUAL" as const,
-                        OR: [
-                            { employeeId: employee.id },
-                            { employeeId: user.id },
-                        ],
-                    },
-                ],
-            },
+        const employeeIdMatches = [
+            employee.id,
+            user.id,
+            ...(employee.userId ? [employee.userId] : []),
+        ].filter(Boolean);
+
+        const userCompany = user.companyName || (employee as any).user?.companyName || null;
+        const companyFilter = userCompany
+            ? { OR: [{ companyName: userCompany }, { companyName: null }] }
+            : {};
+
+        const whereOkrs: any = {
+            OR: [
+                {
+                    employeeId: { in: employeeIdMatches },
+                    ...companyFilter,
+                },
+                {
+                    level: "INDIVIDUAL" as const,
+                    employeeId: { in: employeeIdMatches },
+                    ...companyFilter,
+                },
+                ...(employee.departmentId
+                    ? [
+                          {
+                              level: "DEPARTMENT" as const,
+                              departmentId: employee.departmentId,
+                              ...companyFilter,
+                          },
+                      ]
+                    : []),
+                ...(userCompany
+                    ? [
+                          {
+                              level: "COMPANY" as const,
+                              companyName: userCompany,
+                          },
+                      ]
+                    : [{ level: "COMPANY" as const }]),
+            ],
+        };
+
+        let employeeOkrs = await prisma.objective.findMany({
+            where: whereOkrs,
             include: { 
                 keyResults: {
-                    include: { checkIns: true },
+                    include: { 
+                        checkIns: {
+                            orderBy: { createdAt: "desc" },
+                        },
+                    },
                 },
+                cycle: true,
+                department: { select: { name: true } },
+                employee: { select: { firstName: true, lastName: true } },
             },
             orderBy: { createdAt: "desc" },
         });
+
 
         if (currentCycle) {
             minExpectedProgress = currentCycle.minExpectedProgress || 0;
@@ -469,13 +505,13 @@ export class DashboardService {
         const employeePosition = employee.position?.title || employee.position || null;
         const employeeSalary = employee.salary || employee.grade?.minSalary || null;
 
-        const companyFilter = user.companyName || null;
+        const userCompanyName = user.companyName || null;
 
         const feedbackAssignments = await prisma.feedbackAssignment.findMany({
             where: {
                 targetId: employee.id,
                 isCompleted: true,
-                ...(companyFilter ? { cycle: { companyName: companyFilter } } : {}),
+                ...(userCompanyName ? { cycle: { companyName: userCompanyName } } : {}),
             },
             include: { answers: true },
         });
@@ -496,14 +532,14 @@ export class DashboardService {
             nextGrade = await prisma.jobGrade.findFirst({
                 where: {
                     level: { gt: employee.grade.level },
-                    ...(companyFilter ? { OR: [{ companyName: companyFilter }, { companyName: null }] } : {}),
+                    ...(userCompanyName ? { OR: [{ companyName: userCompanyName }, { companyName: null }] } : {}),
                 },
                 orderBy: { level: "asc" },
             });
         } else {
             nextGrade = await prisma.jobGrade.findFirst({
                 where: {
-                    ...(companyFilter ? { OR: [{ companyName: companyFilter }, { companyName: null }] } : {}),
+                    ...(userCompanyName ? { OR: [{ companyName: userCompanyName }, { companyName: null }] } : {}),
                 },
                 orderBy: { level: "asc" },
             });

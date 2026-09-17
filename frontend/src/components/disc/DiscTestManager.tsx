@@ -225,7 +225,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
         }
     };
 
-    const isHrAdmin = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "HR_ADMIN";
+    const isHrAdmin = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "HR_ADMIN" || currentUser?.role === "DIRECTOR";
     const canViewTeamAnalytics = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "HR_ADMIN" || currentUser?.role === "DIRECTOR" || currentUser?.role === "DEPARTMENT_HEAD";
 
     if (loading) {

@@ -3,6 +3,22 @@ import { AppError } from "../../utils/appError";
 import { notificationService } from "../notification/notification-service";
 
 export class Feedback360Service {
+    private async resolveCallerCompany(currentUser?: any): Promise<string | null> {
+        if (!currentUser?.id) return null;
+        if (currentUser.role === "SUPER_ADMIN" && !currentUser.companyName) return null;
+        if (currentUser.companyName) return currentUser.companyName;
+
+        const caller = await prisma.user.findUnique({
+            where: { id: currentUser.id },
+            select: { role: true, companyName: true },
+        });
+
+        if (caller && caller.role !== "SUPER_ADMIN") {
+            return caller.companyName || null;
+        }
+        return currentUser.companyName || null;
+    }
+
     async createCycle(
         payload: {
             title: string;
@@ -13,16 +29,7 @@ export class Feedback360Service {
         },
         currentUser?: any,
     ) {
-        let companyName: string | null = null;
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller?.companyName) {
-                companyName = caller.companyName;
-            }
-        }
+        const companyName = await this.resolveCallerCompany(currentUser);
 
         return prisma.feedbackCycle.create({
             data: {
@@ -41,16 +48,7 @@ export class Feedback360Service {
     }
 
     async getCycles(currentUser?: any) {
-        let companyFilter: string | null = null;
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller && caller.role !== "SUPER_ADMIN") {
-                companyFilter = caller.companyName || null;
-            }
-        }
+        const companyFilter = await this.resolveCallerCompany(currentUser);
 
         return prisma.feedbackCycle.findMany({
             where: companyFilter ? { companyName: companyFilter } : {},
@@ -62,8 +60,15 @@ export class Feedback360Service {
         });
     }
 
-    async updateCycle(cycleId: string, data: any) {
-        const cycle = await prisma.feedbackCycle.findUnique({ where: { id: cycleId } });
+    async updateCycle(cycleId: string, data: any, currentUser?: any) {
+        const companyFilter = await this.resolveCallerCompany(currentUser);
+
+        const cycle = await prisma.feedbackCycle.findFirst({
+            where: {
+                id: cycleId,
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
+        });
         if (!cycle) throw new AppError("Cycle not found", 404);
 
         const { questions, ...cycleData } = data;
@@ -85,8 +90,15 @@ export class Feedback360Service {
         return updatedCycle;
     }
 
-    async deleteCycle(cycleId: string) {
-        const cycle = await prisma.feedbackCycle.findUnique({ where: { id: cycleId } });
+    async deleteCycle(cycleId: string, currentUser?: any) {
+        const companyFilter = await this.resolveCallerCompany(currentUser);
+
+        const cycle = await prisma.feedbackCycle.findFirst({
+            where: {
+                id: cycleId,
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
+        });
         if (!cycle) throw new AppError("Cycle not found", 404);
 
         await prisma.feedbackCycle.delete({
@@ -95,10 +107,13 @@ export class Feedback360Service {
         return { message: "Cycle deleted successfully" };
     }
 
-    async getAssignments(cycleId: string, targetId?: string) {
+    async getAssignments(cycleId: string, targetId?: string, currentUser?: any) {
+        const companyFilter = await this.resolveCallerCompany(currentUser);
+
         return prisma.feedbackAssignment.findMany({
             where: {
                 cycleId,
+                ...(companyFilter ? { cycle: { companyName: companyFilter } } : {}),
                 ...(targetId ? { targetId } : {}),
             },
             include: {
@@ -132,7 +147,18 @@ export class Feedback360Service {
             reviewerId: string;
             type: "SELF" | "MANAGER" | "PEER" | "SUBORDINATE";
         }[],
+        currentUser?: any,
     ) {
+        const companyFilter = await this.resolveCallerCompany(currentUser);
+
+        const cycle = await prisma.feedbackCycle.findFirst({
+            where: {
+                id: cycleId,
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
+        });
+        if (!cycle) throw new AppError("Cycle not found", 404);
+
         const reviewerIds = reviewers.map((r) => r.reviewerId);
 
         await prisma.feedbackAssignment.deleteMany({
@@ -168,23 +194,21 @@ export class Feedback360Service {
             where: { id: targetId },
             select: { firstName: true, lastName: true },
         });
-        const targetName = targetEmployee
-            ? `${targetEmployee.firstName} ${targetEmployee.lastName}`.trim()
-            : "hamkasbingiz";
 
         for (const r of reviewers) {
             const reviewerEmp = await prisma.employee.findUnique({
                 where: { id: r.reviewerId },
                 select: { userId: true },
             });
+
             if (reviewerEmp?.userId) {
                 await notificationService.createAndSendNotification({
                     userId: reviewerEmp.userId,
                     title: "360 Baholash So'rovi",
-                    message: `Sizga 360 baholash so'rovi biriktirildi. Iltimos, ${targetName}ni baholang.`,
+                    message: `${targetEmployee ? `${targetEmployee.firstName} ${targetEmployee.lastName}` : "Hamkasbingiz"} uchun 360 baholash so'rovnomasi yuborildi.`,
                     type: "GENERAL",
                     metadata: {
-                        type: "FEEDBACK_360_REQUEST",
+                        type: "FEEDBACK_360_ASSIGNED",
                         cycleId,
                         targetId,
                     },

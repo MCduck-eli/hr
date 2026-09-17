@@ -29,6 +29,7 @@ export class AttendanceService {
         });
         const employees = await prisma.employee.findMany({
             where: {
+                status: { not: "TERMINATED" },
                 user: { role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] } },
             },
             select: { id: true, firstName: true, lastName: true },
@@ -684,6 +685,7 @@ export class AttendanceService {
         }
 
         const whereEmployee: any = {
+            status: { not: "TERMINATED" },
             user: {
                 role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
                 ...(companyFilter ? { companyName: companyFilter } : {}),

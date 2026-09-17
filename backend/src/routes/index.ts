@@ -22,6 +22,8 @@ import notificationRouter from "../modules/notification/notification-route";
 import dashboardRouter from "../modules/dashboard/dashboard-routes";
 import employeeStatusRouter from "../modules/employee-status/employee-status-route";
 import roleRouter from "../modules/roles/role-route";
+import analyticsRouter from "../modules/analytics/analytics-route";
+import enpsRouter from "../modules/enps/enps-route";
 
 const mainRouter = Router();
 
@@ -43,11 +45,13 @@ mainRouter.use("/v1/lifecycle", lifecycleRouter);
 mainRouter.use("/v1/okr", okrRouter);
 mainRouter.use("/v1/disc", discRouter);
 mainRouter.use("/v1/feedback-360", feedback360Router);
+mainRouter.use("/v1/enps", enpsRouter);
 mainRouter.use("/v1/grading", gradingRouter);
 mainRouter.use("/v1/notifications", notificationRouter);
 mainRouter.use("/v1/employee", dashboardRouter);
 mainRouter.use("/v1/employee-statuses", employeeStatusRouter);
 mainRouter.use("/v1/roles", roleRouter);
+mainRouter.use("/v1/analytics", analyticsRouter);
 mainRouter.use("/roles", roleRouter);
 
 export default mainRouter;

@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
 
 const getHeaders = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -9,15 +9,22 @@ const getHeaders = () => {
 };
 
 export const fetchMyPayrolls = async () => {
-    const res = await fetch(`${API_URL}/payroll/my`, {
-        headers: getHeaders(),
-    });
-    if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to fetch my payrolls");
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return [];
+    try {
+        const res = await fetch(`${API_URL}/payroll/my`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || "Failed to fetch my payrolls");
+        }
+        const json = await res.json();
+        return json.data || [];
+    } catch (err) {
+        console.warn("Error fetching my payrolls:", err);
+        return [];
     }
-    const json = await res.json();
-    return json.data;
 };
 
 export const fetchAllPayrolls = async (params?: {
@@ -370,8 +377,12 @@ export const updatePayrollSchedule = async (payload: {
     return json.data;
 };
 
-export const fetchDueReminders = async () => {
-    const res = await fetch(`${API_URL}/payroll/due-reminders`, {
+export const fetchDueReminders = async (params?: { month?: number; year?: number }) => {
+    const url = new URL(`${API_URL}/payroll/due-reminders`);
+    if (params?.month) url.searchParams.append("month", String(params.month));
+    if (params?.year) url.searchParams.append("year", String(params.year));
+
+    const res = await fetch(url.toString(), {
         headers: getHeaders(),
     });
     if (!res.ok) {
@@ -406,15 +417,22 @@ export const fetchAdvances = async (params?: {
 };
 
 export const fetchMyAdvances = async () => {
-    const res = await fetch(`${API_URL}/payroll/advances/my`, {
-        headers: getHeaders(),
-    });
-    if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to fetch my advances");
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return [];
+    try {
+        const res = await fetch(`${API_URL}/payroll/advances/my`, {
+            headers: getHeaders(),
+        });
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || "Failed to fetch my advances");
+        }
+        const json = await res.json();
+        return json.data || [];
+    } catch (err) {
+        console.warn("Error fetching my advances:", err);
+        return [];
     }
-    const json = await res.json();
-    return json.data;
 };
 
 export const createAdvance = async (payload: {

@@ -56,6 +56,13 @@ export default function HRAdminDashboard() {
                         <span>👤</span>
                         <span>Mening Profilim</span>
                     </Link>
+                    <Link
+                        href={`/${locale}/hr/analytics`}
+                        className="px-4 py-2.5 bg-purple-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-800 transition-colors flex items-center gap-2 shadow-xs"
+                    >
+                        <span>📊</span>
+                        <span>BI Analitika & 9-Box</span>
+                    </Link>
                     <button
                         onClick={() => setIsEjmModalOpen(true)}
                         className="px-4 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center gap-2 shadow-xs"
@@ -82,6 +89,25 @@ export default function HRAdminDashboard() {
                             </h2>
                             <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">
                                 Ishga keldi-ketdi (check-in), o'z oyligim, 360 baholash va xodim kabineti
+                            </p>
+                        </div>
+                    </div>
+                </Link>
+
+                <Link href={`/${locale}/hr/analytics`}>
+                    <div className="bg-gradient-to-br from-purple-50/70 to-white p-8 border-2 border-purple-400 hover:border-purple-700 transition-all cursor-pointer flex flex-col gap-4 h-full group shadow-xs">
+                        <div className="w-10 h-10 bg-purple-100 text-purple-700 flex items-center justify-center rounded-sm">
+                            <span className="text-lg">📊</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">
+                                Executive BI
+                            </span>
+                            <h2 className="text-sm font-black uppercase tracking-wider text-black group-hover:text-purple-800">
+                                HR Analitika & 9-Box
+                            </h2>
+                            <p className="text-[11px] text-gray-500 mt-1 font-medium leading-relaxed">
+                                Turnover rate, eNPS va 9-Box Grid matritsasi tahlili
                             </p>
                         </div>
                     </div>

@@ -237,8 +237,8 @@ export default function HROffboardingPage() {
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <span className="text-[10px] font-bold text-gray-500 uppercase">{t("assetsLabel")}</span>
-                                            <span className={`font-bold ${item.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
-                                                {item.isAssetsReturned ? t("assetsReturned") : t("assetsPendingLabel")}
+                                            <span className={`font-bold ${item.status === "CANCELLED" ? "text-gray-500" : item.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
+                                                {item.status === "CANCELLED" ? (t("status.cancelled") || "Bekor qilingan") : item.isAssetsReturned ? t("assetsReturned") : t("assetsPendingLabel")}
                                             </span>
                                         </div>
                                     </div>
