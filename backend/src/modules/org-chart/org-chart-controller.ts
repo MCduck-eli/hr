@@ -9,6 +9,7 @@ export class OrgChartController {
             const result = await orgChartService.getOrgTree(
                 departmentId,
                 search,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -19,7 +20,10 @@ export class OrgChartController {
     async getMyOrgContext(req: Request, res: Response, next: NextFunction) {
         try {
             const userId = (req as any).user.id;
-            const result = await orgChartService.getMyOrgContext(userId);
+            const result = await orgChartService.getMyOrgContext(
+                userId,
+                (req as any).user,
+            );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -37,6 +41,7 @@ export class OrgChartController {
                 req.params.employeeId,
                 changedByUserId,
                 req.body,
+                (req as any).user,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -47,7 +52,10 @@ export class OrgChartController {
     async getOrgHistory(req: Request, res: Response, next: NextFunction) {
         try {
             const employeeId = req.query.employeeId as string | undefined;
-            const result = await orgChartService.getOrgHistory(employeeId);
+            const result = await orgChartService.getOrgHistory(
+                employeeId,
+                (req as any).user,
+            );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

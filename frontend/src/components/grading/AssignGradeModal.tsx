@@ -54,20 +54,20 @@ export default function AssignGradeModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-            <div className="bg-white border border-black max-w-lg w-full p-6 sm:p-8 shadow-2xl relative">
-                <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl border border-gray-100 max-w-lg w-full p-6 sm:p-8 shadow-xl relative font-sans">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
                     <div>
-                        <h2 className="text-xl font-bold uppercase tracking-tight text-black">
+                        <h2 className="text-xl font-bold tracking-tight text-gray-900">
                             {t("assignModalTitle")}
                         </h2>
                         <p className="text-xs text-gray-500 mt-0.5">
-                            {t("employee")}: <span className="font-bold text-black">{employee.firstName} {employee.lastName}</span>
+                            {t("employee")}: <span className="font-bold text-gray-900">{employee.firstName} {employee.lastName}</span>
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-black transition-colors p-1"
+                        className="text-gray-400 hover:text-gray-700 transition-colors p-2 rounded-xl hover:bg-gray-100 cursor-pointer"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -76,37 +76,37 @@ export default function AssignGradeModal({
                 </div>
 
                 {error && (
-                    <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-xs font-semibold">
+                    <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-xs font-semibold rounded-xl">
                         {error}
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="bg-gray-50 p-4 border border-gray-200 text-xs space-y-1">
+                    <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-100 text-xs space-y-1.5">
                         <div className="flex justify-between">
                             <span className="text-gray-500">{t("department")}:</span>
-                            <span className="font-semibold text-black">{employee.department?.name || "-"}</span>
+                            <span className="font-semibold text-gray-900">{employee.department?.name || "-"}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-gray-500">{t("position")}:</span>
-                            <span className="font-semibold text-black">{employee.position || "-"}</span>
+                            <span className="font-semibold text-gray-900">{employee.position || "-"}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-gray-500">{t("currentGrade")}:</span>
-                            <span className="font-semibold text-black">
+                            <span className="font-semibold text-gray-900">
                                 {employee.grade ? `${employee.grade.title} (${employee.grade.code})` : t("unassigned")}
                             </span>
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             {t("targetGrade")} *
                         </label>
                         <select
                             value={selectedGradeId}
                             onChange={(e) => setSelectedGradeId(e.target.value)}
-                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                             required
                         >
                             <option value="">{t("selectGrade")}</option>
@@ -119,36 +119,36 @@ export default function AssignGradeModal({
                     </div>
 
                     {selectedGrade && (
-                        <div className="bg-blue-50 border border-blue-200 p-4 text-xs space-y-2">
-                            <div className="flex justify-between text-blue-800">
+                        <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-4 text-xs space-y-2">
+                            <div className="flex justify-between text-purple-900">
                                 <span>{t("level")}:</span>
                                 <span className="font-bold">Level {selectedGrade.level}</span>
                             </div>
-                            <div className="flex justify-between text-blue-800">
+                            <div className="flex justify-between text-purple-900">
                                 <span>{t("salaryRange")}</span>
                                 <span className="font-bold">{selectedGrade.minSalary.toLocaleString()} - {selectedGrade.maxSalary.toLocaleString()} UZS</span>
                             </div>
                             {selectedGrade.requirements && (
-                                <div className="text-blue-900 pt-1 border-t border-blue-200/60">
+                                <div className="text-purple-900 pt-1.5 border-t border-purple-200/50">
                                     <span className="font-semibold">{t("requirements")}</span> {selectedGrade.requirements}
                                 </div>
                             )}
                         </div>
                     )}
 
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={isSubmitting}
-                            className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
+                            className="px-5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                         >
                             {t("cancel")}
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                            className="px-6 py-2.5 bg-[#9327FF] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:opacity-90 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                         >
                             {isSubmitting ? t("saving") : t("assign")}
                         </button>

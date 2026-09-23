@@ -32,20 +32,20 @@ export default function GradingPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#f8f8f8] text-black pb-20">
-            <div className="border-b border-black bg-white">
+        <div className="min-h-screen bg-[#fafafa] text-gray-900 pb-20 font-sans">
+            <div className="border-b border-gray-100 bg-white">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <div className="flex items-center gap-2 text-xs font-mono text-gray-500 uppercase tracking-widest mb-1.5">
+                            <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">
                                 <span>{t("breadcrumbParent")}</span>
                                 <span>/</span>
-                                <span className="text-black font-bold">{t("breadcrumbCurrent")}</span>
+                                <span className="text-[#9327FF] font-bold">{t("breadcrumbCurrent")}</span>
                             </div>
-                            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-black">
+                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
                                 {t("pageTitle")}
                             </h1>
-                            <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-2xl">
+                            <p className="text-xs sm:text-sm text-gray-500 mt-1 max-w-2xl">
                                 {t("pageSubtitle")}
                             </p>
                         </div>

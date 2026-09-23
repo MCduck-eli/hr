@@ -173,6 +173,9 @@ model Employee {
   positionId          String?
   position            Position?               @relation(fields: [positionId], references: [id])
   salary              Float?
+  salaryType          String?                 @default("MONTHLY")
+  hourlyRate          Float?                  @default(0)
+  taxPercent          Float?                  @default(12)
   managerId           String?
   manager             Employee?               @relation("EmployeeManager", fields: [managerId], references: [id])
   subordinates        Employee[]              @relation("EmployeeManager")
@@ -206,6 +209,22 @@ model Employee {
   advances            PayrollAdvance[]
   paymentRecords      PayrollPaymentRecord[]
   enpsResponses       EnpsResponse[]
+  matrixManagers      EmployeeMatrixManager[] @relation("MatrixEmployee")
+  matrixSubordinates  EmployeeMatrixManager[] @relation("MatrixManager")
+}
+
+model EmployeeMatrixManager {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation("MatrixEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  managerId   String
+  manager     Employee @relation("MatrixManager", fields: [managerId], references: [id], onDelete: Cascade)
+  type        String   @default("SECONDARY")
+  companyName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeId, managerId])
 }
 
 model EmployeeStatusConfig {
@@ -305,6 +324,12 @@ model Payroll {
   bonus         Float         @default(0)
   deductions    Float         @default(0)
   netSalary     Float
+  salaryType    String?       @default("MONTHLY")
+  hourlyRate    Float?        @default(0)
+  workedHours   Float?        @default(0)
+  grossSalary   Float?        @default(0)
+  taxPercent    Float?        @default(12)
+  taxAmount     Float?        @default(0)
   status        PayrollStatus @default(PENDING)
   paymentMethod String?
   paymentNote   String?

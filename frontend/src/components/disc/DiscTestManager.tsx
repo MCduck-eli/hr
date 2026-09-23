@@ -255,28 +255,28 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
         : [];
 
     return (
-        <div className="flex flex-col gap-8 max-w-[1400px] mx-auto py-8 px-4 md:px-8">
-            <div className="flex flex-col gap-2 border-b border-black pb-6">
-                <div className="text-xs font-bold uppercase tracking-widest text-gray-500">
+        <div className="flex flex-col gap-8 max-w-[1400px] mx-auto py-8 px-4 md:px-8 font-sans">
+            <div className="flex flex-col gap-2 border-b border-gray-100 pb-6">
+                <div className="text-xs font-bold uppercase tracking-widest text-[#9327FF]">
                     {t("badge")}
                 </div>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-black">
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
                         {t("title")}
                     </h1>
-                    <div className="flex flex-wrap items-center border border-black bg-white p-1">
+                    <div className="flex flex-wrap items-center gap-1.5 bg-gray-50/80 p-1.5 rounded-2xl border border-gray-100">
                         <button
                             onClick={() => setActiveTab("profile")}
-                            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
-                                activeTab === "profile" ? "bg-black text-white" : "text-black hover:bg-gray-100"
+                            className={`px-5 py-2.5 text-xs font-medium uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                                activeTab === "profile" ? "bg-violet-100 text-violet-700 shadow-xs" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                             }`}
                         >
                             {t("myProfile")}
                         </button>
                         <button
                             onClick={() => setActiveTab("test")}
-                            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
-                                activeTab === "test" ? "bg-black text-white" : "text-black hover:bg-gray-100"
+                            className={`px-5 py-2.5 text-xs font-medium uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                                activeTab === "test" ? "bg-violet-100 text-violet-700 shadow-xs" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                             }`}
                         >
                             {profileData?.hasTakenTest ? t("retakeTest") : t("takeTest")}
@@ -284,8 +284,8 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                         {canViewTeamAnalytics && (
                             <button
                                 onClick={() => setActiveTab("team")}
-                                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
-                                    activeTab === "team" ? "bg-black text-white" : "text-black hover:bg-gray-100"
+                                className={`px-5 py-2.5 text-xs font-medium uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                                    activeTab === "team" ? "bg-violet-100 text-violet-700 shadow-xs" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                                 }`}
                             >
                                 {t("teamAnalytics")}
@@ -294,8 +294,8 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                         {isHrAdmin && (
                             <button
                                 onClick={() => setActiveTab("questions")}
-                                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
-                                    activeTab === "questions" ? "bg-black text-white" : "text-black hover:bg-gray-100"
+                                className={`px-5 py-2.5 text-xs font-medium uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                                    activeTab === "questions" ? "bg-violet-100 text-violet-700 shadow-xs" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                                 }`}
                             >
                                 {t("manageQuestions")}
@@ -306,16 +306,16 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
             </div>
 
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-800 p-4 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-red-50 border border-red-200 text-red-700 p-4 text-xs font-bold uppercase tracking-wider rounded-2xl flex items-center justify-between">
                     <span>{error}</span>
-                    <button onClick={() => setError(null)} className="text-xs">✕</button>
+                    <button onClick={() => setError(null)} className="text-xs hover:opacity-70 cursor-pointer">✕</button>
                 </div>
             )}
 
             {successMessage && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 text-xs font-bold uppercase tracking-wider rounded-2xl flex items-center justify-between">
                     <span>{successMessage}</span>
-                    <button onClick={() => setSuccessMessage(null)} className="text-xs">✕</button>
+                    <button onClick={() => setSuccessMessage(null)} className="text-xs hover:opacity-70 cursor-pointer">✕</button>
                 </div>
             )}
 
@@ -324,20 +324,20 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                     {profileData?.hasTakenTest && profileData.assessment ? (
                         <>
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div className="border border-black bg-white p-6 md:p-8 flex flex-col justify-between shadow-xs">
+                                <div className="rounded-2xl border border-gray-100 bg-white p-6 md:p-8 flex flex-col justify-between shadow-sm">
                                     <div className="space-y-4">
-                                        <div className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                                        <div className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
                                             {t("primaryType")}
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-16 h-16 border-2 ${discTypeColors[profileData.assessment.primaryType]?.border || "border-black"} ${discTypeColors[profileData.assessment.primaryType]?.bg || "bg-gray-50"} flex items-center justify-center text-3xl font-black ${discTypeColors[profileData.assessment.primaryType]?.text || "text-black"}`}>
+                                            <div className={`w-16 h-16 rounded-2xl border ${discTypeColors[profileData.assessment.primaryType]?.border || "border-purple-300"} ${discTypeColors[profileData.assessment.primaryType]?.bg || "bg-purple-50"} flex items-center justify-center text-3xl font-black ${discTypeColors[profileData.assessment.primaryType]?.text || "text-purple-700"}`}>
                                                 {profileData.assessment.primaryType}
                                             </div>
                                             <div>
-                                                <div className="text-xl font-black uppercase tracking-tight text-black">
+                                                <div className="text-xl font-bold uppercase tracking-tight text-gray-900">
                                                     {discTypeColors[profileData.assessment.primaryType]?.name.split(" ")[0]}
                                                 </div>
-                                                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                                     {discTypeColors[profileData.assessment.primaryType]?.name.split(" ").slice(1).join(" ")}
                                                 </div>
                                             </div>
@@ -346,7 +346,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                         {profileData.assessment.secondaryType && (
                                             <div className="pt-3 border-t border-gray-100 flex items-center gap-2 text-xs">
                                                 <span className="font-bold text-gray-500 uppercase">{t("secondaryType")}:</span>
-                                                <span className="font-black text-black bg-gray-100 px-2 py-0.5 border border-gray-200">
+                                                <span className="font-bold text-gray-800 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">
                                                     {profileData.assessment.secondaryType} — {discTypeColors[profileData.assessment.secondaryType]?.name.split(" ")[0]}
                                                 </span>
                                             </div>
@@ -359,42 +359,42 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                         </span>
                                         <button
                                             onClick={startRetakeTest}
-                                            className="text-xs font-bold text-black uppercase hover:underline"
+                                            className="text-xs font-bold text-[#9327FF] uppercase hover:underline cursor-pointer"
                                         >
                                             {t("retake")}
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className="lg:col-span-2 border border-black bg-white p-6 md:p-8 space-y-6 shadow-xs">
-                                    <div className="flex items-center justify-between border-b border-black pb-3">
-                                        <h2 className="text-sm font-bold uppercase tracking-wider text-black">
+                                <div className="lg:col-span-2 rounded-2xl border border-gray-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
+                                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900">
                                             {t("distributionTitle")}
                                         </h2>
-                                        <span className="text-xs font-bold text-gray-500">
+                                        <span className="text-xs font-medium text-gray-500">
                                             {t("distributionSubtitle")}
                                         </span>
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                         {[
-                                            { key: "D", label: "D — Dominance", desc: t("types.D.desc"), score: profileData.assessment.dScore, color: "bg-red-600", textColor: "text-red-700", bg: "bg-red-50" },
-                                            { key: "I", label: "I — Influence", desc: t("types.I.desc"), score: profileData.assessment.iScore, color: "bg-amber-500", textColor: "text-amber-700", bg: "bg-amber-50" },
-                                            { key: "S", label: "S — Steadiness", desc: t("types.S.desc"), score: profileData.assessment.sScore, color: "bg-emerald-600", textColor: "text-emerald-700", bg: "bg-emerald-50" },
-                                            { key: "C", label: "C — Conscientiousness", desc: t("types.C.desc"), score: profileData.assessment.cScore, color: "bg-blue-600", textColor: "text-blue-700", bg: "bg-blue-50" },
+                                            { key: "D", label: "D — Dominance", desc: t("types.D.desc"), score: profileData.assessment.dScore, color: "bg-red-500", textColor: "text-red-700", bg: "bg-red-50/50", border: "border-red-100" },
+                                            { key: "I", label: "I — Influence", desc: t("types.I.desc"), score: profileData.assessment.iScore, color: "bg-amber-500", textColor: "text-amber-700", bg: "bg-amber-50/50", border: "border-amber-100" },
+                                            { key: "S", label: "S — Steadiness", desc: t("types.S.desc"), score: profileData.assessment.sScore, color: "bg-emerald-500", textColor: "text-emerald-700", bg: "bg-emerald-50/50", border: "border-emerald-100" },
+                                            { key: "C", label: "C — Conscientiousness", desc: t("types.C.desc"), score: profileData.assessment.cScore, color: "bg-blue-500", textColor: "text-blue-700", bg: "bg-blue-50/50", border: "border-blue-100" },
                                         ].map((item) => (
-                                            <div key={item.key} className={`border border-gray-200 ${item.bg} p-4 space-y-2`}>
+                                            <div key={item.key} className={`rounded-xl border ${item.border} ${item.bg} p-4 space-y-2`}>
                                                 <div className="flex items-center justify-between">
-                                                    <span className={`text-xs font-black uppercase ${item.textColor}`}>
+                                                    <span className={`text-xs font-bold uppercase ${item.textColor}`}>
                                                         {item.label}
                                                     </span>
-                                                    <span className="text-base font-black text-black">
+                                                    <span className="text-base font-bold text-gray-900">
                                                         {item.score}%
                                                     </span>
                                                 </div>
-                                                <div className="w-full bg-white h-2.5 rounded-full overflow-hidden border border-gray-200">
+                                                <div className="w-full bg-white h-2 rounded-full overflow-hidden border border-gray-200/60">
                                                     <div
-                                                        className={`h-full ${item.color} transition-all duration-700`}
+                                                        className={`h-full ${item.color} rounded-full transition-all duration-700`}
                                                         style={{ width: `${item.score}%` }}
                                                     />
                                                 </div>
@@ -409,29 +409,29 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
 
                             {profileData.description?.primary && (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="border border-gray-200 bg-white p-6 space-y-3">
-                                        <div className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-100 pb-2">
+                                    <div className="rounded-2xl border border-gray-100 bg-white p-6 space-y-3 shadow-sm">
+                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-100 pb-2">
                                             {t("traits")}
                                         </div>
-                                        <p className="text-xs text-gray-700 leading-relaxed">
+                                        <p className="text-xs text-gray-600 leading-relaxed">
                                             {profileData.description.primary.traits}
                                         </p>
                                     </div>
 
-                                    <div className="border border-gray-200 bg-white p-6 space-y-3">
-                                        <div className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-100 pb-2">
+                                    <div className="rounded-2xl border border-gray-100 bg-white p-6 space-y-3 shadow-sm">
+                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-100 pb-2">
                                             {t("communication")}
                                         </div>
-                                        <p className="text-xs text-gray-700 leading-relaxed">
+                                        <p className="text-xs text-gray-600 leading-relaxed">
                                             {profileData.description.primary.communication}
                                         </p>
                                     </div>
 
-                                    <div className="border border-gray-200 bg-white p-6 space-y-3">
-                                        <div className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-100 pb-2">
+                                    <div className="rounded-2xl border border-gray-100 bg-white p-6 space-y-3 shadow-sm">
+                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-900 border-b border-gray-100 pb-2">
                                             {t("strengths")}
                                         </div>
-                                        <p className="text-xs text-gray-700 leading-relaxed">
+                                        <p className="text-xs text-gray-600 leading-relaxed">
                                             {profileData.description.primary.strengths}
                                         </p>
                                     </div>
@@ -439,21 +439,21 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                             )}
                         </>
                     ) : (
-                        <div className="border border-black bg-white p-12 text-center flex flex-col items-center gap-6 shadow-xs">
-                            <div className="w-16 h-16 bg-black text-white flex items-center justify-center text-2xl font-black">
-                                ?
+                        <div className="rounded-3xl border border-gray-100 bg-white p-16 text-center flex flex-col items-center gap-6 shadow-sm">
+                            <div className="w-16 h-16 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center text-3xl font-black">
+                                🎯
                             </div>
                             <div className="space-y-2 max-w-lg">
-                                <h2 className="text-2xl font-black uppercase tracking-tight text-black">
+                                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
                                     {t("notTakenTitle")}
                                 </h2>
-                                <p className="text-xs text-gray-600 leading-relaxed">
+                                <p className="text-xs text-gray-500 leading-relaxed">
                                     {t("notTakenDesc")}
                                 </p>
                             </div>
                             <button
                                 onClick={() => setActiveTab("test")}
-                                className="px-8 py-3 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                                className="px-8 py-3 bg-[#9327FF] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:opacity-90 transition-all shadow-sm cursor-pointer"
                             >
                                 {t("startTest", { count: questions.length })}
                             </button>
@@ -463,23 +463,23 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
             )}
 
             {activeTab === "test" && (
-                <div className="max-w-3xl mx-auto w-full border border-black bg-white p-6 md:p-10 shadow-lg space-y-8">
-                    <div className="flex items-center justify-between border-b border-black pb-4">
+                <div className="max-w-3xl mx-auto w-full bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-8">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                         <div>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
                                 {t("questionNum", { current: currentQuestionIdx + 1, total: questions.length })}
                             </span>
-                            <h2 className="text-lg font-black uppercase text-black">
+                            <h2 className="text-lg font-bold text-gray-900">
                                 {t("testTitle")}
                             </h2>
                         </div>
                         <div className="text-right">
-                            <span className="text-xs font-bold text-black">
+                            <span className="text-xs font-semibold text-gray-600">
                                 {t("answeredCount", { answered: answeredCount, total: questions.length })}
                             </span>
-                            <div className="w-32 bg-gray-100 h-2 rounded-full mt-1.5 overflow-hidden border border-gray-300">
+                            <div className="w-40 sm:w-48 bg-gray-100 h-2 rounded-full mt-2 overflow-hidden">
                                 <div
-                                    className="bg-black h-full transition-all duration-300"
+                                    className="bg-violet-500 h-2 rounded-full transition-all duration-300"
                                     style={{ width: `${progressPercent}%` }}
                                 />
                             </div>
@@ -488,7 +488,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
 
                     {currentQ && (
                         <div className="space-y-6">
-                            <h3 className="text-base md:text-lg font-bold text-black leading-snug">
+                            <h3 className="text-base md:text-lg font-semibold text-gray-900 leading-snug">
                                 {currentQ.order}. {currentQ.text}
                             </h3>
 
@@ -500,15 +500,15 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                             key={option.id}
                                             type="button"
                                             onClick={() => handleSelectOption(currentQ.id, option.id)}
-                                            className={`w-full text-left p-4.5 border transition-all flex items-start gap-3.5 ${
+                                            className={`w-full text-left p-4 rounded-xl border cursor-pointer transition-all duration-200 flex items-start gap-3.5 ${
                                                 isSelected
-                                                    ? "border-black bg-black text-white shadow-xs font-semibold"
-                                                    : "border-gray-300 bg-white hover:border-black text-black"
+                                                    ? "border-violet-500 bg-violet-50 ring-1 ring-violet-500 shadow-xs font-medium text-gray-900"
+                                                    : "border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50 text-gray-800"
                                             }`}
                                         >
                                             <div
-                                                className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs shrink-0 mt-0.5 ${
-                                                    isSelected ? "border-white bg-white text-black font-black" : "border-gray-400"
+                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 mt-0.5 ${
+                                                    isSelected ? "bg-violet-600 text-white font-bold" : "border border-gray-300 bg-white"
                                                 }`}
                                             >
                                                 {isSelected ? "✓" : ""}
@@ -523,12 +523,12 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                         </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <div className="flex items-center justify-between pt-6 border-t border-gray-100">
                         <button
                             type="button"
                             disabled={currentQuestionIdx === 0}
                             onClick={() => setCurrentQuestionIdx((prev) => Math.max(0, prev - 1))}
-                            className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                            className="text-gray-500 hover:bg-gray-100 rounded-xl px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                             {t("previous")}
                         </button>
@@ -537,7 +537,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                             <button
                                 type="button"
                                 onClick={() => setCurrentQuestionIdx((prev) => Math.min(questions.length - 1, prev + 1))}
-                                className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                                className="bg-[#9327FF] text-white rounded-xl px-6 py-3 shadow-sm hover:opacity-90 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
                             >
                                 {t("next")}
                             </button>
@@ -546,7 +546,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                 type="button"
                                 disabled={submitting || answeredCount < questions.length}
                                 onClick={handleSubmitTest}
-                                className="px-8 py-2.5 bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                className="bg-[#9327FF] text-white rounded-xl px-8 py-3 shadow-sm hover:opacity-90 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {submitting ? t("calculating") : t("submitTest")}
                             </button>
@@ -560,11 +560,11 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                     {teamAnalytics ? (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                <div className="border border-black bg-white p-6 space-y-2 shadow-xs">
-                                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block">
+                                <div className="rounded-2xl border border-gray-100 bg-white p-6 space-y-2 shadow-sm">
+                                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400 block">
                                         {t("totalEmployees")}
                                     </span>
-                                    <span className="text-3xl font-black text-black">
+                                    <span className="text-3xl font-bold text-gray-900">
                                         {teamAnalytics.totalEmployees}
                                     </span>
                                     <span className="text-xs text-gray-500 block">
@@ -572,11 +572,11 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                     </span>
                                 </div>
 
-                                <div className="border border-black bg-white p-6 space-y-2 shadow-xs">
-                                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block">
+                                <div className="rounded-2xl border border-gray-100 bg-white p-6 space-y-2 shadow-sm">
+                                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400 block">
                                         {t("testedEmployees")}
                                     </span>
-                                    <span className="text-3xl font-black text-emerald-600">
+                                    <span className="text-3xl font-bold text-emerald-600">
                                         {teamAnalytics.totalAssessed}
                                     </span>
                                     <span className="text-xs text-gray-500 block">
@@ -584,41 +584,41 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                     </span>
                                 </div>
 
-                                <div className="md:col-span-2 border border-black bg-white p-6 space-y-4 shadow-xs">
-                                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block">
+                                <div className="md:col-span-2 rounded-2xl border border-gray-100 bg-white p-6 space-y-4 shadow-sm">
+                                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400 block">
                                         {t("teamDistribution")}
                                     </span>
                                     <div className="grid grid-cols-4 gap-2 text-center">
-                                        <div className="bg-red-50 border border-red-200 p-2">
+                                        <div className="bg-red-50/60 border border-red-100 rounded-xl p-2.5">
                                             <span className="text-xs font-black text-red-700 block">D</span>
-                                            <span className="text-sm font-bold text-black">{teamAnalytics.distribution.D}%</span>
+                                            <span className="text-sm font-bold text-gray-900">{teamAnalytics.distribution.D}%</span>
                                         </div>
-                                        <div className="bg-amber-50 border border-amber-200 p-2">
+                                        <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-2.5">
                                             <span className="text-xs font-black text-amber-700 block">I</span>
-                                            <span className="text-sm font-bold text-black">{teamAnalytics.distribution.I}%</span>
+                                            <span className="text-sm font-bold text-gray-900">{teamAnalytics.distribution.I}%</span>
                                         </div>
-                                        <div className="bg-emerald-50 border border-emerald-200 p-2">
+                                        <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-2.5">
                                             <span className="text-xs font-black text-emerald-700 block">S</span>
-                                            <span className="text-sm font-bold text-black">{teamAnalytics.distribution.S}%</span>
+                                            <span className="text-sm font-bold text-gray-900">{teamAnalytics.distribution.S}%</span>
                                         </div>
-                                        <div className="bg-blue-50 border border-blue-200 p-2">
+                                        <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-2.5">
                                             <span className="text-xs font-black text-blue-700 block">C</span>
-                                            <span className="text-sm font-bold text-black">{teamAnalytics.distribution.C}%</span>
+                                            <span className="text-sm font-bold text-gray-900">{teamAnalytics.distribution.C}%</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="space-y-4">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black pb-3">
-                                    <h2 className="text-lg font-black uppercase text-black">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-3">
+                                    <h2 className="text-lg font-bold uppercase text-gray-900">
                                         {t("memberScoresTitle")}
                                     </h2>
                                     {departmentsList.length > 0 && (
                                         <select
                                             value={selectedDepartment}
                                             onChange={(e) => setSelectedDepartment(e.target.value)}
-                                            className="border border-gray-300 px-3 py-1.5 text-xs font-bold uppercase focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                            className="rounded-xl border border-gray-200 px-3.5 py-2 text-xs font-semibold focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white text-gray-700"
                                         >
                                             <option value="ALL">{t("allDepartments")}</option>
                                             {departmentsList.map((d) => (
@@ -632,37 +632,37 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                     {filteredMembers.map((member) => {
                                         const typeStyle = discTypeColors[member.primaryType] || discTypeColors.D;
                                         return (
-                                            <div key={member.employeeId} className="border border-gray-200 bg-white p-5 space-y-4 hover:border-black transition-colors">
+                                            <div key={member.employeeId} className="rounded-2xl border border-gray-100 bg-white p-5 space-y-4 shadow-sm hover:shadow-md transition-all">
                                                 <div className="flex items-start justify-between">
                                                     <div>
-                                                        <div className="text-sm font-bold text-black">
+                                                        <div className="text-sm font-bold text-gray-900">
                                                             {member.fullName}
                                                         </div>
                                                         <div className="text-xs text-gray-500 font-medium">
                                                             {member.department || "-"} • {member.position || "-"}
                                                         </div>
                                                     </div>
-                                                    <span className={`px-2.5 py-1 text-xs font-black border ${typeStyle.border} ${typeStyle.bg} ${typeStyle.text}`}>
+                                                    <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border ${typeStyle.border} ${typeStyle.bg} ${typeStyle.text}`}>
                                                         {member.primaryType} {member.secondaryType ? `+ ${member.secondaryType}` : ""}
                                                     </span>
                                                 </div>
 
                                                 <div className="grid grid-cols-4 gap-1.5 text-[10px] text-center pt-2 border-t border-gray-100 font-bold">
-                                                    <div className="bg-gray-50 p-1">
+                                                    <div className="bg-gray-50 rounded-lg p-1.5">
                                                         <span className="text-red-700 block font-black">D</span>
-                                                        <span>{member.scores.D}%</span>
+                                                        <span className="text-gray-800">{member.scores.D}%</span>
                                                     </div>
-                                                    <div className="bg-gray-50 p-1">
+                                                    <div className="bg-gray-50 rounded-lg p-1.5">
                                                         <span className="text-amber-700 block font-black">I</span>
-                                                        <span>{member.scores.I}%</span>
+                                                        <span className="text-gray-800">{member.scores.I}%</span>
                                                     </div>
-                                                    <div className="bg-gray-50 p-1">
+                                                    <div className="bg-gray-50 rounded-lg p-1.5">
                                                         <span className="text-emerald-700 block font-black">S</span>
-                                                        <span>{member.scores.S}%</span>
+                                                        <span className="text-gray-800">{member.scores.S}%</span>
                                                     </div>
-                                                    <div className="bg-gray-50 p-1">
+                                                    <div className="bg-gray-50 rounded-lg p-1.5">
                                                         <span className="text-blue-700 block font-black">C</span>
-                                                        <span>{member.scores.C}%</span>
+                                                        <span className="text-gray-800">{member.scores.C}%</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -672,7 +672,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                             </div>
                         </>
                     ) : (
-                        <div className="border border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
+                        <div className="rounded-3xl border border-gray-100 bg-white p-12 text-center text-xs text-gray-400">
                             {t("noTeamData")}
                         </div>
                     )}
@@ -681,9 +681,9 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
 
             {activeTab === "questions" && isHrAdmin && (
                 <div className="space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black pb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                         <div>
-                            <h2 className="text-xl font-black uppercase tracking-tight text-black">
+                            <h2 className="text-xl font-bold tracking-tight text-gray-900">
                                 {t("questionsTitle")}
                             </h2>
                             <p className="text-xs text-gray-500">
@@ -692,7 +692,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                         </div>
                         <button
                             onClick={openCreateQuestionModal}
-                            className="px-5 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors shrink-0"
+                            className="px-5 py-2.5 bg-[#9327FF] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:opacity-90 transition-all shadow-sm shrink-0 cursor-pointer"
                         >
                             {t("newQuestion")}
                         </button>
@@ -700,26 +700,26 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
 
                     <div className="space-y-4">
                         {questions.map((q, idx) => (
-                            <div key={q.id} className="border border-gray-200 bg-white p-6 space-y-4 shadow-xs">
+                            <div key={q.id} className="rounded-2xl border border-gray-100 bg-white p-6 space-y-4 shadow-sm">
                                 <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-3">
                                     <div className="flex items-center gap-3">
-                                        <span className="w-7 h-7 bg-black text-white flex items-center justify-center text-xs font-black shrink-0">
+                                        <span className="w-7 h-7 rounded-lg bg-[#9327FF] text-white flex items-center justify-center text-xs font-bold shrink-0">
                                             {q.order || idx + 1}
                                         </span>
-                                        <h3 className="text-sm font-bold text-black">
+                                        <h3 className="text-sm font-bold text-gray-900">
                                             {q.text}
                                         </h3>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <button
                                             onClick={() => openEditQuestionModal(q)}
-                                            className="px-3 py-1 text-xs font-bold uppercase border border-gray-300 hover:border-black transition-colors"
+                                            className="px-3 py-1.5 text-xs font-bold uppercase rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                                         >
                                             {t("edit")}
                                         </button>
                                         <button
                                             onClick={() => handleDeleteQuestion(q.id)}
-                                            className="px-3 py-1 text-xs font-bold uppercase border border-red-200 text-red-700 hover:bg-red-50 transition-colors"
+                                            className="px-3 py-1.5 text-xs font-bold uppercase rounded-lg border border-red-200 text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
                                         >
                                             {t("delete")}
                                         </button>
@@ -730,8 +730,8 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                     {q.options.map((opt) => {
                                         const typeStyle = discTypeColors[opt.discType] || discTypeColors.D;
                                         return (
-                                            <div key={opt.id} className={`p-3 border ${typeStyle.border} ${typeStyle.bg} flex items-start gap-2.5 text-xs`}>
-                                                <span className={`w-5 h-5 rounded-full ${typeStyle.bar} text-white font-black flex items-center justify-center text-[10px] shrink-0`}>
+                                            <div key={opt.id} className={`p-3 rounded-xl border ${typeStyle.border} ${typeStyle.bg} flex items-start gap-2.5 text-xs`}>
+                                                <span className={`w-5 h-5 rounded-full ${typeStyle.bar} text-white font-bold flex items-center justify-center text-[10px] shrink-0`}>
                                                     {opt.discType}
                                                 </span>
                                                 <span className="text-gray-800 leading-relaxed">
@@ -748,11 +748,11 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
             )}
 
             {isQuestionModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-                    <div className="bg-white border border-black max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8">
-                        <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl border border-gray-100 max-w-2xl w-full p-6 sm:p-8 shadow-xl relative my-8 font-sans">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
                             <div>
-                                <h2 className="text-xl font-bold uppercase tracking-tight text-black">
+                                <h2 className="text-xl font-bold tracking-tight text-gray-900">
                                     {editingQuestion ? t("editModalTitle") : t("createModalTitle")}
                                 </h2>
                                 <p className="text-xs text-gray-500 mt-0.5">
@@ -761,7 +761,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                             </div>
                             <button
                                 onClick={() => setIsQuestionModalOpen(false)}
-                                className="text-gray-400 hover:text-black transition-colors p-1"
+                                className="text-gray-400 hover:text-gray-700 transition-colors p-2 rounded-xl hover:bg-gray-100 cursor-pointer"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -772,7 +772,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                         <form onSubmit={handleSaveQuestion} className="space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                                 <div className="sm:col-span-3">
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                                         {t("questionText")} *
                                     </label>
                                     <input
@@ -780,13 +780,13 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                         value={qText}
                                         onChange={(e) => setQText(e.target.value)}
                                         placeholder={t("questionTextPlaceholder")}
-                                        className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                        className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                                         required
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                                         {t("questionOrder")} *
                                     </label>
                                     <input
@@ -794,14 +794,14 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                         value={qOrder}
                                         onChange={(e) => setQOrder(Number(e.target.value))}
                                         min={1}
-                                        className="w-full border border-gray-300 px-3.5 py-2.5 text-sm font-bold focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                        className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm font-bold focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white"
                                         required
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-3 pt-2">
-                                <div className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-100 pb-1">
+                                <div className="text-xs font-bold uppercase tracking-wider text-gray-700 border-b border-gray-100 pb-1">
                                     {t("optionsTitle")}
                                 </div>
 
@@ -814,7 +814,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                         value={optD}
                                         onChange={(e) => setOptD(e.target.value)}
                                         placeholder={t("optDPlaceholder")}
-                                        className="w-full border border-red-300 p-2.5 text-xs focus:border-red-600 focus:outline-none bg-red-50/40"
+                                        className="w-full rounded-xl border border-red-200 p-2.5 text-xs focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none bg-red-50/40"
                                         required
                                     />
                                 </div>
@@ -828,7 +828,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                         value={optI}
                                         onChange={(e) => setOptI(e.target.value)}
                                         placeholder={t("optIPlaceholder")}
-                                        className="w-full border border-amber-300 p-2.5 text-xs focus:border-amber-600 focus:outline-none bg-amber-50/40"
+                                        className="w-full rounded-xl border border-amber-200 p-2.5 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none bg-amber-50/40"
                                         required
                                     />
                                 </div>
@@ -842,7 +842,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                         value={optS}
                                         onChange={(e) => setOptS(e.target.value)}
                                         placeholder={t("optSPlaceholder")}
-                                        className="w-full border border-emerald-300 p-2.5 text-xs focus:border-emerald-600 focus:outline-none bg-emerald-50/40"
+                                        className="w-full rounded-xl border border-emerald-200 p-2.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-emerald-50/40"
                                         required
                                     />
                                 </div>
@@ -856,25 +856,25 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                                         value={optC}
                                         onChange={(e) => setOptC(e.target.value)}
                                         placeholder={t("optCPlaceholder")}
-                                        className="w-full border border-blue-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none bg-blue-50/40"
+                                        className="w-full rounded-xl border border-blue-200 p-2.5 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-blue-50/40"
                                         required
                                     />
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
                                 <button
                                     type="button"
                                     onClick={() => setIsQuestionModalOpen(false)}
                                     disabled={savingQuestion}
-                                    className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
+                                    className="px-5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                                 >
                                     {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={savingQuestion}
-                                    className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                                    className="px-6 py-2.5 bg-[#9327FF] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:opacity-90 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                                 >
                                     {savingQuestion ? t("saving") : editingQuestion ? t("update") : t("add")}
                                 </button>

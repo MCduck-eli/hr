@@ -14,6 +14,58 @@ interface EmployeeFormProps {
     loading: boolean;
 }
 
+interface FormErrors {
+    firstName?: "requiredField" | "minLetters" | "onlyLetters";
+    lastName?: "requiredField" | "minLetters" | "onlyLetters";
+    email?: "requiredField" | "invalidEmail";
+    password?: "requiredField" | "minPassword" | "weakPassword";
+}
+
+const NAME_REGEX = /^[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ'ʻʼ`\s-]+$/;
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/;
+
+function validateNameField(val: string): "requiredField" | "minLetters" | "onlyLetters" | null {
+    const trimmed = (val || "").trim();
+    if (!trimmed) {
+        return "requiredField";
+    }
+    if (trimmed.length < 3) {
+        return "minLetters";
+    }
+    if (!NAME_REGEX.test(trimmed)) {
+        return "onlyLetters";
+    }
+    return null;
+}
+
+function validateEmailField(val: string): "requiredField" | "invalidEmail" | null {
+    const trimmed = (val || "").trim();
+    if (!trimmed) {
+        return "requiredField";
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+        return "invalidEmail";
+    }
+    return null;
+}
+
+function validatePasswordField(val: string, isRequired: boolean): "requiredField" | "minPassword" | "weakPassword" | null {
+    const trimmed = (val || "").trim();
+    if (isRequired && !trimmed) {
+        return "requiredField";
+    }
+    if (trimmed) {
+        if (trimmed.length < 5) {
+            return "minPassword";
+        }
+        if (!STRONG_PASSWORD_REGEX.test(trimmed)) {
+            return "weakPassword";
+        }
+    }
+    return null;
+}
+
 export default function EmployeeForm({
     initialData,
     onSubmit,
@@ -21,6 +73,7 @@ export default function EmployeeForm({
     loading,
 }: EmployeeFormProps) {
     const t = useTranslations("HREmployees");
+    const tErr = useTranslations("errors");
 
     const [departments, setDepartments] = useState<any[]>([]);
     const [statuses, setStatuses] = useState<any[]>([]);
@@ -29,6 +82,7 @@ export default function EmployeeForm({
     const [isManagingStatus, setIsManagingStatus] = useState(false);
     const [isManagingRoles, setIsManagingRoles] = useState(false);
     const [isDeptLoading, setIsDeptLoading] = useState(false);
+    const [formErrors, setFormErrors] = useState<FormErrors>({});
 
     const loadDepartments = async () => {
         try {
@@ -87,6 +141,7 @@ export default function EmployeeForm({
     });
 
     useEffect(() => {
+        setFormErrors({});
         if (initialData) {
             let defaultPass = "";
             if (initialData.candidateId && !initialData.password) {
@@ -163,6 +218,11 @@ export default function EmployeeForm({
             email: generatedEmail,
             password: generatedPassword,
         }));
+        setFormErrors((prev) => ({
+            ...prev,
+            email: undefined,
+            password: undefined,
+        }));
     };
 
     const handleCreateDept = async (name: string, parentId?: string) => {
@@ -182,6 +242,23 @@ export default function EmployeeForm({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        const firstNameErr = validateNameField(form.firstName);
+        const lastNameErr = validateNameField(form.lastName);
+        const emailErr = validateEmailField(form.email);
+        const passwordErr = validatePasswordField(form.password, !initialData);
+
+        if (firstNameErr || lastNameErr || emailErr || passwordErr) {
+            setFormErrors({
+                firstName: firstNameErr || undefined,
+                lastName: lastNameErr || undefined,
+                email: emailErr || undefined,
+                password: passwordErr || undefined,
+            });
+            return;
+        }
+
+        setFormErrors({});
 
         let payloadRole = form.role || "EMPLOYEE";
         let payloadCustomRoleId = form.customRoleId || null;
@@ -211,101 +288,167 @@ export default function EmployeeForm({
     const isEditMode = Boolean(initialData && !initialData.candidateId && initialData.id);
 
     return (
-        <div className="bg-white p-6 border border-gray-200 h-fit">
+        <div className="flex flex-col gap-6">
             {initialData?.candidateId && (
-                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-wider rounded flex items-center gap-2">
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2">
                     <span>🎉</span>
                     <span>Nomzod: {form.firstName} {form.lastName} ({form.email}) ishga qabul qilinmoqda</span>
                 </div>
             )}
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold uppercase tracking-wider text-black">
-                    {isEditMode ? t("editEmployee") : t("addEmployee")}
-                </h2>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                        {isEditMode ? t("editEmployee") : t("addEmployee")}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                        Xodim ma'lumotlarini to'ldiring va tizim ruxsatlarini belgilang
+                    </p>
+                </div>
                 {!isEditMode && (
                     <button
                         type="button"
                         onClick={generateCredentials}
-                        className="px-3 py-1 bg-gray-200 text-black text-[10px] font-bold uppercase tracking-widest rounded-sm hover:bg-gray-300 transition-colors"
+                        className="px-3.5 py-1.5 bg-purple-50 text-[#9327FF] hover:bg-purple-100 text-xs font-bold rounded-xl transition-colors"
                     >
-                        {t("generate")}
+                        ⚡ {t("generate")}
                     </button>
                 )}
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                            {t("firstName")}
+            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                            {t("firstName")} *
                         </label>
                         <input
                             type="text"
                             value={form.firstName}
-                            onChange={(e) =>
-                                setForm({ ...form, firstName: e.target.value })
-                            }
-                            required
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setForm({ ...form, firstName: val });
+                                if (formErrors.firstName) {
+                                    setFormErrors((prev) => ({
+                                        ...prev,
+                                        firstName: validateNameField(val) || undefined,
+                                    }));
+                                }
+                            }}
+                            className={`p-3 border ${
+                                formErrors.firstName
+                                    ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                    : "border-slate-200 focus:ring-[#9327FF]/10 focus:border-[#9327FF]"
+                            } text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 transition-all`}
                         />
+                        {formErrors.firstName && (
+                            <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                {tErr(formErrors.firstName)}
+                            </span>
+                        )}
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                            {t("lastName")}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                            {t("lastName")} *
                         </label>
                         <input
                             type="text"
                             value={form.lastName}
-                            onChange={(e) =>
-                                setForm({ ...form, lastName: e.target.value })
-                            }
-                            required
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setForm({ ...form, lastName: val });
+                                if (formErrors.lastName) {
+                                    setFormErrors((prev) => ({
+                                        ...prev,
+                                        lastName: validateNameField(val) || undefined,
+                                    }));
+                                }
+                            }}
+                            className={`p-3 border ${
+                                formErrors.lastName
+                                    ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                    : "border-slate-200 focus:ring-[#9327FF]/10 focus:border-[#9327FF]"
+                            } text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 transition-all`}
                         />
+                        {formErrors.lastName && (
+                            <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                {tErr(formErrors.lastName)}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                            {t("email")}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                            {t("email")} *
                         </label>
                         <input
                             type="email"
                             value={form.email}
-                            onChange={(e) =>
-                                setForm({ ...form, email: e.target.value })
-                            }
-                            required
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setForm({ ...form, email: val });
+                                if (formErrors.email) {
+                                    setFormErrors((prev) => ({
+                                        ...prev,
+                                        email: validateEmailField(val) || undefined,
+                                    }));
+                                }
+                            }}
+                            className={`p-3 border ${
+                                formErrors.email
+                                    ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                    : "border-slate-200 focus:ring-[#9327FF]/10 focus:border-[#9327FF]"
+                            } text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 transition-all`}
                         />
+                        {formErrors.email && (
+                            <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                {tErr(formErrors.email)}
+                            </span>
+                        )}
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                            {t("password")}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                            {t("password")} {!initialData && "*"}
                         </label>
                         <input
                             type="text"
                             value={form.password}
-                            onChange={(e) =>
-                                setForm({ ...form, password: e.target.value })
-                            }
-                            required={!initialData}
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setForm({ ...form, password: val });
+                                if (formErrors.password) {
+                                    setFormErrors((prev) => ({
+                                        ...prev,
+                                        password: validatePasswordField(val, !initialData) || undefined,
+                                    }));
+                                }
+                            }}
+                            placeholder={initialData ? "O'zgartirmaslik uchun bo'sh qoldiring" : ""}
+                            className={`p-3 border ${
+                                formErrors.password
+                                    ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                    : "border-slate-200 focus:ring-[#9327FF]/10 focus:border-[#9327FF]"
+                            } text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 transition-all font-mono`}
                         />
+                        {formErrors.password && (
+                            <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                {tErr(formErrors.password)}
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="flex flex-col gap-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                            <label className="text-xs font-bold text-slate-700">
                                 {t("role")}
                             </label>
                             <button
                                 type="button"
                                 onClick={() => setIsManagingRoles(true)}
-                                className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors"
+                                className="text-[10px] font-bold text-[#9327FF] hover:underline"
                             >
                                 + Sozlash
                             </button>
@@ -337,7 +480,7 @@ export default function EmployeeForm({
                                     });
                                 }
                             }}
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black font-semibold"
+                            className="p-3 border border-slate-200 text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] font-semibold"
                         >
                             {roles.length > 0 ? (
                                 roles
@@ -363,15 +506,15 @@ export default function EmployeeForm({
                             )}
                         </select>
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                            <label className="text-xs font-bold text-slate-700">
                                 {t("status")}
                             </label>
                             <button
                                 type="button"
                                 onClick={() => setIsManagingStatus(true)}
-                                className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors"
+                                className="text-[10px] font-bold text-[#9327FF] hover:underline"
                             >
                                 + Sozlash
                             </button>
@@ -389,7 +532,7 @@ export default function EmployeeForm({
                                     status: matchedConfig?.code || val,
                                 });
                             }}
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black font-bold"
+                            className="p-3 border border-slate-200 text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] font-semibold"
                         >
                             {statuses.length > 0 ? (
                                 statuses.map((s) => (
@@ -406,8 +549,8 @@ export default function EmployeeForm({
                             )}
                         </select>
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700">
                             {t("leaveBalance")}
                         </label>
                         <input
@@ -419,26 +562,26 @@ export default function EmployeeForm({
                                     leaveBalance:
                                         e.target.value === ""
                                              ? ""
-                                            : Number(e.target.value),
+                                             : Number(e.target.value),
                                 })
                             }
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
+                            className="p-3 border border-slate-200 text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] transition-all"
                         />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                            <label className="text-xs font-bold text-slate-700">
                                 {t("department")}
                             </label>
                             <button
                                 type="button"
                                 onClick={() => setIsCreatingDept(true)}
-                                className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors"
+                                className="text-[10px] font-bold text-[#9327FF] hover:underline"
                             >
-                                {t("createDeptBtn")}
+                                + Yangi
                             </button>
                         </div>
                         <select
@@ -449,7 +592,7 @@ export default function EmployeeForm({
                                     departmentId: e.target.value,
                                 })
                             }
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black w-full"
+                            className="p-3 border border-slate-200 text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] w-full"
                         >
                             <option value="">-- Tanlang --</option>
                             {departments.map((d: any) => (
@@ -457,8 +600,8 @@ export default function EmployeeForm({
                             ))}
                         </select>
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700">
                             {t("position")}
                         </label>
                         <input
@@ -467,28 +610,28 @@ export default function EmployeeForm({
                             onChange={(e) =>
                                 setForm({ ...form, positionId: e.target.value })
                             }
-                            className="p-3 border border-gray-200 text-sm bg-[#f8f8f8] outline-none focus:border-black"
+                            className="p-3 border border-slate-200 text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] transition-all"
                         />
                     </div>
                 </div>
 
-                <div className="flex gap-4 mt-2">
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="flex-1 py-3 bg-[#1a1a1a] text-white text-xs font-bold uppercase tracking-wider rounded-sm hover:bg-black transition-colors disabled:opacity-50"
-                    >
-                        {loading ? t("loading") : t("submit")}
-                    </button>
+                <div className="flex gap-3 mt-4 pt-4 border-t border-slate-100">
                     {initialData && (
                         <button
                             type="button"
                             onClick={onCancel}
-                            className="flex-1 py-3 border border-gray-300 text-black text-xs font-bold uppercase tracking-wider rounded-sm hover:bg-gray-50 transition-colors"
+                            className="flex-1 py-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-medium rounded-xl text-xs transition-colors"
                         >
                             {t("cancel")}
                         </button>
                     )}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="flex-1 py-3 bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl text-xs transition-all duration-200 shadow-sm disabled:opacity-50"
+                    >
+                        {loading ? t("loading") : t("submit")}
+                    </button>
                 </div>
             </form>
             <DepartmentModal
@@ -512,4 +655,3 @@ export default function EmployeeForm({
         </div>
     );
 }
-

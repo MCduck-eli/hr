@@ -236,17 +236,17 @@ export default function CreateGradeModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-            <div className="bg-white border border-black max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8">
-                <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl border border-gray-100 max-w-2xl w-full p-6 sm:p-8 shadow-xl relative my-8 font-sans">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
                     <div>
-                        <h2 className="text-xl font-bold uppercase tracking-tight text-black">
+                        <h2 className="text-xl font-bold tracking-tight text-gray-900">
                             {editingGrade ? t("editGradeTitle") : t("createGradeTitle")}
                         </h2>
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-black transition-colors p-1"
+                        className="text-gray-400 hover:text-gray-700 transition-colors p-2 rounded-xl hover:bg-gray-100 cursor-pointer"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -255,7 +255,7 @@ export default function CreateGradeModal({
                 </div>
 
                 {error && (
-                    <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-xs font-semibold">
+                    <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-xs font-semibold rounded-xl">
                         {error}
                     </div>
                 )}
@@ -263,7 +263,7 @@ export default function CreateGradeModal({
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                                 {t("gradeCode")} *
                             </label>
                             <input
@@ -271,14 +271,14 @@ export default function CreateGradeModal({
                                 value={code}
                                 onChange={(e) => setCode(e.target.value)}
                                 placeholder={t("gradeCodePlaceholder")}
-                                className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                                 required
                             />
                         </div>
 
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
-                                <label className="block text-xs font-bold uppercase tracking-wider text-black">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
                                     {t("gradeLevel")} *
                                 </label>
                                 <button
@@ -287,7 +287,7 @@ export default function CreateGradeModal({
                                         setIsManagingLevels(!isManagingLevels);
                                         setLevelManagerError(null);
                                     }}
-                                    className="text-[11px] font-bold text-blue-700 hover:underline cursor-pointer flex items-center gap-1"
+                                    className="text-[11px] font-bold text-violet-600 hover:underline cursor-pointer flex items-center gap-1"
                                 >
                                     <span>⚙️</span>
                                     {isManagingLevels ? t("cancel") : t("manageLevels")}
@@ -297,7 +297,7 @@ export default function CreateGradeModal({
                             <select
                                 value={level}
                                 onChange={(e) => setLevel(Number(e.target.value))}
-                                className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc] font-medium"
+                                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                             >
                                 {levelsList.map((lvl) => (
                                     <option key={lvl.value} value={lvl.value}>
@@ -309,15 +309,15 @@ export default function CreateGradeModal({
                     </div>
 
                     {isManagingLevels && (
-                        <div className="border border-blue-300 bg-blue-50/50 p-4 space-y-4">
-                            <div className="flex items-center justify-between border-b border-blue-200 pb-2">
-                                <span className="text-xs font-bold uppercase tracking-wider text-blue-900">
+                        <div className="border border-purple-200 bg-purple-50/40 rounded-xl p-4 space-y-4">
+                            <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                                <span className="text-xs font-bold uppercase tracking-wider text-purple-900">
                                     {t("manageLevels")}
                                 </span>
                             </div>
 
                             {levelManagerError && (
-                                <div className="p-2 bg-red-100 border border-red-200 text-red-800 text-xs font-semibold">
+                                <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-lg">
                                     {levelManagerError}
                                 </div>
                             )}
@@ -326,15 +326,15 @@ export default function CreateGradeModal({
                                 {levelsList.map((lvl) => (
                                     <div
                                         key={lvl.value}
-                                        className={`flex items-center justify-between p-2 text-xs border bg-white ${
-                                            level === lvl.value ? "border-black font-bold" : "border-gray-200"
+                                        className={`flex items-center justify-between p-2.5 text-xs rounded-xl border bg-white ${
+                                            level === lvl.value ? "border-[#9327FF] font-bold shadow-xs" : "border-gray-200"
                                         }`}
                                     >
                                         <div className="flex items-center gap-2">
-                                            <span className="w-6 h-6 bg-black text-white flex items-center justify-center font-bold text-[10px]">
+                                            <span className="w-6 h-6 rounded-lg bg-[#9327FF] text-white flex items-center justify-center font-bold text-[10px]">
                                                 {lvl.value}
                                             </span>
-                                            <span className="text-black">
+                                            <span className="text-gray-900">
                                                 Level {lvl.value}: {lvl.label}
                                             </span>
                                         </div>
@@ -342,14 +342,14 @@ export default function CreateGradeModal({
                                             <button
                                                 type="button"
                                                 onClick={() => handleStartEditLevel(lvl)}
-                                                className="text-blue-600 hover:text-blue-800 font-bold px-2 py-0.5 text-[11px] border border-blue-200 hover:bg-blue-50"
+                                                className="text-violet-600 hover:text-violet-800 font-bold px-2.5 py-1 text-[11px] rounded-lg border border-violet-200 hover:bg-violet-50 cursor-pointer"
                                             >
                                                 {t("edit")}
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => handleDeleteLevel(lvl.value)}
-                                                className="text-red-600 hover:text-red-800 font-bold px-2 py-0.5 text-[11px] border border-red-200 hover:bg-red-50"
+                                                className="text-red-600 hover:text-red-800 font-bold px-2.5 py-1 text-[11px] rounded-lg border border-red-200 hover:bg-red-50 cursor-pointer"
                                             >
                                                 {t("delete")}
                                             </button>
@@ -358,10 +358,10 @@ export default function CreateGradeModal({
                                 ))}
                             </div>
 
-                            <div className="bg-white border border-blue-200 p-3 space-y-3">
+                            <div className="bg-white rounded-xl border border-purple-100 p-3.5 space-y-3">
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                     <div>
-                                        <label className="block text-[10px] font-bold uppercase text-gray-600 mb-1">
+                                        <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1">
                                             Level *
                                         </label>
                                         <input
@@ -370,20 +370,20 @@ export default function CreateGradeModal({
                                             onChange={(e) => setNewLevelNum(Math.max(1, Number(e.target.value)))}
                                             min={1}
                                             max={100}
-                                            className="w-full border border-gray-300 p-2 text-xs font-bold focus:border-black focus:outline-none"
+                                            className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none"
                                             placeholder="7"
                                             required
                                         />
                                     </div>
                                     <div className="sm:col-span-2">
-                                        <label className="block text-[10px] font-bold uppercase text-gray-600 mb-1">
+                                        <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1">
                                             Title *
                                         </label>
                                         <input
                                             type="text"
                                             value={newLevelName}
                                             onChange={(e) => setNewLevelName(e.target.value)}
-                                            className="w-full border border-gray-300 p-2 text-xs focus:border-black focus:outline-none"
+                                            className="w-full rounded-xl border border-gray-200 p-2 text-xs focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none"
                                             placeholder="Level name"
                                             required
                                         />
@@ -399,7 +399,7 @@ export default function CreateGradeModal({
                                                 const maxLvl = levelsList.reduce((max, cur) => Math.max(max, cur.value), 0);
                                                 setNewLevelNum(maxLvl + 1);
                                             }}
-                                            className="px-3 py-1.5 border border-gray-300 text-xs font-bold uppercase"
+                                            className="px-3.5 py-1.5 rounded-xl border border-gray-200 text-xs font-bold uppercase text-gray-600 hover:bg-gray-50 cursor-pointer"
                                         >
                                             {t("cancel")}
                                         </button>
@@ -407,7 +407,7 @@ export default function CreateGradeModal({
                                     <button
                                         type="button"
                                         onClick={handleAddOrUpdateLevel}
-                                        className="px-4 py-1.5 bg-blue-700 text-white text-xs font-bold uppercase hover:bg-blue-800"
+                                        className="px-4 py-1.5 bg-[#9327FF] text-white text-xs font-bold uppercase rounded-xl hover:opacity-90 shadow-sm cursor-pointer"
                                     >
                                         {t("save")}
                                     </button>
@@ -417,7 +417,7 @@ export default function CreateGradeModal({
                     )}
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             {t("gradeTitle")} *
                         </label>
                         <input
@@ -425,14 +425,14 @@ export default function CreateGradeModal({
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder={t("gradeTitlePlaceholder")}
-                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                             required
                         />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                                 {t("minSalary")} *
                             </label>
                             <input
@@ -441,7 +441,7 @@ export default function CreateGradeModal({
                                 onChange={(e) => setMinSalary(Number(e.target.value))}
                                 step={100000}
                                 min={0}
-                                className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                                 required
                             />
                             <span className="text-[10px] text-gray-500 mt-1 block">
@@ -450,7 +450,7 @@ export default function CreateGradeModal({
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                                 {t("maxSalary")} *
                             </label>
                             <input
@@ -459,7 +459,7 @@ export default function CreateGradeModal({
                                 onChange={(e) => setMaxSalary(Number(e.target.value))}
                                 step={100000}
                                 min={0}
-                                className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                                 required
                             />
                             <span className="text-[10px] text-gray-500 mt-1 block">
@@ -469,7 +469,7 @@ export default function CreateGradeModal({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             {t("requirements")}
                         </label>
                         <textarea
@@ -477,12 +477,12 @@ export default function CreateGradeModal({
                             onChange={(e) => setRequirements(e.target.value)}
                             rows={3}
                             placeholder={t("requirementsPlaceholder")}
-                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             {t("responsibilities")}
                         </label>
                         <textarea
@@ -490,23 +490,23 @@ export default function CreateGradeModal({
                             onChange={(e) => setResponsibilities(e.target.value)}
                             rows={3}
                             placeholder={t("responsibilitiesPlaceholder")}
-                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                         />
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={isSubmitting}
-                            className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
+                            className="px-5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                         >
                             {t("cancel")}
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                            className="px-6 py-2.5 bg-[#9327FF] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:opacity-90 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                         >
                             {isSubmitting ? t("saving") : t("save")}
                         </button>

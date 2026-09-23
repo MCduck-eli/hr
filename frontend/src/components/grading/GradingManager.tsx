@@ -171,37 +171,76 @@ export default function GradingManager() {
     const avgMinSalary = grades.length > 0 ? Math.round(totalMinSalary / grades.length) : 0;
     const avgMaxSalary = grades.length > 0 ? Math.round(totalMaxSalary / grades.length) : 0;
 
-    const getLevelBadgeColor = (level: number) => {
+    const getLevelAccent = (level: number) => {
         switch (level) {
             case 1:
-                return "bg-sky-50 text-sky-800 border-sky-200";
+                return {
+                    text: "text-blue-600",
+                    progress: "from-blue-500 to-sky-400",
+                    badge: "bg-blue-50 text-blue-700 border-blue-200",
+                    dot: "bg-blue-500",
+                };
             case 2:
-                return "bg-blue-50 text-blue-800 border-blue-200";
+                return {
+                    text: "text-emerald-600",
+                    progress: "from-emerald-500 to-teal-400",
+                    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                    dot: "bg-emerald-500",
+                };
             case 3:
-                return "bg-indigo-50 text-indigo-800 border-indigo-200";
+                return {
+                    text: "text-violet-600",
+                    progress: "from-violet-500 to-purple-400",
+                    badge: "bg-violet-50 text-violet-700 border-violet-200",
+                    dot: "bg-violet-500",
+                };
             case 4:
-                return "bg-purple-50 text-purple-800 border-purple-200";
+                return {
+                    text: "text-purple-600",
+                    progress: "from-purple-500 to-fuchsia-400",
+                    badge: "bg-purple-50 text-purple-700 border-purple-200",
+                    dot: "bg-purple-500",
+                };
             case 5:
-                return "bg-amber-50 text-amber-800 border-amber-200";
+                return {
+                    text: "text-amber-600",
+                    progress: "from-amber-500 to-orange-400",
+                    badge: "bg-amber-50 text-amber-700 border-amber-200",
+                    dot: "bg-amber-500",
+                };
             case 6:
-                return "bg-emerald-50 text-emerald-800 border-emerald-200";
+                return {
+                    text: "text-rose-600",
+                    progress: "from-rose-500 to-pink-400",
+                    badge: "bg-rose-50 text-rose-700 border-rose-200",
+                    dot: "bg-rose-500",
+                };
             default:
-                return "bg-gray-50 text-gray-800 border-gray-200";
+                return {
+                    text: "text-gray-600",
+                    progress: "from-gray-500 to-slate-400",
+                    badge: "bg-gray-50 text-gray-700 border-gray-200",
+                    dot: "bg-gray-500",
+                };
         }
+    };
+
+    const getLevelBadgeColor = (level: number) => {
+        return getLevelAccent(level).badge;
     };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "PENDING":
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">{t("statusPending")}</span>;
+                return <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg bg-amber-50 text-amber-700 border border-amber-200">{t("statusPending")}</span>;
             case "APPROVED_BY_MANAGER":
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">{t("statusApprovedManager")}</span>;
+                return <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg bg-blue-50 text-blue-700 border border-blue-200">{t("statusApprovedManager")}</span>;
             case "APPROVED_BY_HR":
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">{t("statusApprovedHr")}</span>;
+                return <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">{t("statusApprovedHr")}</span>;
             case "REJECTED":
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200">{t("statusRejected")}</span>;
+                return <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg bg-red-50 text-red-700 border border-red-200">{t("statusRejected")}</span>;
             default:
-                return <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">{status}</span>;
+                return <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg bg-gray-100 text-gray-700 border border-gray-200">{status}</span>;
         }
     };
 
@@ -209,7 +248,7 @@ export default function GradingManager() {
         <div className="w-full space-y-6">
             {bannerMessage && (
                 <div
-                    className={`p-4 border text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-all ${
+                    className={`p-4 rounded-2xl border text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-all ${
                         bannerMessage.type === "success"
                             ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                             : "bg-red-50 text-red-800 border-red-200"
@@ -237,101 +276,109 @@ export default function GradingManager() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-black p-5 shadow-xs">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                     <div className="flex items-center justify-between text-gray-500 mb-2">
                         <span className="text-[11px] font-bold uppercase tracking-wider">{t("totalGrades")}</span>
-                        <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
+                        <div className="w-9 h-9 rounded-xl bg-purple-50 text-[#9327FF] flex items-center justify-center">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                        </div>
                     </div>
-                    <div className="text-3xl font-black text-black tracking-tight">{grades.length}</div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-3xl font-bold text-gray-900 tracking-tight">{grades.length}</div>
+                    <div className="text-xs text-gray-500 mt-1 font-medium">
                         {t("levelCategoriesCount", { count: Array.from(new Set(grades.map((g) => g.level))).length })}
                     </div>
                 </div>
 
-                <div className="bg-white border border-black p-5 shadow-xs">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                     <div className="flex items-center justify-between text-gray-500 mb-2">
                         <span className="text-[11px] font-bold uppercase tracking-wider">{t("gradedEmployees")}</span>
-                        <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </div>
                     </div>
-                    <div className="text-3xl font-black text-black tracking-tight">
+                    <div className="text-3xl font-bold text-gray-900 tracking-tight">
                         {assignedEmployeesCount} / {employees.length}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-500 mt-1 font-medium">
                         {t("employeeCoverage", { percent: employees.length > 0 ? Math.round((assignedEmployeesCount / employees.length) * 100) : 0 })}
                     </div>
                 </div>
 
-                <div className="bg-white border border-black p-5 shadow-xs">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                     <div className="flex items-center justify-between text-gray-500 mb-2">
                         <span className="text-[11px] font-bold uppercase tracking-wider">{t("avgSalaryRange")}</span>
-                        <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
                     </div>
-                    <div className="text-lg font-black text-black tracking-tight mt-1">
+                    <div className="text-base font-bold text-gray-900 tracking-tight mt-1 truncate">
                         {avgMinSalary.toLocaleString()} - {avgMaxSalary.toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">{t("salaryRangeUnit")}</div>
+                    <div className="text-xs text-gray-500 mt-1 font-medium">{t("salaryRangeUnit")}</div>
                 </div>
 
-                <div className="bg-white border border-black p-5 shadow-xs">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                     <div className="flex items-center justify-between text-gray-500 mb-2">
                         <span className="text-[11px] font-bold uppercase tracking-wider">{t("promotionRequests")}</span>
-                        <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
+                        <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                        </div>
                     </div>
-                    <div className="text-3xl font-black text-black tracking-tight flex items-center gap-2">
+                    <div className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                         <span>{pendingPromotionsCount}</span>
                         {pendingPromotionsCount > 0 && (
-                            <span className="text-xs font-bold px-2 py-0.5 bg-amber-100 text-amber-800 uppercase tracking-wider">
+                            <span className="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider">
                                 {t("inReview")}
                             </span>
                         )}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-500 mt-1 font-medium">
                         {t("totalRequestsCount", { count: promotions.length })}
                     </div>
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setActiveTab("matrix")}
-                        className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border transition-colors ${
+                        className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
                             activeTab === "matrix"
-                                ? "bg-black text-white border-black"
-                                : "bg-white text-black border-gray-300 hover:bg-gray-100"
+                                ? "bg-violet-100 text-violet-700 shadow-xs"
+                                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                         }`}
                     >
                         {t("gradesMatrix")} ({grades.length})
                     </button>
                     <button
                         onClick={() => setActiveTab("employees")}
-                        className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border transition-colors ${
+                        className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
                             activeTab === "employees"
-                                ? "bg-black text-white border-black"
-                                : "bg-white text-black border-gray-300 hover:bg-gray-100"
+                                ? "bg-violet-100 text-violet-700 shadow-xs"
+                                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                         }`}
                     >
                         {t("employeesBoard")} ({employees.length})
                     </button>
                     <button
                         onClick={() => setActiveTab("promotions")}
-                        className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border transition-colors relative ${
+                        className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all relative cursor-pointer ${
                             activeTab === "promotions"
-                                ? "bg-black text-white border-black"
-                                : "bg-white text-black border-gray-300 hover:bg-gray-100"
+                                ? "bg-violet-100 text-violet-700 shadow-xs"
+                                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                         }`}
                     >
                         {t("promotionRequests")} ({promotions.length})
                         {pendingPromotionsCount > 0 && (
-                            <span className="ml-1.5 px-1.5 py-0.2 text-[10px] bg-red-600 text-white rounded-full">
+                            <span className="ml-1.5 px-2 py-0.5 text-[10px] bg-red-600 text-white rounded-full">
                                 {pendingPromotionsCount}
                             </span>
                         )}
@@ -345,7 +392,7 @@ export default function GradingManager() {
                                 setEditingGrade(null);
                                 setIsCreateModalOpen(true);
                             }}
-                            className="px-4 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center gap-1.5"
+                            className="bg-[#9327FF] text-white rounded-xl shadow-sm px-5 py-2.5 hover:opacity-90 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -358,7 +405,7 @@ export default function GradingManager() {
                             setPromotionInitialEmployeeId(undefined);
                             setIsPromotionModalOpen(true);
                         }}
-                        className="px-4 py-2.5 border border-black text-black text-xs font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors flex items-center gap-1.5"
+                        className="bg-white border border-gray-200 text-gray-700 rounded-xl px-5 py-2.5 hover:bg-gray-50 shadow-sm text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -369,50 +416,54 @@ export default function GradingManager() {
             </div>
 
             {loading ? (
-                <div className="py-20 text-center text-xs font-bold uppercase tracking-wider text-gray-500">
-                    {t("loading")}
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-16 flex flex-col items-center justify-center gap-3">
+                    <div className="w-8 h-8 border-3 border-[#9327FF] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t("loading")}</span>
                 </div>
             ) : activeTab === "matrix" ? (
                 <div className="space-y-6">
                     {grades.length === 0 ? (
-                        <div className="bg-white border border-gray-200 p-12 text-center text-gray-500 text-xs">
-                            <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                            </svg>
-                            {t("noGrades")}
+                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-16 text-center text-gray-400 text-xs flex flex-col items-center justify-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-gray-50 text-gray-400 flex items-center justify-center text-2xl">
+                                📂
+                            </div>
+                            <span className="text-gray-400 font-medium text-sm">
+                                {t("noGrades")}
+                            </span>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                             {grades.map((grade) => {
                                 const count = grade.employees ? grade.employees.length : 0;
+                                const lvlInfo = getLevelAccent(grade.level);
                                 return (
                                     <div
                                         key={grade.id}
-                                        className="bg-white border border-black p-6 flex flex-col justify-between hover:shadow-md transition-shadow relative"
+                                        className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between hover:shadow-md transition-all relative"
                                     >
                                         <div>
                                             <div className="flex items-center justify-between mb-3">
-                                                <span className={`px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider border ${getLevelBadgeColor(grade.level)}`}>
+                                                <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-lg border ${lvlInfo.badge}`}>
                                                     Level {grade.level}
                                                 </span>
-                                                <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 border border-gray-200">
+                                                <span className="font-mono text-xs font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200">
                                                     {grade.code}
                                                 </span>
                                             </div>
 
-                                            <h3 className="text-base font-bold text-black mb-2 tracking-tight">
+                                            <h3 className={`text-base font-bold mb-2 tracking-tight ${lvlInfo.text}`}>
                                                 {grade.title}
                                             </h3>
 
-                                            <div className="bg-gray-50 border border-gray-200 p-3 mb-4 space-y-1.5">
+                                            <div className="bg-gray-50/80 rounded-xl border border-gray-100 p-4 mb-4 space-y-2">
                                                 <div className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
                                                     {t("salaryRange")}
                                                 </div>
-                                                <div className="text-sm font-black text-black">
+                                                <div className="text-sm font-bold text-gray-900">
                                                     {grade.minSalary.toLocaleString()} — {grade.maxSalary.toLocaleString()} UZS
                                                 </div>
-                                                <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-1">
-                                                    <div className="bg-black h-full w-full opacity-60" />
+                                                <div className="w-full bg-gray-200/80 h-2 rounded-full overflow-hidden mt-2">
+                                                    <div className={`bg-gradient-to-r ${lvlInfo.progress} h-full w-full rounded-full`} />
                                                 </div>
                                             </div>
 
@@ -421,7 +472,7 @@ export default function GradingManager() {
                                                     <div className="text-[11px] font-bold uppercase tracking-wider text-gray-700 mb-1">
                                                         {t("requirements")}
                                                     </div>
-                                                    <p className="text-xs text-gray-600 line-clamp-3 bg-gray-50/50 p-2 border border-gray-100">
+                                                    <p className="text-xs text-gray-600 line-clamp-3 bg-gray-50/50 rounded-xl p-3 border border-gray-100">
                                                         {grade.requirements}
                                                     </p>
                                                 </div>
@@ -432,15 +483,15 @@ export default function GradingManager() {
                                                     <div className="text-[11px] font-bold uppercase tracking-wider text-gray-700 mb-1">
                                                         {t("responsibilities")}
                                                     </div>
-                                                    <p className="text-xs text-gray-600 line-clamp-3 bg-gray-50/50 p-2 border border-gray-100">
+                                                    <p className="text-xs text-gray-600 line-clamp-3 bg-gray-50/50 rounded-xl p-3 border border-gray-100">
                                                         {grade.responsibilities}
                                                     </p>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="pt-4 border-t border-gray-200 mt-4 flex items-center justify-between">
-                                            <div className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                                        <div className="pt-4 border-t border-gray-100 mt-4 flex items-center justify-between">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100">
                                                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                                                 <span>{t("employeesCount", { count })}</span>
                                             </div>
@@ -452,7 +503,7 @@ export default function GradingManager() {
                                                             setEditingGrade(grade);
                                                             setIsCreateModalOpen(true);
                                                         }}
-                                                        className="p-1.5 text-gray-500 hover:text-black hover:bg-gray-100 transition-colors"
+                                                        className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
                                                         title={t("edit")}
                                                     >
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -462,7 +513,7 @@ export default function GradingManager() {
                                                     <button
                                                         onClick={() => handleDeleteGrade(grade.id)}
                                                         disabled={actionLoading === grade.id || count > 0}
-                                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                                                        className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all disabled:opacity-30 cursor-pointer"
                                                         title={t("delete")}
                                                     >
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -480,16 +531,16 @@ export default function GradingManager() {
                 </div>
             ) : activeTab === "employees" ? (
                 <div className="space-y-4">
-                    <div className="bg-white border border-black p-4 flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
                         <div className="flex-1 relative">
                             <input
                                 type="text"
                                 value={employeeSearch}
                                 onChange={(e) => setEmployeeSearch(e.target.value)}
                                 placeholder={t("searchPlaceholder")}
-                                className="w-full border border-gray-300 pl-9 pr-3.5 py-2 text-xs focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                className="w-full rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-purple-500/20 pl-9 pr-3.5 py-2.5 text-xs outline-none text-gray-800"
                             />
-                            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
@@ -498,7 +549,7 @@ export default function GradingManager() {
                             <select
                                 value={departmentFilter}
                                 onChange={(e) => setDepartmentFilter(e.target.value)}
-                                className="border border-gray-300 px-3 py-2 text-xs focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                className="rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-purple-500/20 px-3.5 py-2.5 text-xs outline-none text-gray-800 font-medium"
                             >
                                 <option value="ALL">{t("allDepartments")}</option>
                                 {departmentsList.map((d) => (
@@ -509,7 +560,7 @@ export default function GradingManager() {
                             <select
                                 value={gradeLevelFilter}
                                 onChange={(e) => setGradeLevelFilter(e.target.value)}
-                                className="border border-gray-300 px-3 py-2 text-xs focus:border-black focus:outline-none bg-[#fcfcfc]"
+                                className="rounded-xl border border-gray-200 bg-white shadow-sm focus:ring-2 focus:ring-purple-500/20 px-3.5 py-2.5 text-xs outline-none text-gray-800 font-medium"
                             >
                                 <option value="ALL">{t("allLevels")}</option>
                                 {Array.from(new Set(grades.map((g) => g.level)))
@@ -524,22 +575,22 @@ export default function GradingManager() {
                         </div>
                     </div>
 
-                    <div className="bg-white border border-black overflow-x-auto shadow-xs">
+                    <div className="bg-white rounded-2xl border border-gray-100 overflow-x-auto shadow-sm">
                         <table className="w-full text-left text-xs border-collapse">
                             <thead>
-                                <tr className="border-b border-black bg-gray-50 text-black uppercase tracking-wider font-bold text-[11px]">
-                                    <th className="p-3.5">{t("employee")}</th>
-                                    <th className="p-3.5">{t("department")}</th>
-                                    <th className="p-3.5">{t("position")}</th>
-                                    <th className="p-3.5">{t("currentGrade")}</th>
-                                    <th className="p-3.5">{t("currentSalary")}</th>
-                                    <th className="p-3.5 text-right">{t("actions")}</th>
+                                <tr className="border-b border-gray-100 bg-gray-50/60 text-gray-500 uppercase tracking-wider font-bold text-[11px]">
+                                    <th className="p-4">{t("employee")}</th>
+                                    <th className="p-4">{t("department")}</th>
+                                    <th className="p-4">{t("position")}</th>
+                                    <th className="p-4">{t("currentGrade")}</th>
+                                    <th className="p-4">{t("currentSalary")}</th>
+                                    <th className="p-4 text-right">{t("actions")}</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="divide-y divide-gray-100">
                                 {filteredEmployees.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="p-8 text-center text-gray-500">
+                                        <td colSpan={6} className="p-12 text-center text-gray-400 font-medium">
                                             {t("noEmployeesFound")}
                                         </td>
                                     </tr>
@@ -559,32 +610,32 @@ export default function GradingManager() {
                                         }
 
                                         return (
-                                            <tr key={emp.id} className="hover:bg-gray-50/80 transition-colors">
-                                                <td className="p-3.5 font-bold text-black">
+                                            <tr key={emp.id} className="hover:bg-gray-50/60 transition-colors">
+                                                <td className="p-4 font-bold text-gray-900">
                                                     <div>{emp.firstName} {emp.lastName}</div>
-                                                    <div className="text-[11px] font-normal text-gray-500">{emp.user?.email}</div>
+                                                    <div className="text-[11px] font-normal text-gray-400">{emp.user?.email}</div>
                                                 </td>
-                                                <td className="p-3.5 text-gray-700">
+                                                <td className="p-4 text-gray-700">
                                                     {emp.department?.name || <span className="text-gray-400">-</span>}
                                                 </td>
-                                                <td className="p-3.5 text-gray-700 font-medium">
+                                                <td className="p-4 text-gray-700 font-medium">
                                                     {emp.position || <span className="text-gray-400">-</span>}
                                                 </td>
-                                                <td className="p-3.5">
+                                                <td className="p-4">
                                                     {grade ? (
                                                         <div className="flex items-center gap-2">
-                                                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase border ${getLevelBadgeColor(grade.level)}`}>
+                                                            <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-lg border ${getLevelBadgeColor(grade.level)}`}>
                                                                 L{grade.level}
                                                             </span>
-                                                            <span className="font-semibold text-black">{grade.title}</span>
+                                                            <span className="font-semibold text-gray-900">{grade.title}</span>
                                                         </div>
                                                     ) : (
-                                                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-gray-100 text-gray-500 border border-gray-200">
+                                                        <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase bg-gray-100 text-gray-500 rounded-lg border border-gray-200">
                                                             {t("unassigned")}
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="p-3.5 font-mono text-black font-semibold">
+                                                <td className="p-4 font-mono text-gray-900 font-semibold">
                                                     {salary > 0 ? (
                                                         <div>
                                                             <div>{salary.toLocaleString()} UZS</div>
@@ -594,7 +645,7 @@ export default function GradingManager() {
                                                         <span className="text-gray-400 font-sans">-</span>
                                                     )}
                                                 </td>
-                                                <td className="p-3.5 text-right">
+                                                <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-1.5">
                                                         {isHrOrDirector && (
                                                             <button
@@ -602,7 +653,7 @@ export default function GradingManager() {
                                                                     setSelectedEmployeeForAssign(emp);
                                                                     setIsAssignModalOpen(true);
                                                                 }}
-                                                                className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider border border-black hover:bg-black hover:text-white transition-colors"
+                                                                className="px-3 py-1.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-100 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
                                                             >
                                                                 {emp.grade ? t("changeGrade") : t("assignGrade")}
                                                             </button>
@@ -612,7 +663,7 @@ export default function GradingManager() {
                                                                 setSelectedEmployeeForHistory(emp);
                                                                 setIsHistoryModalOpen(true);
                                                             }}
-                                                            className="p-1 text-gray-500 hover:text-black hover:bg-gray-100 transition-colors"
+                                                            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer"
                                                             title={t("history")}
                                                         >
                                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -624,7 +675,7 @@ export default function GradingManager() {
                                                                 setPromotionInitialEmployeeId(emp.id);
                                                                 setIsPromotionModalOpen(true);
                                                             }}
-                                                            className="p-1 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                                            className="p-2 rounded-xl text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer"
                                                             title={t("requestPromotion")}
                                                         >
                                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -643,40 +694,40 @@ export default function GradingManager() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    <div className="bg-white border border-black p-4 flex flex-wrap gap-2 items-center justify-between">
-                        <div className="text-xs font-bold uppercase tracking-wider text-black">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-2 items-center justify-between">
+                        <div className="text-xs font-bold uppercase tracking-wider text-gray-900">
                             {t("promotionRequests")}
                         </div>
 
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setPromotionStatusFilter("ALL")}
-                                className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border ${
-                                    promotionStatusFilter === "ALL" ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
+                                className={`px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                                    promotionStatusFilter === "ALL" ? "bg-[#9327FF] text-white shadow-sm" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
                                 }`}
                             >
                                 {t("allStatuses")} ({promotions.length})
                             </button>
                             <button
                                 onClick={() => setPromotionStatusFilter("PENDING")}
-                                className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border ${
-                                    promotionStatusFilter === "PENDING" ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
+                                className={`px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                                    promotionStatusFilter === "PENDING" ? "bg-[#9327FF] text-white shadow-sm" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
                                 }`}
                             >
                                 {t("statusPending")} ({promotions.filter((p) => p.status === "PENDING").length})
                             </button>
                             <button
                                 onClick={() => setPromotionStatusFilter("APPROVED_BY_HR")}
-                                className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border ${
-                                    promotionStatusFilter === "APPROVED_BY_HR" ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
+                                className={`px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                                    promotionStatusFilter === "APPROVED_BY_HR" ? "bg-[#9327FF] text-white shadow-sm" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
                                 }`}
                             >
                                 {t("statusApprovedHr")} ({promotions.filter((p) => p.status === "APPROVED_BY_HR").length})
                             </button>
                             <button
                                 onClick={() => setPromotionStatusFilter("REJECTED")}
-                                className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border ${
-                                    promotionStatusFilter === "REJECTED" ? "bg-black text-white border-black" : "bg-white text-black border-gray-300"
+                                className={`px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                                    promotionStatusFilter === "REJECTED" ? "bg-[#9327FF] text-white shadow-sm" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
                                 }`}
                             >
                                 {t("statusRejected")} ({promotions.filter((p) => p.status === "REJECTED").length})
@@ -685,23 +736,25 @@ export default function GradingManager() {
                     </div>
 
                     {filteredPromotions.length === 0 ? (
-                        <div className="bg-white border border-gray-200 p-12 text-center text-gray-500 text-xs">
-                            <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {t("noPromotionsFound")}
+                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-16 text-center text-gray-400 text-xs flex flex-col items-center justify-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-gray-50 text-gray-400 flex items-center justify-center text-2xl">
+                                📂
+                            </div>
+                            <span className="text-gray-400 font-medium text-sm">
+                                {t("noPromotionsFound")}
+                            </span>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-4">
                             {filteredPromotions.map((req) => (
                                 <div
                                     key={req.id}
-                                    className="bg-white border border-black p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-xs"
+                                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-5 transition-all"
                                 >
-                                    <div className="space-y-2 flex-1">
+                                    <div className="space-y-3 flex-1">
                                         <div className="flex flex-wrap items-center gap-2">
                                             {getStatusBadge(req.status)}
-                                            <span className="text-sm font-bold text-black">
+                                            <span className="text-sm font-bold text-gray-900">
                                                 {req.employee?.firstName} {req.employee?.lastName}
                                             </span>
                                             <span className="text-xs text-gray-500">
@@ -712,10 +765,10 @@ export default function GradingManager() {
                                             </span>
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-3 border border-gray-200 text-xs">
+                                        <div className="flex flex-wrap items-center gap-3 bg-gray-50/80 rounded-xl p-4 border border-gray-100 text-xs">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-gray-500">{t("currentGrade")}:</span>
-                                                <span className="font-semibold text-black">
+                                                <span className="font-semibold text-gray-900">
                                                     {req.currentGrade ? `${req.currentGrade.title} (L${req.currentGrade.level})` : t("unassigned")}
                                                 </span>
                                             </div>
@@ -724,30 +777,30 @@ export default function GradingManager() {
                                             </svg>
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-gray-500">{t("targetGrade")}:</span>
-                                                <span className="font-bold text-black">
+                                                <span className="font-bold text-gray-900">
                                                     {req.targetGrade?.title} (L{req.targetGrade?.level})
                                                 </span>
                                             </div>
-                                            <div className="ml-auto font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 border border-emerald-200">
+                                            <div className="ml-auto font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
                                                 {t("proposedSalary")}: {req.proposedSalary.toLocaleString()} UZS
                                             </div>
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-3 text-xs">
                                             {req.okrScore !== null && req.okrScore !== undefined && (
-                                                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 font-semibold">
+                                                <span className="px-3 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 font-semibold">
                                                     OKR: {req.okrScore}%
                                                 </span>
                                             )}
                                             {req.feedback360Score !== null && req.feedback360Score !== undefined && (
-                                                <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 font-semibold">
+                                                <span className="px-3 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-semibold">
                                                     360: {req.feedback360Score} / 5.0
                                                 </span>
                                             )}
                                         </div>
 
-                                        <p className="text-xs text-gray-600 bg-white border border-gray-200 p-2.5">
-                                            <span className="font-bold text-black">{t("reason")}:</span> {req.reason}
+                                        <p className="text-xs text-gray-600 bg-gray-50/50 rounded-xl border border-gray-100 p-3">
+                                            <span className="font-bold text-gray-900">{t("reason")}:</span> {req.reason}
                                         </p>
                                     </div>
 
@@ -756,7 +809,7 @@ export default function GradingManager() {
                                             <button
                                                 onClick={() => handleProcessPromotion(req.id, "APPROVE")}
                                                 disabled={actionLoading === req.id}
-                                                className="px-5 py-2.5 bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                                className="px-5 py-2.5 bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-700 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
                                             >
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -766,7 +819,7 @@ export default function GradingManager() {
                                             <button
                                                 onClick={() => handleProcessPromotion(req.id, "REJECT")}
                                                 disabled={actionLoading === req.id}
-                                                className="px-5 py-2.5 bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                                className="px-5 py-2.5 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-red-700 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
                                             >
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

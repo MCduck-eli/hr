@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 interface EmployeeListProps {
     users: any[];
     onEdit: (user: any) => void;
-    onDelete: (id: string) => void;
+    onDelete: (user: any) => void;
 }
 
 export default function EmployeeList({
@@ -15,10 +15,8 @@ export default function EmployeeList({
     const t = useTranslations("HREmployees");
     const router = useRouter();
 
-    const handleDelete = (id: string) => {
-        if (window.confirm(t("confirmDelete"))) {
-            onDelete(id);
-        }
+    const handleDelete = (user: any) => {
+        onDelete(user);
     };
 
     const handleViewProfile = (userId: string) => {

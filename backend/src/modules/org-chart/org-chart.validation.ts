@@ -5,6 +5,7 @@ export const updateHierarchySchema = z.object({
         departmentId: z.string().uuid().optional(),
         positionId: z.string().uuid().optional(),
         managerId: z.string().uuid().nullable().optional(),
+        matrixManagerIds: z.array(z.string().uuid()).optional(),
         reason: z.string().optional(),
     }),
 });

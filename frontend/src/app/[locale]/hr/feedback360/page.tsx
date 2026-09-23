@@ -9,18 +9,18 @@ export default function HRFeedback360Page() {
     const router = useRouter();
 
     return (
-        <div className="max-w-[1400px] mx-auto p-8 flex flex-col gap-8">
-            <div className="flex flex-col gap-2">
+        <div className="max-w-[1400px] mx-auto p-6 sm:p-8 flex flex-col gap-6 font-sans">
+            <div className="flex flex-col gap-1.5">
                 <button 
                     onClick={() => router.back()} 
-                    className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-4"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-violet-600 transition-colors w-fit mb-2 cursor-pointer"
                 >
                     &larr; {t("goBack") || "Orqaga"}
                 </button>
-                <h1 className="text-3xl font-bold tracking-tight text-black uppercase">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 uppercase">
                     {t("pageTitle")}
                 </h1>
-                <p className="text-sm font-bold uppercase tracking-widest text-gray-500">
+                <p className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                     {t("pageSubtitle")}
                 </p>
             </div>

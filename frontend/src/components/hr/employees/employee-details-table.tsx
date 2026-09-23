@@ -9,7 +9,7 @@ import EmployeeJourneyTimeline from "@/src/components/lifecycle/EmployeeJourneyT
 interface EmployeeDetailsTableProps {
     users: any[];
     onEdit: (user: any) => void;
-    onDelete: (id: string) => void;
+    onDelete: (user: any) => void;
 }
 
 export default function EmployeeDetailsTable({
@@ -27,6 +27,7 @@ export default function EmployeeDetailsTable({
             localStorage.setItem("originalAdminUser", currentUser);
         }
         localStorage.setItem("user", JSON.stringify(u));
+        document.cookie = `user_role=${u.role || ""}; path=/; max-age=86400; SameSite=Lax`;
 
         const locale = window.location.pathname.split("/")[1] || "uz";
         if (u.role === "HR_ADMIN") {
@@ -193,12 +194,8 @@ export default function EmployeeDetailsTable({
                                                 {t("edit")}
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    if (window.confirm("Haqiqatan ham bu xodimni o'chirmoqchimisiz?")) {
-                                                        onDelete(u.id);
-                                                    }
-                                                }}
-                                                className="px-2 py-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-colors"
+                                                onClick={() => onDelete(u)}
+                                                className="px-2 py-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-colors cursor-pointer"
                                             >
                                                 {t("delete")}
                                             </button>

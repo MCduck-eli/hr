@@ -12,13 +12,17 @@ export default function Navbar() {
     const t = useTranslations("Navbar");
     const pathname = usePathname();
     const router = useRouter();
-    const locale = pathname.split("/")[1] || "en";
+    const locale = pathname.split("/")[1] || "uz";
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userRole, setUserRole] = useState("");
+    const [userName, setUserName] = useState("");
+    const [userInitials, setUserInitials] = useState("");
+    const [isLoadingUser, setIsLoadingUser] = useState(true);
     const [hasOriginalAdmin, setHasOriginalAdmin] = useState(false);
 
     useEffect(() => {
+        setIsLoadingUser(true);
         const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
         const originalAdminUser = localStorage.getItem("originalAdminUser");
@@ -34,8 +38,37 @@ export default function Navbar() {
             try {
                 const user = JSON.parse(userStr);
                 setUserRole(user.role || "");
-            } catch (e) { }
+                const fName = user.employee?.firstName || user.firstName || "";
+                const lName = user.employee?.lastName || user.lastName || "";
+                const full = `${fName} ${lName}`.trim();
+                const display = full || user.companyName || user.email?.split("@")[0] || "User";
+                setUserName(display);
+
+                if (fName && lName) {
+                    setUserInitials(`${fName[0]}${lName[0]}`.toUpperCase());
+                } else if (display) {
+                    const parts = display.trim().split(/\s+/);
+                    if (parts.length >= 2) {
+                        setUserInitials(`${parts[0][0]}${parts[1][0]}`.toUpperCase());
+                    } else {
+                        setUserInitials(display.slice(0, 2).toUpperCase());
+                    }
+                } else {
+                    setUserInitials("U");
+                }
+            } catch (e) {
+                setIsLoggedIn(false);
+                setUserRole("");
+                setUserName("");
+                setUserInitials("");
+            }
+        } else {
+            setIsLoggedIn(false);
+            setUserRole("");
+            setUserName("");
+            setUserInitials("");
         }
+        setIsLoadingUser(false);
     }, [pathname]);
 
     const handleReturnToAdmin = () => {
@@ -46,12 +79,18 @@ export default function Navbar() {
             setHasOriginalAdmin(false);
             try {
                 const parsed = JSON.parse(originalAdminUser);
-                if (parsed.role === "DIRECTOR") {
+                const role = parsed.role || "";
+                document.cookie = `user_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+                if (role === "DIRECTOR") {
                     router.push(`/${locale}/director/dashboard`);
                     return;
                 }
-                if (parsed.role === "HR_ADMIN") {
+                if (role === "HR_ADMIN") {
                     router.push(`/${locale}/hr/dashboard`);
+                    return;
+                }
+                if (role === "SUPER_ADMIN") {
+                    router.push(`/${locale}/dashboard`);
                     return;
                 }
             } catch (e) { }
@@ -63,10 +102,12 @@ export default function Navbar() {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         localStorage.removeItem("originalAdminUser");
-        document.cookie = "token=; path=/; max-age=0";
+        document.cookie = "token=; path=/; max-age=0; SameSite=Lax";
+        document.cookie = "user_role=; path=/; max-age=0; SameSite=Lax";
         setIsLoggedIn(false);
+        setUserRole("");
         setHasOriginalAdmin(false);
-        router.push(`/${locale}/login`);
+        router.push(`/${locale}`);
     };
 
     const getDashboardLink = () => {
@@ -166,7 +207,7 @@ export default function Navbar() {
                                     {t("disc")}
                                 </Link>
                                 <Link
-                                    href={`/${locale}/feedback`}
+                                    href={`/${locale}/hr/feedback360`}
                                     className="hover:text-black transition-colors"
                                 >
                                     {t("feedback")}
@@ -193,25 +234,41 @@ export default function Navbar() {
 
                     {isLoggedIn && userRole !== "SUPER_ADMIN" && <NotificationBell />}
 
+                    {isLoadingUser ? (
+                        <div className="flex items-center gap-2 animate-pulse">
+                            <div className="w-8 h-8 rounded-full bg-gray-200" />
+                            <div className="w-20 h-4 bg-gray-200 rounded" />
+                        </div>
+                    ) : isLoggedIn && userName ? (
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-[#f3e8ff] text-[#9327FF] flex items-center justify-center text-xs font-bold shrink-0">
+                                {userInitials}
+                            </div>
+                            <span className="text-sm font-medium text-gray-700 max-w-[150px] truncate">
+                                {userName}
+                            </span>
+                        </div>
+                    ) : null}
+
                     {isLoggedIn ? (
                         <div className="flex items-center gap-4">
                             {hasOriginalAdmin && (
                                 <button
                                     onClick={handleReturnToAdmin}
-                                    className="text-[12px] font-bold uppercase tracking-wider text-green-600 hover:text-green-800 transition-colors flex items-center gap-1 mr-2"
+                                    className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium rounded-xl px-4 py-2 text-xs transition-all duration-200 shadow-sm flex items-center gap-1 cursor-pointer"
                                 >
                                     <span>&larr;</span> {t("returnToAdmin") || "Qaytish"}
                                 </button>
                             )}
                             <Link
                                 href={getDashboardLink()}
-                                className="text-[12px] font-bold uppercase tracking-wider text-black hover:opacity-70 flex items-center gap-1"
+                                className="bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl px-5 py-2 text-xs transition-all duration-200 shadow-sm flex items-center gap-1.5"
                             >
                                 <span>&#9654;</span> Dashboard
                             </Link>
                             <button
                                 onClick={handleLogout}
-                                className="px-5 py-2.5 bg-red-600 text-white text-[12px] font-bold uppercase tracking-wider rounded-sm hover:bg-red-700 transition-colors"
+                                className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium rounded-xl px-4 py-2 text-xs transition-all duration-200 shadow-sm cursor-pointer"
                             >
                                 Logout
                             </button>
@@ -219,16 +276,23 @@ export default function Navbar() {
                     ) : (
                         <Link
                             href={`/${locale}/login`}
-                            className="px-6 py-2.5 bg-[#1a1a1a] text-white text-[12px] font-bold uppercase tracking-wider rounded-sm hover:bg-black transition-colors flex items-center gap-1"
+                            className="bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl px-5 py-2 text-xs transition-all duration-200 shadow-sm flex items-center gap-1.5"
                         >
                             <span>&#9654;</span> {t("login")}
                         </Link>
                     )}
                 </div>
 
-                <MobileMenu userRole={userRole} isLoggedIn={isLoggedIn} locale={locale} />
+                <MobileMenu
+                    userRole={userRole}
+                    isLoggedIn={isLoggedIn}
+                    userName={userName}
+                    userInitials={userInitials}
+                    locale={locale}
+                    onLogout={handleLogout}
+                    dashboardLink={getDashboardLink()}
+                />
             </div>
         </nav>
     );
 }
-

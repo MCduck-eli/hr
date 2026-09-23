@@ -3,11 +3,75 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import EmailVerificationModal from "@/src/components/common/EmailVerificationModal";
+import { sendOtpApi } from "@/src/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+interface FormErrors {
+    companyName?: "requiredField";
+    firstName?: "requiredField" | "minLetters" | "onlyLetters";
+    lastName?: "requiredField" | "minLetters" | "onlyLetters";
+    email?: "requiredField" | "invalidEmail";
+    password?: "requiredField" | "minPassword" | "weakPassword";
+}
+
+const NAME_REGEX = /^[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ'ʻʼ`\s-]+$/;
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/;
+
+function validateRequiredField(val: string): "requiredField" | null {
+    const trimmed = (val || "").trim();
+    if (!trimmed) {
+        return "requiredField";
+    }
+    return null;
+}
+
+function validateNameField(val: string): "requiredField" | "minLetters" | "onlyLetters" | null {
+    const trimmed = (val || "").trim();
+    if (!trimmed) {
+        return "requiredField";
+    }
+    if (trimmed.length < 3) {
+        return "minLetters";
+    }
+    if (!NAME_REGEX.test(trimmed)) {
+        return "onlyLetters";
+    }
+    return null;
+}
+
+function validateEmailField(val: string): "requiredField" | "invalidEmail" | null {
+    const trimmed = (val || "").trim();
+    if (!trimmed) {
+        return "requiredField";
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+        return "invalidEmail";
+    }
+    return null;
+}
+
+function validatePasswordField(val: string, isRequired: boolean): "requiredField" | "minPassword" | "weakPassword" | null {
+    const trimmed = (val || "").trim();
+    if (isRequired && !trimmed) {
+        return "requiredField";
+    }
+    if (trimmed) {
+        if (trimmed.length < 5) {
+            return "minPassword";
+        }
+        if (!STRONG_PASSWORD_REGEX.test(trimmed)) {
+            return "weakPassword";
+        }
+    }
+    return null;
+}
+
 export default function SuperAdminDashboard() {
     const t = useTranslations("Dashboard");
+    const tErr = useTranslations("errors");
     const params = useParams();
     const router = useRouter();
     const locale = params.locale as string;
@@ -23,8 +87,20 @@ export default function SuperAdminDashboard() {
         password: "",
         role: "DIRECTOR",
     });
+    const [formErrors, setFormErrors] = useState<FormErrors>({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [deleteModalUser, setDeleteModalUser] = useState<any | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+    const showToast = (message: string, type: "success" | "error" = "success") => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast(null);
+        }, 3000);
+    };
 
     const fetchDirectors = async () => {
         try {
@@ -88,10 +164,86 @@ export default function SuperAdminDashboard() {
             email: generatedEmail,
             password: generatedPassword,
         });
+        setFormErrors((prev) => ({
+            ...prev,
+            email: undefined,
+            password: undefined,
+        }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const companyNameErr = validateRequiredField(form.companyName);
+        const firstNameErr = validateNameField(form.firstName);
+        const lastNameErr = validateNameField(form.lastName);
+        const emailErr = validateEmailField(form.email);
+        const passwordErr = validatePasswordField(form.password, !editingUserId);
+
+        if (companyNameErr || firstNameErr || lastNameErr || emailErr || passwordErr) {
+            setFormErrors({
+                companyName: companyNameErr || undefined,
+                firstName: firstNameErr || undefined,
+                lastName: lastNameErr || undefined,
+                email: emailErr || undefined,
+                password: passwordErr || undefined,
+            });
+            const firstErr = companyNameErr || firstNameErr || lastNameErr || emailErr || passwordErr;
+            showToast(tErr(firstErr as any), "error");
+            return;
+        }
+
+        setFormErrors({});
+        setLoading(true);
+        setError("");
+
+        if (editingUserId) {
+            try {
+                const token = localStorage.getItem("token");
+                const payload: any = {
+                    ...form,
+                    role: "DIRECTOR",
+                };
+                if (!payload.password) {
+                    delete payload.password;
+                }
+
+                const res = await fetch(`${API_URL}/users/${editingUserId}`, {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || "Error");
+
+                resetForm();
+                fetchDirectors();
+                showToast(t("toastUpdated"), "success");
+            } catch (err: any) {
+                setError(err.message);
+                showToast(err.message || t("toastError"), "error");
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
+
+        try {
+            await sendOtpApi({ email: form.email, checkExisting: true });
+            setIsVerificationModalOpen(true);
+        } catch (err: any) {
+            setError(err.message);
+            showToast(err.message || t("toastError"), "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifiedCreateDirector = async () => {
         setLoading(true);
         setError("");
 
@@ -103,18 +255,8 @@ export default function SuperAdminDashboard() {
                 role: "DIRECTOR",
             };
 
-            if (editingUserId && !payload.password) {
-                delete payload.password;
-            }
-
-            const url = editingUserId
-                ? `${API_URL}/users/${editingUserId}`
-                : `${API_URL}/users`;
-
-            const method = editingUserId ? "PATCH" : "POST";
-
-            const res = await fetch(url, {
-                method,
+            const res = await fetch(`${API_URL}/users`, {
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
@@ -125,10 +267,13 @@ export default function SuperAdminDashboard() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Error");
 
+            setIsVerificationModalOpen(false);
             resetForm();
             fetchDirectors();
+            showToast(t("toastSaved"), "success");
         } catch (err: any) {
             setError(err.message);
+            showToast(err.message || t("toastError"), "error");
         } finally {
             setLoading(false);
         }
@@ -136,6 +281,7 @@ export default function SuperAdminDashboard() {
 
     const handleEditDirector = (user: any) => {
         setEditingUserId(user.id);
+        setFormErrors({});
         setForm({
             companyName: user.companyName || user.employee?.companyName || "",
             firstName: user.employee?.firstName || user.firstName || "",
@@ -150,6 +296,7 @@ export default function SuperAdminDashboard() {
 
     const resetForm = () => {
         setEditingUserId(null);
+        setFormErrors({});
         setForm({
             companyName: "",
             firstName: "",
@@ -162,12 +309,17 @@ export default function SuperAdminDashboard() {
         setError("");
     };
 
-    const handleDeleteDirector = async (id: string) => {
-        if (!window.confirm(t("confirmDelete"))) return;
+    const handleDeleteDirector = (user: any) => {
+        setDeleteModalUser(user);
+    };
+
+    const confirmDeleteDirector = async () => {
+        if (!deleteModalUser) return;
+        setIsDeleting(true);
 
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`${API_URL}/users/${id}`, {
+            const res = await fetch(`${API_URL}/users/${deleteModalUser.id}`, {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -179,9 +331,13 @@ export default function SuperAdminDashboard() {
                 throw new Error(data.message || "Error");
             }
 
+            setDeleteModalUser(null);
             fetchDirectors();
+            showToast(t("toastDeleted"), "success");
         } catch (err: any) {
-            alert(err.message);
+            showToast(err.message || t("toastError"), "error");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -191,283 +347,429 @@ export default function SuperAdminDashboard() {
             localStorage.setItem("originalAdminUser", currentUser);
         }
         localStorage.setItem("user", JSON.stringify(user));
-        router.push(`/${locale}/hr/dashboard`);
+        document.cookie = `user_role=${user.role || ""}; path=/; max-age=86400; SameSite=Lax`;
+        router.push(`/${locale}/director/dashboard`);
     };
 
     return (
-        <div className="max-w-[1400px] mx-auto p-4 md:p-8 flex flex-col gap-8">
-            <div className="border-b border-gray-200 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-black flex items-center gap-3">
-                        <span>🏢</span>
-                        <span>{t("title")}</span>
-                    </h1>
-                    <p className="mt-1 text-xs text-gray-500 font-bold uppercase tracking-wider">
-                        {t("subtitle")}
-                    </p>
-                </div>
-
-                <div className="bg-gray-100 border border-gray-200 px-4 py-2 rounded-sm text-xs font-bold text-gray-700 flex items-center gap-2">
-                    <span className="text-gray-400 font-normal uppercase">{t("totalCompanies")}:</span>
-                    <span className="font-mono text-sm font-black text-black">{directors.length}</span>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-5 bg-white p-6 border border-gray-200 shadow-sm h-fit rounded-sm">
-                    <div className="flex items-center justify-between mb-5 border-b border-gray-100 pb-3">
-                        <h2 className="text-sm font-black uppercase tracking-wider text-black flex items-center gap-2">
-                            <span>{editingUserId ? "✏️" : "➕"}</span>
-                            <span>{editingUserId ? t("editDirector") : t("addDirector")}</span>
-                        </h2>
-                        {!editingUserId && (
-                            <button
-                                type="button"
-                                onClick={generateCredentials}
-                                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-black text-[10px] font-black uppercase tracking-widest rounded-sm transition-colors"
-                            >
-                                ⚡ {t("generate")}
-                            </button>
-                        )}
+        <div className="min-h-[calc(100vh-64px)] bg-slate-50/60 p-4 md:p-8">
+            <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-slate-950 flex items-center gap-3">
+                            <span>🏢</span>
+                            <span>{t("title")}</span>
+                        </h1>
+                        <p className="mt-1 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                            {t("subtitle")}
+                        </p>
                     </div>
 
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs font-bold uppercase rounded-sm">
-                            {error}
-                        </div>
-                    )}
+                    <div className="bg-white border border-slate-200/80 px-4 py-2 rounded-2xl shadow-sm text-xs font-bold text-slate-700 flex items-center gap-2.5 w-fit">
+                        <span className="text-slate-400 font-medium uppercase">{t("totalCompanies")}:</span>
+                        <span className="font-mono text-sm font-black text-slate-950">{directors.length}</span>
+                    </div>
+                </div>
 
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                {t("companyName")} *
-                            </label>
-                            <input
-                                type="text"
-                                value={form.companyName}
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        companyName: e.target.value,
-                                    })
-                                }
-                                placeholder={t("companyNamePlaceholder")}
-                                required
-                                className="p-3 border border-gray-300 bg-white text-sm font-bold text-black rounded-sm outline-none focus:border-black transition-colors"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                    {t("directorFirstName")} *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.firstName}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            firstName: e.target.value,
-                                        })
-                                    }
-                                    required
-                                    className="p-3 border border-gray-300 bg-white text-sm font-medium text-black rounded-sm outline-none focus:border-black transition-colors"
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                    {t("directorLastName")} *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.lastName}
-                                    onChange={(e) =>
-                                        setForm({
-                                            ...form,
-                                            lastName: e.target.value,
-                                        })
-                                    }
-                                    required
-                                    className="p-3 border border-gray-300 bg-white text-sm font-medium text-black rounded-sm outline-none focus:border-black transition-colors"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                {t("email")} *
-                            </label>
-                            <input
-                                type="email"
-                                value={form.email}
-                                onChange={(e) =>
-                                    setForm({ ...form, email: e.target.value })
-                                }
-                                required
-                                className="p-3 border border-gray-300 bg-white text-sm font-mono font-medium text-black rounded-sm outline-none focus:border-black transition-colors"
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                {t("phone")}
-                            </label>
-                            <input
-                                type="text"
-                                value={form.phone}
-                                onChange={(e) =>
-                                    setForm({ ...form, phone: e.target.value })
-                                }
-                                placeholder={t("phonePlaceholder")}
-                                className="p-3 border border-gray-300 bg-white text-sm font-mono text-black rounded-sm outline-none focus:border-black transition-colors"
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                {t("password")}{" "}
-                                {editingUserId && (
-                                    <span className="text-gray-400 font-normal lowercase">
-                                        {t("passwordHint")}
-                                    </span>
-                                )}
-                            </label>
-                            <input
-                                type="text"
-                                value={form.password}
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        password: e.target.value,
-                                    })
-                                }
-                                required={!editingUserId}
-                                className="p-3 border border-gray-300 bg-white text-sm font-mono font-bold text-black rounded-sm outline-none focus:border-black transition-colors"
-                            />
-                        </div>
-
-                        <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="flex-1 py-3 bg-[#1a1a1a] text-white text-xs font-black uppercase tracking-wider rounded-sm hover:bg-black transition-colors disabled:opacity-50 shadow-sm"
-                            >
-                                {loading
-                                    ? t("loading")
-                                    : editingUserId
-                                      ? t("saveChanges")
-                                      : t("submit")}
-                            </button>
-                            {editingUserId && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <div className="lg:col-span-5 bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                                <span>{editingUserId ? "✏️" : "➕"}</span>
+                                <span>{editingUserId ? t("editDirector") : t("addDirector")}</span>
+                            </h2>
+                            {!editingUserId && (
                                 <button
                                     type="button"
-                                    onClick={resetForm}
-                                    className="px-5 py-3 border border-gray-300 text-black text-xs font-bold uppercase tracking-wider rounded-sm hover:bg-gray-50 transition-colors"
+                                    onClick={generateCredentials}
+                                    className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium rounded-xl px-3.5 py-1.5 text-xs transition-all duration-200 shadow-sm flex items-center gap-1.5 cursor-pointer"
                                 >
-                                    {t("cancel")}
+                                    <span>⚡</span>
+                                    <span>{t("generate")}</span>
                                 </button>
                             )}
                         </div>
-                    </form>
-                </div>
 
-                <div className="lg:col-span-7 bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden flex flex-col">
-                    <div className="p-5 border-b border-gray-200 bg-gray-50/70 flex items-center justify-between">
-                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
-                            {t("directorList")} ({directors.length})
-                        </h2>
+                        {error && (
+                            <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold flex items-center gap-2">
+                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{error}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                    {t("companyName")} *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={form.companyName}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setForm({
+                                            ...form,
+                                            companyName: val,
+                                        });
+                                        if (formErrors.companyName) {
+                                            setFormErrors((prev) => ({
+                                                ...prev,
+                                                companyName: validateRequiredField(val) || undefined,
+                                            }));
+                                        }
+                                    }}
+                                    placeholder={t("companyNamePlaceholder")}
+                                    className={`w-full px-4 py-3 rounded-xl border ${
+                                        formErrors.companyName
+                                            ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                            : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                    } bg-slate-50/50 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                />
+                                {formErrors.companyName && (
+                                    <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                        {tErr(formErrors.companyName)}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                        {t("directorFirstName")} *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={form.firstName}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setForm({
+                                                ...form,
+                                                firstName: val,
+                                            });
+                                            if (formErrors.firstName) {
+                                                setFormErrors((prev) => ({
+                                                    ...prev,
+                                                    firstName: validateNameField(val) || undefined,
+                                                }));
+                                            }
+                                        }}
+                                        className={`w-full px-4 py-3 rounded-xl border ${
+                                            formErrors.firstName
+                                                ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                                : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                        } bg-slate-50/50 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                    />
+                                    {formErrors.firstName && (
+                                        <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                            {tErr(formErrors.firstName)}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                        {t("directorLastName")} *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={form.lastName}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setForm({
+                                                ...form,
+                                                lastName: val,
+                                            });
+                                            if (formErrors.lastName) {
+                                                setFormErrors((prev) => ({
+                                                    ...prev,
+                                                    lastName: validateNameField(val) || undefined,
+                                                }));
+                                            }
+                                        }}
+                                        className={`w-full px-4 py-3 rounded-xl border ${
+                                            formErrors.lastName
+                                                ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                                : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                        } bg-slate-50/50 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                    />
+                                    {formErrors.lastName && (
+                                        <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                            {tErr(formErrors.lastName)}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                    {t("email")} *
+                                </label>
+                                <input
+                                    type="email"
+                                    value={form.email}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setForm({ ...form, email: val });
+                                        if (formErrors.email) {
+                                            setFormErrors((prev) => ({
+                                                ...prev,
+                                                email: validateEmailField(val) || undefined,
+                                            }));
+                                        }
+                                    }}
+                                    className={`w-full px-4 py-3 rounded-xl border ${
+                                        formErrors.email
+                                            ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                            : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                    } bg-slate-50/50 text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                />
+                                {formErrors.email && (
+                                    <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                        {tErr(formErrors.email)}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                    {t("phone")}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={form.phone}
+                                    onChange={(e) =>
+                                        setForm({ ...form, phone: e.target.value })
+                                    }
+                                    placeholder={t("phonePlaceholder")}
+                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all duration-200"
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                    {t("password")}{" "}
+                                    {editingUserId && (
+                                        <span className="text-slate-400 font-normal lowercase text-[11px]">
+                                            {t("passwordHint")}
+                                        </span>
+                                    )}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={form.password}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setForm({
+                                            ...form,
+                                            password: val,
+                                        });
+                                        if (formErrors.password) {
+                                            setFormErrors((prev) => ({
+                                                ...prev,
+                                                password: validatePasswordField(val, !editingUserId) || undefined,
+                                            }));
+                                        }
+                                    }}
+                                    className={`w-full px-4 py-3 rounded-xl border ${
+                                        formErrors.password
+                                            ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                            : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                    } bg-slate-50/50 text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                />
+                                {formErrors.password && (
+                                    <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                        {tErr(formErrors.password)}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3 mt-3 pt-3 border-t border-slate-100">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="flex-1 py-3 px-6 bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl text-xs md:text-sm uppercase tracking-wider transition-all duration-200 shadow-sm disabled:opacity-50 cursor-pointer"
+                                >
+                                    {loading
+                                        ? t("loading")
+                                        : editingUserId
+                                          ? t("saveChanges")
+                                          : t("submit")}
+                                </button>
+                                {editingUserId && (
+                                    <button
+                                        type="button"
+                                        onClick={resetForm}
+                                        className="px-5 py-3 bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium rounded-xl text-xs uppercase tracking-wider transition-all duration-200 shadow-sm cursor-pointer"
+                                    >
+                                        {t("cancel")}
+                                    </button>
+                                )}
+                            </div>
+                        </form>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr className="border-b border-gray-200 bg-gray-100/50 text-[10px] text-gray-500 uppercase tracking-widest font-black">
-                                    <th className="p-4">{t("colCompany")}</th>
-                                    <th className="p-4">{t("colDirector")}</th>
-                                    <th className="p-4">{t("colContacts")}</th>
-                                    <th className="p-4 text-right">{t("colActions")}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {directors.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={4}
-                                            className="py-12 text-center text-gray-400 font-bold uppercase tracking-wider"
-                                        >
-                                            {t("noDirectors")}
-                                        </td>
+                    <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900">
+                                {t("directorList")} ({directors.length})
+                            </h2>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] text-slate-500 uppercase tracking-wider font-bold">
+                                        <th className="p-4 pl-6">{t("colCompany")}</th>
+                                        <th className="p-4">{t("colDirector")}</th>
+                                        <th className="p-4">{t("colContacts")}</th>
+                                        <th className="p-4 pr-6 text-right">{t("colActions")}</th>
                                     </tr>
-                                ) : (
-                                    directors.map((u) => (
-                                        <tr
-                                            key={u.id}
-                                            className="hover:bg-gray-50/80 transition-colors"
-                                        >
-                                            <td className="p-4">
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="text-sm font-black text-black">
-                                                        {u.companyName || u.employee?.companyName || "Standart Korxona"}
-                                                    </span>
-                                                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 w-fit">
-                                                        {t("activeStatus")}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-black text-xs uppercase shrink-0">
-                                                        {(u.employee?.firstName?.[0] || u.firstName?.[0] || "D")}
-                                                        {(u.employee?.lastName?.[0] || u.lastName?.[0] || "")}
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-black text-xs">
-                                                            {u.employee?.firstName || u.firstName || ""}{" "}
-                                                            {u.employee?.lastName || u.lastName || ""}
-                                                        </span>
-                                                        <span className="text-[10px] text-purple-700 font-bold uppercase">
-                                                            {t("directorBadge")}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex flex-col gap-0.5 font-mono text-[11px]">
-                                                    <span className="text-gray-900 font-medium">
-                                                        {u.email}
-                                                    </span>
-                                                    {u.phone && (
-                                                        <span className="text-gray-500 text-[10px]">
-                                                            {u.phone}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleEditDirector(u)}
-                                                        className="px-2.5 py-1.5 bg-white border border-gray-200 text-gray-700 hover:text-black hover:border-black text-[10px] font-bold uppercase tracking-wider rounded-sm transition-colors"
-                                                    >
-                                                        {t("edit")}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteDirector(u.id)}
-                                                        className="px-2.5 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-colors"
-                                                    >
-                                                        {t("delete")}
-                                                    </button>
-                                                </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {directors.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={4}
+                                                className="py-12 text-center text-slate-400 font-bold uppercase tracking-wider"
+                                            >
+                                                {t("noDirectors")}
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                                    ) : (
+                                        directors.map((u) => (
+                                            <tr
+                                                key={u.id}
+                                                className="hover:bg-slate-50/80 transition-colors duration-150"
+                                            >
+                                                <td className="p-4 pl-6">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <span className="text-sm font-black text-slate-950">
+                                                            {u.companyName || u.employee?.companyName || "Standart Korxona"}
+                                                        </span>
+                                                        <span className="rounded-full px-3 py-0.5 text-xs font-medium bg-green-100 text-green-700 w-fit">
+                                                            {t("activeStatus")}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-xs">
+                                                            {(u.employee?.firstName?.[0] || u.firstName?.[0] || "D")}
+                                                            {(u.employee?.lastName?.[0] || u.lastName?.[0] || "")}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-slate-900 text-xs">
+                                                                {u.employee?.firstName || u.firstName || ""}{" "}
+                                                                {u.employee?.lastName || u.lastName || ""}
+                                                            </span>
+                                                            <span className="text-[10px] text-[#9327FF] font-bold uppercase tracking-wider">
+                                                                {t("directorBadge")}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex flex-col gap-0.5 font-mono text-[11px]">
+                                                        <span className="text-slate-900 font-medium">
+                                                            {u.email}
+                                                        </span>
+                                                        {u.phone && (
+                                                            <span className="text-slate-500 text-[10px]">
+                                                                {u.phone}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 pr-6 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleEditDirector(u)}
+                                                            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                                                        >
+                                                            {t("edit")}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteDirector(u)}
+                                                            className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-xs font-medium transition-colors cursor-pointer"
+                                                        >
+                                                            {t("delete")}
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {deleteModalUser && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-lg shrink-0">
+                                ⚠️
+                            </div>
+                            <div>
+                                <h3 className="text-base font-bold text-slate-900">{t("deleteModalTitle")}</h3>
+                                <p className="text-xs text-slate-500">
+                                    {deleteModalUser.companyName || deleteModalUser.employee?.companyName || deleteModalUser.email}
+                                </p>
+                            </div>
+                        </div>
+
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            {t("deleteModalText")}
+                        </p>
+
+                        <div className="flex items-center justify-end gap-3 pt-2">
+                            <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={() => setDeleteModalUser(null)}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl px-5 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                {t("cancelBtn")}
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={confirmDeleteDirector}
+                                className="bg-red-500 hover:bg-red-600 text-white rounded-xl px-5 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                            >
+                                {isDeleting ? t("deletingBtn") : t("deleteConfirmBtn")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div className="fixed top-6 right-6 z-50 transition-all duration-300 transform translate-y-0">
+                    <div
+                        className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium ${
+                            toast.type === "success"
+                                ? "bg-white border-emerald-200 text-emerald-800"
+                                : "bg-white border-rose-200 text-rose-800"
+                        }`}
+                    >
+                        <span className={`w-2 h-2 rounded-full ${toast.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`} />
+                        <span>{toast.message}</span>
+                    </div>
+                </div>
+            )}
+
+            <EmailVerificationModal
+                isOpen={isVerificationModalOpen}
+                email={form.email}
+                onClose={() => setIsVerificationModalOpen(false)}
+                onVerified={handleVerifiedCreateDirector}
+                checkExisting={true}
+            />
         </div>
     );
 }

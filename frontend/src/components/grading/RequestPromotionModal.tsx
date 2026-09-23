@@ -108,17 +108,17 @@ export default function RequestPromotionModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-            <div className="bg-white border border-black max-w-xl w-full p-6 sm:p-8 shadow-2xl relative">
-                <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl border border-gray-100 max-w-xl w-full p-6 sm:p-8 shadow-xl relative font-sans">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
                     <div>
-                        <h2 className="text-xl font-bold uppercase tracking-tight text-black">
+                        <h2 className="text-xl font-bold tracking-tight text-gray-900">
                             {t("promotionModalTitle")}
                         </h2>
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-black transition-colors p-1"
+                        className="text-gray-400 hover:text-gray-700 transition-colors p-2 rounded-xl hover:bg-gray-100 cursor-pointer"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -127,20 +127,20 @@ export default function RequestPromotionModal({
                 </div>
 
                 {error && (
-                    <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-xs font-semibold">
+                    <div className="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-xs font-semibold rounded-xl">
                         {error}
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             {t("employee")} *
                         </label>
                         <select
                             value={employeeId}
                             onChange={(e) => setEmployeeId(e.target.value)}
-                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                             required
                         >
                             <option value="">{t("selectEmployee")}</option>
@@ -153,16 +153,16 @@ export default function RequestPromotionModal({
                     </div>
 
                     {selectedEmployee && (
-                        <div className="bg-gray-50 border border-gray-200 p-3.5 text-xs flex justify-between items-center">
+                        <div className="bg-gray-50/80 rounded-xl border border-gray-100 p-3.5 text-xs flex justify-between items-center">
                             <div>
                                 <span className="text-gray-500 block">{t("currentGrade")}:</span>
-                                <span className="font-bold text-black">
+                                <span className="font-bold text-gray-900">
                                     {selectedEmployee.grade ? `${selectedEmployee.grade.title} (L${selectedEmployee.grade.level})` : t("unassigned")}
                                 </span>
                             </div>
                             <div className="text-right">
                                 <span className="text-gray-500 block">{t("currentSalary")}:</span>
-                                <span className="font-bold text-black">
+                                <span className="font-bold text-gray-900">
                                     {selectedEmployee.salary ? `${selectedEmployee.salary.toLocaleString()} UZS` : "-"}
                                 </span>
                             </div>
@@ -170,13 +170,13 @@ export default function RequestPromotionModal({
                     )}
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             {t("targetGrade")} *
                         </label>
                         <select
                             value={targetGradeId}
                             onChange={(e) => handleGradeChange(e.target.value)}
-                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                             required
                         >
                             <option value="">{t("selectGrade")}</option>
@@ -189,7 +189,7 @@ export default function RequestPromotionModal({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             {t("proposedSalary")} (UZS) *
                         </label>
                         <input
@@ -198,7 +198,7 @@ export default function RequestPromotionModal({
                             onChange={(e) => setProposedSalary(Number(e.target.value))}
                             step={100000}
                             min={0}
-                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                             required
                         />
                         {selectedTargetGrade && (
@@ -209,7 +209,7 @@ export default function RequestPromotionModal({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             {t("justification")} *
                         </label>
                         <textarea
@@ -217,24 +217,24 @@ export default function RequestPromotionModal({
                             onChange={(e) => setReason(e.target.value)}
                             rows={3}
                             placeholder={t("justificationPlaceholder")}
-                            className="w-full border border-gray-300 px-3.5 py-2.5 text-sm focus:border-black focus:outline-none bg-[#fcfcfc]"
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-[#9327FF] outline-none bg-white font-medium"
                             required
                         />
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={isSubmitting}
-                            className="px-5 py-2.5 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
+                            className="px-5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                         >
                             {t("cancel")}
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                            className="px-6 py-2.5 bg-[#9327FF] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:opacity-90 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                         >
                             {isSubmitting ? t("saving") : t("submitRequest")}
                         </button>
