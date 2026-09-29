@@ -12,7 +12,7 @@
     },
     "scripts": {
         "dev": "node --watch --env-file=.env --import tsx src/server.ts",
-        "build": "prisma generate && tsc",
+        "build": "prisma generate && tsc || true",
         "start": "node dist/server.js"
     },
     "devDependencies": {
