@@ -13,7 +13,8 @@
     "scripts": {
         "dev": "node --watch --env-file=.env --import tsx src/server.ts",
         "build": "prisma generate && tsc || true",
-        "start": "node dist/server.js"
+        "start": "node dist/server.js",
+        "postinstall": "prisma generate"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",
