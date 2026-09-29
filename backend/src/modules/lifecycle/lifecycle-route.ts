@@ -21,6 +21,12 @@ lifecycleRouter.get(
     lifecycleController.getTemplates,
 );
 
+lifecycleRouter.get(
+    "/stage-stats",
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    lifecycleController.getStageStats,
+);
+
 lifecycleRouter.post(
     "/templates",
     authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),

@@ -74,20 +74,20 @@ export default function HROffboardingPage() {
 
     return (
         <div className="max-w-[1400px] mx-auto p-6 md:p-8 flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                         <Link
                             href={`/${locale}/hr/dashboard`}
-                            className="text-xs font-bold text-gray-500 hover:text-black uppercase tracking-wider"
+                            className="text-xs font-semibold text-slate-400 hover:text-slate-900 uppercase tracking-wider transition-colors"
                         >
                             {t("dashboardLink")}
                         </Link>
                     </div>
-                    <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-black flex items-center gap-2">
+                    <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-tight text-slate-900 flex items-center gap-2">
                         <span>🏁</span> {t("title")}
                     </h1>
-                    <p className="text-xs font-medium text-gray-500">
+                    <p className="text-xs font-medium text-slate-500">
                         {t("subtitle")}
                     </p>
                 </div>
@@ -95,43 +95,42 @@ export default function HROffboardingPage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handleOpenCreate}
-                        className="px-5 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center gap-2 shadow-xs"
+                        className="px-5 py-2.5 bg-[#9327FF] text-white text-xs font-semibold uppercase tracking-wider hover:opacity-90 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer"
                     >
-                        <span>+</span>
                         <span>{t("startNewBtn")}</span>
                     </button>
                 </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 bg-white border border-gray-200 flex flex-col gap-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                         {t("totalProcesses")}
                     </span>
-                    <span className="text-2xl font-black text-black">{totalCount}</span>
+                    <span className="text-2xl md:text-3xl font-bold text-slate-900">{totalCount}</span>
                 </div>
-                <div className="p-4 bg-amber-50/50 border border-amber-200 flex flex-col gap-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                         {t("inProgressActive")}
                     </span>
-                    <span className="text-2xl font-black text-amber-900">{inProgressCount}</span>
+                    <span className="text-2xl md:text-3xl font-bold text-amber-600">{inProgressCount}</span>
                 </div>
-                <div className="p-4 bg-emerald-50/50 border border-emerald-200 flex flex-col gap-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                         {t("completed")}
                     </span>
-                    <span className="text-2xl font-black text-emerald-900">{completedCount}</span>
+                    <span className="text-2xl md:text-3xl font-bold text-emerald-600">{completedCount}</span>
                 </div>
-                <div className="p-4 bg-purple-50/50 border border-purple-200 flex flex-col gap-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                         {t("assetsPending")}
                     </span>
-                    <span className="text-2xl font-black text-purple-900">{assetsPendingCount}</span>
+                    <span className="text-2xl md:text-3xl font-bold text-purple-600">{assetsPendingCount}</span>
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 border border-gray-200">
-                <div className="flex items-center gap-1 overflow-x-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-1.5 overflow-x-auto">
                     {[
                         { id: "ALL", label: t("tabs.all") },
                         { id: "IN_PROGRESS", label: t("tabs.inProgress") },
@@ -141,10 +140,10 @@ export default function HROffboardingPage() {
                         <button
                             key={tab.id}
                             onClick={() => setStatusFilter(tab.id)}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                            className={`px-4 py-2 text-xs font-medium rounded-xl transition-all cursor-pointer ${
                                 statusFilter === tab.id
-                                    ? "bg-black text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                    ? "bg-violet-100 text-violet-700 font-medium"
+                                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                             }`}
                         >
                             {tab.label}
@@ -158,28 +157,28 @@ export default function HROffboardingPage() {
                         placeholder={t("searchPlaceholder")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full p-2 bg-gray-50 border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
+                        className="w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 px-4 py-2.5 outline-none transition-all text-xs bg-slate-50/50"
                     />
                 </div>
             </div>
 
             {loading ? (
-                <div className="p-12 text-center border border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-400 animate-pulse">
+                <div className="p-12 text-center bg-white rounded-2xl border border-gray-100 shadow-sm text-xs font-bold uppercase tracking-wider text-gray-400 animate-pulse">
                     {t("loading")}
                 </div>
             ) : error ? (
-                <div className="p-6 bg-red-50 border border-red-200 text-red-700 text-xs font-bold text-center">
+                <div className="p-6 bg-red-50 rounded-2xl border border-red-200 text-red-700 text-xs font-bold text-center">
                     {error}
                 </div>
             ) : filteredList.length === 0 ? (
-                <div className="p-12 text-center border border-dashed border-gray-300 flex flex-col items-center justify-center gap-3">
-                    <span className="text-3xl">🏁</span>
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 flex flex-col items-center justify-center gap-4 text-center">
+                    <span className="text-4xl">🏁</span>
                     <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
                         {t("emptyState")}
                     </p>
                     <button
                         onClick={handleOpenCreate}
-                        className="px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
+                        className="bg-[#9327FF] text-white rounded-xl shadow-sm hover:opacity-90 px-5 py-2.5 transition-all text-xs font-semibold uppercase tracking-wider cursor-pointer"
                     >
                         {t("startFirst")}
                     </button>
@@ -194,16 +193,16 @@ export default function HROffboardingPage() {
                         return (
                             <div
                                 key={item.id}
-                                className="bg-white border-2 border-black p-5 flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
+                                className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
                             >
                                 <div className="flex flex-col gap-3">
                                     <div className="flex items-center justify-between gap-2">
                                         <span
-                                            className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${
+                                            className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg border ${
                                                 item.status === "COMPLETED"
                                                     ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                                                     : item.status === "CANCELLED"
-                                                    ? "bg-gray-100 text-gray-600 border-gray-300"
+                                                    ? "bg-gray-100 text-gray-600 border-gray-200"
                                                     : "bg-amber-50 text-amber-800 border-amber-200"
                                             }`}
                                         >
@@ -214,7 +213,7 @@ export default function HROffboardingPage() {
                                                 : t("status.inProgress")}
                                         </span>
 
-                                        <span className="text-[10px] font-mono font-bold text-gray-500">
+                                        <span className="text-[10px] font-mono font-bold text-gray-400">
                                             {item.lastWorkingDay
                                                 ? new Date(item.lastWorkingDay).toISOString().split("T")[0]
                                                 : ""}
@@ -222,51 +221,51 @@ export default function HROffboardingPage() {
                                     </div>
 
                                     <div>
-                                        <h3 className="text-base font-black text-black">
+                                        <h3 className="text-base font-bold text-slate-900">
                                             {item.employee?.firstName} {item.employee?.lastName}
                                         </h3>
-                                        <p className="text-xs font-medium text-gray-600">
+                                        <p className="text-xs font-medium text-slate-500">
                                             {item.employee?.department?.name || t("unassignedDept")} • {item.employee?.position?.title || t("unassignedPos")}
                                         </p>
                                     </div>
 
-                                    <div className="p-2.5 bg-gray-50 border border-gray-200 text-xs flex flex-col gap-1">
+                                    <div className="p-3 bg-slate-50/70 border border-gray-100 rounded-xl text-xs flex flex-col gap-1.5">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase">{t("reasonLabel")}</span>
-                                            <span className="font-bold text-gray-800">{item.reason}</span>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">{t("reasonLabel")}</span>
+                                            <span className="font-semibold text-slate-800">{item.reason}</span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase">{t("assetsLabel")}</span>
-                                            <span className={`font-bold ${item.status === "CANCELLED" ? "text-gray-500" : item.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">{t("assetsLabel")}</span>
+                                            <span className={`font-semibold ${item.status === "CANCELLED" ? "text-gray-500" : item.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
                                                 {item.status === "CANCELLED" ? (t("status.cancelled") || "Bekor qilingan") : item.isAssetsReturned ? t("assetsReturned") : t("assetsPendingLabel")}
                                             </span>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex items-center justify-between text-[10px] font-bold text-gray-600">
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500">
                                             <span>{t("checklistProgress", { completed: completedTasks, total: totalTasks })}</span>
                                             <span>{pct}%</span>
                                         </div>
-                                        <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-black transition-all duration-300"
+                                                className="h-full bg-[#9327FF] transition-all duration-300"
                                                 style={{ width: `${pct}%` }}
                                             />
                                         </div>
                                     </div>
 
                                     {item.exitInterviewNotes && (
-                                        <div className="p-2 bg-purple-50 border border-purple-200 text-[11px] font-medium text-purple-900 truncate">
+                                        <div className="p-2.5 bg-purple-50 border border-purple-100 rounded-xl text-[11px] font-medium text-purple-900 truncate">
                                             {t("exitInterviewFilled")}
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
+                                <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                                     <button
                                         onClick={() => handleOpenEdit(item)}
-                                        className="flex-1 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center"
+                                        className="flex-1 py-2.5 bg-white border border-gray-200 text-slate-700 hover:bg-gray-50 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all text-center cursor-pointer"
                                     >
                                         {t("manageBtn")}
                                     </button>

@@ -3,6 +3,42 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 
+function CircularProgress({ value, size = 52, strokeWidth = 4 }: { value: number; size?: number; strokeWidth?: number }) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (value / 100) * circumference;
+    const color = value === 100 ? "#10b981" : value > 0 ? "#9327FF" : "#9ca3af";
+
+    return (
+        <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+            <svg className="w-full h-full transform -rotate-90" viewBox={`0 0 ${size} ${size}`}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    className="text-gray-100"
+                    fill="transparent"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    className="transition-all duration-700 ease-out"
+                    fill="transparent"
+                />
+            </svg>
+            <span className="absolute text-[11px] font-bold text-gray-900">{value}%</span>
+        </div>
+    );
+}
+
 export default function HRMonitoring() {
     const [monitoringData, setMonitoringData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -55,7 +91,7 @@ export default function HRMonitoring() {
 
     if (loading) {
         return (
-            <div className="p-8 text-sm font-bold uppercase tracking-widest text-gray-500">
+            <div className="p-8 text-xs font-bold uppercase tracking-wider text-gray-400">
                 {t("loading")}
             </div>
         );
@@ -63,16 +99,24 @@ export default function HRMonitoring() {
 
     return (
         <div className="flex flex-col gap-6 w-full">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-                <h2 className="text-xl font-black uppercase tracking-wider text-black">
-                    {t("title")}
-                </h2>
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                <div>
+                    <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">
+                        {t("title")}
+                    </h2>
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-0.5">
+                        Xodimlarning onboarding va o'quv jarayonlari monitoringi
+                    </p>
+                </div>
+                <span className="text-xs font-semibold px-3.5 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-xl shadow-xs">
+                    {monitoringData.length} ta xodim
+                </span>
             </div>
 
             <div className="flex flex-col gap-4">
                 {monitoringData.length === 0 ? (
-                    <div className="border border-gray-200 bg-gray-50 p-8 text-center flex flex-col items-center justify-center">
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                    <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-10 text-center flex flex-col items-center justify-center">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                             {t("noCourses")}
                         </span>
                     </div>
@@ -120,60 +164,64 @@ export default function HRMonitoring() {
                         return (
                             <div
                                 key={idx}
-                                className="border border-gray-200 bg-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-black transition-colors"
+                                className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6"
                             >
-                                <div className="flex flex-col gap-1 min-w-[200px]">
-                                    <span className="text-lg font-bold text-black uppercase tracking-wide">
-                                        {employee?.firstName}{" "}
-                                        {employee?.lastName}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                                        {employee?.department?.name ||
-                                            t("noDepartment")}
-                                    </span>
+                                <div className="flex items-center gap-4 min-w-[220px]">
+                                    <div className="w-11 h-11 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                                        {employee?.firstName?.[0] || "U"}
+                                    </div>
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                                            {employee?.firstName}{" "}
+                                            {employee?.lastName}
+                                        </span>
+                                        <span className="text-xs font-medium text-gray-500">
+                                            {employee?.department?.name ||
+                                                t("noDepartment")}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div className="flex-1 flex flex-col gap-2 max-w-xl w-full">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-black uppercase tracking-widest">
+                                        <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                             {t("totalProgress")}
                                         </span>
-                                        <span className="text-xs font-bold text-gray-500">
+                                        <span className="text-xs font-bold text-gray-900">
                                             {progress}%
                                         </span>
                                     </div>
-                                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                    <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
                                         <div
-                                            className={`h-full transition-all duration-500 ${progress === 100 ? "bg-green-500" : "bg-black"}`}
+                                            className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? "bg-emerald-500" : "bg-[#9327FF]"}`}
                                             style={{ width: `${progress}%` }}
                                         />
                                     </div>
-                                    <div className="flex items-center gap-6 mt-1">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                                            {t("tasks")} {completedTasks}/
-                                            {totalTasks}
+                                    <div className="flex items-center gap-5 mt-1">
+                                        <span className="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                            {t("tasks")}: {completedTasks}/{totalTasks}
                                         </span>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                                            {t("courses")}{" "}
-                                            {completedCoursesCount}/
-                                            {totalCourses}
+                                        <span className="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-purple-500" />
+                                            {t("courses")}: {completedCoursesCount}/{totalCourses}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 shrink-0">
+                                <div className="flex items-center gap-4 shrink-0 justify-between md:justify-end">
+                                    <CircularProgress value={progress} size={48} strokeWidth={4} />
+
                                     {progress === 100 ? (
-                                        <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded bg-green-100 text-green-700">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
                                             {t("completed")}
                                         </span>
                                     ) : progress > 0 ? (
-                                        <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded bg-orange-100 text-orange-700">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
                                             {t("inProgress")}
                                         </span>
                                     ) : (
-                                        <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded bg-gray-100 text-gray-600">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-xl bg-gray-100 text-gray-600">
                                             {t("notStarted")}
                                         </span>
                                     )}

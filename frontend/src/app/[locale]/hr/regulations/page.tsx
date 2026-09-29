@@ -15,6 +15,51 @@ import RegulationFormModal from "@/src/components/hr/regulations/regulation-form
 import RegulationSignaturesModal from "@/src/components/hr/regulations/regulation-signatures-modal";
 import RegulationViewerModal from "@/src/components/regulations/regulation-viewer-modal";
 
+function CircularProgress({
+    value,
+    size = 48,
+    strokeWidth = 4,
+    color = "#9327FF",
+}: {
+    value: number;
+    size?: number;
+    strokeWidth?: number;
+    color?: string;
+}) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (Math.min(Math.max(value, 0), 100) / 100) * circumference;
+
+    return (
+        <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+            <svg className="w-full h-full transform -rotate-90" viewBox={`0 0 ${size} ${size}`}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    className="text-gray-100"
+                    fill="transparent"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    className="transition-all duration-700 ease-out"
+                    fill="transparent"
+                />
+            </svg>
+            <span className="absolute text-[11px] font-bold" style={{ color }}>{value}%</span>
+        </div>
+    );
+}
+
 export default function HRRegulationsPage() {
     const t = useTranslations("HRRegulations");
     const router = useRouter();
@@ -80,16 +125,16 @@ export default function HRRegulationsPage() {
             <div className="flex flex-col gap-2">
                 <button
                     onClick={() => router.back()}
-                    className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-2"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors w-fit mb-2"
                 >
                     &larr; {t("goBack")}
                 </button>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-black uppercase tracking-tight text-black">
+                        <h1 className="text-2xl font-bold text-gray-900">
                             {t("title")}
                         </h1>
-                        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">
+                        <p className="text-xs text-gray-500 font-medium mt-1">
                             {t("subtitle")}
                         </p>
                     </div>
@@ -98,36 +143,49 @@ export default function HRRegulationsPage() {
                             setEditingPolicy(null);
                             setIsFormOpen(true);
                         }}
-                        className="px-6 py-3 bg-black text-white text-xs font-black uppercase tracking-wider rounded-sm hover:bg-gray-800 transition-colors shadow-sm self-start sm:self-auto flex items-center gap-2"
+                        className="bg-[#9327FF] text-white rounded-xl shadow-sm hover:opacity-90 px-5 py-2.5 font-medium transition-all self-start sm:self-auto flex items-center gap-2"
                     >
-                        <span>+</span>
+                        <span className="text-lg leading-none">+</span>
                         <span>{t("addRegulation")}</span>
                     </button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="bg-white border border-gray-200 p-6 rounded-sm shadow-sm flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        {t("totalRegulations")}
-                    </span>
-                    <span className="text-3xl font-black text-black">{totalCount}</span>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex justify-between items-center">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            {t("totalRegulations")}
+                        </span>
+                        <span className="text-3xl font-bold text-gray-900">{totalCount}</span>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center text-xl shrink-0">
+                        📄
+                    </div>
                 </div>
-                <div className="bg-white border border-gray-200 p-6 rounded-sm shadow-sm flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        {t("requiredCount")}
-                    </span>
-                    <span className="text-3xl font-black text-red-600">
-                        {requiredCount}
-                    </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex justify-between items-center">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            {t("requiredCount")}
+                        </span>
+                        <span className="text-3xl font-bold text-red-600">
+                            {requiredCount}
+                        </span>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl shrink-0">
+                        ⚠️
+                    </div>
                 </div>
-                <div className="bg-white border border-gray-200 p-6 rounded-sm shadow-sm flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        {t("avgSigned")}
-                    </span>
-                    <span className="text-3xl font-black text-green-600">
-                        {avgPercentage}%
-                    </span>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex justify-between items-center">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            {t("avgSigned")}
+                        </span>
+                        <span className="text-xs text-gray-400 font-medium">
+                            Umumiy ko'rsatkich
+                        </span>
+                    </div>
+                    <CircularProgress value={avgPercentage} color="#9327FF" size={54} strokeWidth={5} />
                 </div>
             </div>
 
@@ -139,21 +197,27 @@ export default function HRRegulationsPage() {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder={t("searchPlaceholder")}
-                            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 text-xs font-medium focus:outline-none focus:border-black rounded-sm"
+                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 pl-10 w-full max-w-md text-sm bg-white"
                         />
-                        <span className="absolute left-3 top-2.5 text-gray-400 text-sm">
+                        <span className="absolute left-3.5 top-3 text-gray-400 text-sm pointer-events-none">
                             🔍
                         </span>
                     </div>
                 </div>
 
                 {loading ? (
-                    <div className="p-12 text-center text-xs font-bold uppercase tracking-widest text-gray-400">
+                    <div className="p-12 text-center text-xs font-semibold uppercase tracking-wider text-gray-400">
                         Yuklanmoqda...
                     </div>
                 ) : policies.length === 0 ? (
-                    <div className="p-16 text-center bg-white border border-gray-200 rounded-sm text-xs font-bold uppercase tracking-widest text-gray-400">
-                        {t("noRegulations")}
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 flex flex-col items-center justify-center text-gray-500 text-center gap-2">
+                        <span className="text-4xl mb-2">📋</span>
+                        <p className="text-sm font-semibold text-gray-700">
+                            {t("noRegulations")}
+                        </p>
+                        <p className="text-xs text-gray-400 max-w-sm">
+                            Yangi nizom qo'shish uchun yuqoridagi tugmadan foydalaning.
+                        </p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

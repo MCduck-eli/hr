@@ -48,6 +48,7 @@ mainRouter.use("/v1/feedback-360", feedback360Router);
 mainRouter.use("/v1/enps", enpsRouter);
 mainRouter.use("/v1/grading", gradingRouter);
 mainRouter.use("/v1/notifications", notificationRouter);
+mainRouter.use("/v1/dashboard", dashboardRouter);
 mainRouter.use("/v1/employee", dashboardRouter);
 mainRouter.use("/v1/employee-statuses", employeeStatusRouter);
 mainRouter.use("/v1/roles", roleRouter);

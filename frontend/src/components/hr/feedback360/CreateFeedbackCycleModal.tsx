@@ -6,10 +6,12 @@ export default function CreateFeedbackCycleModal({
     onClose,
     onSuccess,
     initialData,
+    showToast,
 }: {
     onClose: () => void;
-    onSuccess: () => void;
+    onSuccess: (isEdit?: boolean) => void;
     initialData?: any;
+    showToast?: (message: string, type?: "success" | "error") => void;
 }) {
     const t = useTranslations("Feedback360");
     const [title, setTitle] = useState(initialData?.title || "");
@@ -50,7 +52,9 @@ export default function CreateFeedbackCycleModal({
         const validQuestions = questions.filter(q => q.competency.trim() && q.text.trim());
         
         if (validQuestions.length === 0) {
-            alert(t("errorNoQuestions") || "Iltimos, kamida bitta savol qo'shing.");
+            if (showToast) {
+                showToast(t("errorNoQuestions") || "Iltimos, kamida bitta savol qo'shing.", "error");
+            }
             return;
         }
         
@@ -70,15 +74,16 @@ export default function CreateFeedbackCycleModal({
 
             if (initialData?.id) {
                 await updateCycle(initialData.id, payload);
-                alert("Sikl muvaffaqiyatli yangilandi!");
+                onSuccess(true);
             } else {
                 await createCycle(payload);
-                alert(t("successCreateCycle") || "Cycle created successfully!");
+                onSuccess(false);
             }
-            onSuccess();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert(t("errorDefault") || "An error occurred.");
+            if (showToast) {
+                showToast(error.message || t("errorDefault") || "Xatolik yuz berdi", "error");
+            }
         } finally {
             setLoading(false);
         }

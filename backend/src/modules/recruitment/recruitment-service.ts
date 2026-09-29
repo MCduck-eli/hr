@@ -49,10 +49,18 @@ export class RecruitmentService {
             throw new AppError("Vakansiya topilmadi", 404);
         }
 
+        const isAdminOrHR =
+            !currentUser ||
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "RECRUITER" ||
+            currentUser.role === "DEPARTMENT_HEAD";
+
         if (
+            !isAdminOrHR &&
             currentUser?.companyName &&
             vacancy.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
             vacancy.companyName !== currentUser.companyName
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
@@ -73,10 +81,18 @@ export class RecruitmentService {
             throw new AppError("Vakansiya topilmadi", 404);
         }
 
+        const isAdminOrHR =
+            !currentUser ||
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "RECRUITER" ||
+            currentUser.role === "DEPARTMENT_HEAD";
+
         if (
+            !isAdminOrHR &&
             currentUser?.companyName &&
             vacancy.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
             vacancy.companyName !== currentUser.companyName
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
@@ -88,27 +104,10 @@ export class RecruitmentService {
     }
 
     async getAllVacancies(currentUser?: any) {
-        let companyFilter: string | null = null;
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller && caller.role !== "SUPER_ADMIN") {
-                companyFilter = caller.companyName || null;
-            }
-        }
-
         return prisma.jobVacancy.findMany({
-            where: {
-                ...(companyFilter ? { companyName: companyFilter } : {}),
-            },
             include: {
                 department: { select: { id: true, name: true } },
                 candidates: {
-                    where: {
-                        ...(companyFilter ? { companyName: companyFilter } : {}),
-                    },
                     include: {
                         vacancyMatches: true,
                     },
@@ -234,10 +233,17 @@ export class RecruitmentService {
             throw new AppError("Nomzod topilmadi", 404);
         }
 
+        const isAdminOrHR =
+            !currentUser ||
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "RECRUITER";
+
         if (
+            !isAdminOrHR &&
             currentUser?.companyName &&
             candidate.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
             candidate.companyName !== currentUser.companyName
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
@@ -266,10 +272,17 @@ export class RecruitmentService {
             throw new AppError("Nomzod topilmadi", 404);
         }
 
+        const isAdminOrHR =
+            !currentUser ||
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "RECRUITER";
+
         if (
+            !isAdminOrHR &&
             currentUser?.companyName &&
             candidate.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
             candidate.companyName !== currentUser.companyName
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
@@ -396,10 +409,18 @@ export class RecruitmentService {
             throw new AppError("Nomzod topilmadi", 404);
         }
 
+        const isAdminOrHR =
+            !currentUser ||
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "RECRUITER" ||
+            currentUser.role === "DEPARTMENT_HEAD";
+
         if (
+            !isAdminOrHR &&
             currentUser?.companyName &&
             candidate.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
             candidate.companyName !== currentUser.companyName
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
@@ -429,10 +450,16 @@ export class RecruitmentService {
             throw new AppError("Nomzod topilmadi", 404);
         }
 
+        const isAdminOrHR =
+            !currentUser ||
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "DIRECTOR";
+
         if (
+            !isAdminOrHR &&
             currentUser?.companyName &&
             candidate.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
             candidate.companyName !== currentUser.companyName
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
@@ -507,10 +534,17 @@ export class RecruitmentService {
         });
         if (!candidate) throw new AppError("Nomzod topilmadi", 404);
 
+        const isAdminOrHR =
+            !currentUser ||
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "RECRUITER";
+
         if (
+            !isAdminOrHR &&
             currentUser?.companyName &&
             candidate.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
             candidate.companyName !== currentUser.companyName
         ) {
             throw new AppError("Ruxsat berilmadi", 403);
@@ -643,10 +677,17 @@ export class RecruitmentService {
         });
         if (!candidate) throw new AppError("Nomzod topilmadi", 404);
 
+        const isAdminOrHR =
+            !currentUser ||
+            currentUser.role === "SUPER_ADMIN" ||
+            currentUser.role === "HR_ADMIN" ||
+            currentUser.role === "DIRECTOR" ||
+            currentUser.role === "RECRUITER";
+
         if (
+            !isAdminOrHR &&
             currentUser?.companyName &&
             candidate.companyName &&
-            currentUser.role !== "SUPER_ADMIN" &&
             candidate.companyName !== currentUser.companyName
         ) {
             throw new AppError("Ruxsat berilmadi", 403);

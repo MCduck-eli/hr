@@ -189,62 +189,73 @@ export default function HRAcademyManagementPage() {
         <div className="flex flex-col gap-8 max-w-4xl mx-auto p-8">
             <button
                 onClick={() => router.back()}
-                className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit"
+                className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors w-fit"
             >
                 &larr; {t("goBack") || "Orqaga"}
             </button>
-            <div className="p-8 bg-white border border-gray-200">
-                <h2 className="text-xl font-bold uppercase mb-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                <h2 className="text-xl font-bold text-gray-900 mb-6">
                     {editingId ? t("editCourse") : t("addCourse")}
                 </h2>
-                <div className="flex flex-col gap-4 max-w-md">
-                    <input
-                        placeholder={t("titlePlaceholder")}
-                        value={title}
-                        className="p-2 border"
-                        onChange={(e) => setTitle(e.target.value)}
-                    />
-                    <textarea
-                        placeholder={t("descPlaceholder")}
-                        value={description}
-                        className="p-2 border"
-                        onChange={(e) => setDescription(e.target.value)}
-                    />
+                <div className="flex flex-col gap-5 max-w-xl">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            {t("titlePlaceholder") || "Kurs nomi"}
+                        </label>
+                        <input
+                            placeholder={t("titlePlaceholder")}
+                            value={title}
+                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm"
+                            onChange={(e) => setTitle(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            {t("descPlaceholder") || "Tavsif"}
+                        </label>
+                        <textarea
+                            placeholder={t("descPlaceholder")}
+                            value={description}
+                            rows={3}
+                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm resize-y"
+                            onChange={(e) => setDescription(e.target.value)}
+                        />
+                    </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold uppercase text-gray-600">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             {t("coverLabel")}
                         </label>
                         <input
                             type="file"
                             accept="image/*"
-                            className="p-2 border text-sm"
+                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
                             onChange={(e) =>
                                 setCoverFile(e.target.files?.[0] || null)
                             }
                         />
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold uppercase text-gray-600">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             {t("videoLabel")}
                         </label>
                         <input
                             type="file"
                             accept="video/*"
-                            className="p-2 border text-sm"
+                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
                             onChange={(e) =>
                                 setVideoFile(e.target.files?.[0] || null)
                             }
                         />
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold uppercase text-gray-600">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             Bo'lim (Department)
                         </label>
                         <select
-                            className="p-2 border text-sm bg-white"
+                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm bg-white"
                             value={targetDepartmentId}
                             onChange={(e) => {
                                 setTargetDepartmentId(e.target.value);
@@ -260,12 +271,12 @@ export default function HRAcademyManagementPage() {
                         </select>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold uppercase text-gray-600">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             Xodim (Employee)
                         </label>
                         <select
-                            className="p-2 border text-sm bg-white"
+                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm bg-white"
                             value={targetEmployeeId}
                             onChange={(e) => {
                                 setTargetEmployeeId(e.target.value);
@@ -281,21 +292,21 @@ export default function HRAcademyManagementPage() {
                         </select>
                     </div>
 
-                    <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <label className="flex items-center gap-2.5 text-sm font-medium text-gray-700 cursor-pointer select-none">
                         <input
                             type="checkbox"
                             checked={isRequired}
                             onChange={(e) => setIsRequired(e.target.checked)}
-                            className="w-4 h-4"
+                            className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500 border-gray-300 cursor-pointer"
                         />
                         {t("isRequiredLabel")}
                     </label>
 
-                    <div className="flex gap-4">
+                    <div className="flex items-center gap-4 pt-2">
                         <button
                             onClick={handleSubmit}
                             disabled={loading}
-                            className="bg-black text-white p-2 font-bold uppercase disabled:opacity-50"
+                            className="bg-[#9327FF] text-white rounded-xl shadow-sm hover:opacity-90 px-8 py-3 font-medium transition-all disabled:opacity-50"
                         >
                             {loading
                                 ? t("loading")
@@ -306,7 +317,7 @@ export default function HRAcademyManagementPage() {
                         {editingId && (
                             <button
                                 onClick={handleCancelEdit}
-                                className="border border-gray-300 p-2 font-bold uppercase"
+                                className="bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 px-6 py-3 font-medium transition-all"
                             >
                                 {t("cancelBtn")}
                             </button>
@@ -316,14 +327,14 @@ export default function HRAcademyManagementPage() {
             </div>
 
             <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-bold uppercase">
+                <h2 className="text-xl font-bold text-gray-900">
                     {t("coursesHeading")}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {courses.length === 0 ? (
-                        <p className="text-sm text-gray-500">
+                        <div className="col-span-full p-8 bg-white rounded-2xl border border-gray-100 text-center text-sm text-gray-500 shadow-sm">
                             {t("noCourses")}
-                        </p>
+                        </div>
                     ) : (
                         courses.map((course: any) => {
                             const API_URL =
@@ -331,38 +342,38 @@ export default function HRAcademyManagementPage() {
                             return (
                                 <div
                                     key={course.id}
-                                    className="p-6 bg-white border border-gray-200 flex flex-col justify-between gap-4"
+                                    className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between gap-4"
                                 >
                                     <div className="flex flex-col gap-2">
                                         {course.coverUrl && (
                                             <img
                                                 src={`${API_URL.replace("/api", "")}${course.coverUrl}`}
                                                 alt={course.title}
-                                                className="w-full h-32 object-cover rounded mb-2"
+                                                className="w-full h-36 object-cover rounded-xl mb-2"
                                             />
                                         )}
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="text-base font-bold">
+                                        <div className="flex justify-between items-start gap-2">
+                                            <h3 className="text-base font-bold text-gray-900">
                                                 {course.title}
                                             </h3>
                                             {course.isRequired && (
-                                                <span className="text-[10px] bg-black text-white px-2 py-0.5 uppercase font-bold rounded">
+                                                <span className="text-[11px] bg-violet-100 text-violet-700 px-2.5 py-0.5 font-semibold rounded-full shrink-0">
                                                     {t("requiredBadge")}
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-xs text-gray-500">
+                                        <p className="text-xs text-gray-500 leading-relaxed">
                                             {course.description || t("noDesc")}
                                         </p>
 
                                         <div className="flex flex-wrap gap-1.5 mt-1">
                                             {course.targetDepartment && (
-                                                <span className="text-[10px] bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 font-bold uppercase rounded">
+                                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-0.5 font-medium rounded-lg">
                                                     📁 Bo'lim: {course.targetDepartment.name}
                                                 </span>
                                             )}
                                             {course.targetEmployee && (
-                                                <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 font-bold uppercase rounded">
+                                                <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-0.5 font-medium rounded-lg">
                                                     👤 Xodim: {course.targetEmployee.firstName} {course.targetEmployee.lastName}
                                                 </span>
                                             )}
@@ -371,15 +382,15 @@ export default function HRAcademyManagementPage() {
                                         {course.videoUrl && (
                                             <video
                                                 controls
-                                                className="w-full h-32 rounded mt-2 bg-black"
+                                                className="w-full h-36 rounded-xl mt-2 bg-black object-cover"
                                                 src={`${API_URL.replace("/api", "")}${course.videoUrl}`}
                                             />
                                         )}
                                     </div>
-                                    <div className="flex gap-4 border-t pt-4">
+                                    <div className="flex items-center gap-4 border-t border-gray-100 pt-4">
                                         <button
                                             onClick={() => handleEdit(course)}
-                                            className="text-xs font-bold uppercase text-blue-600 hover:underline"
+                                            className="text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors"
                                         >
                                             {t("editBtn")}
                                         </button>
@@ -387,7 +398,7 @@ export default function HRAcademyManagementPage() {
                                             onClick={() =>
                                                 handleDelete(course.id)
                                             }
-                                            className="text-xs font-bold uppercase text-red-600 hover:underline"
+                                            className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors"
                                         >
                                             {t("deleteBtn")}
                                         </button>

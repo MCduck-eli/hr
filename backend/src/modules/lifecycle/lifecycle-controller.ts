@@ -343,6 +343,19 @@ export class LifecycleController {
             next(error);
         }
     }
+
+    async getStageStats(req: Request, res: Response, next: NextFunction) {
+        try {
+            const departmentId = req.query.departmentId as string | undefined;
+            const result = await lifecycleService.getStageStats(
+                departmentId,
+                (req as any).user,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const lifecycleController = new LifecycleController();

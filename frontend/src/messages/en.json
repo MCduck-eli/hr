@@ -171,7 +171,7 @@
     "offboardingSubtitle": "Exit & Checklist",
     "offboardingTitle": "Offboarding",
     "payrollSubtitle": "Salary & Bonuses",
-    "payrollTitle": "Payroll",
+    "payrollTitle": "Penalties",
     "close": "Close ✕"
   },
   "HREmployees": {
@@ -647,6 +647,7 @@
   "Recruiting": {
     "title": "Recruitment Management",
     "subtitle": "Job vacancies and candidates management board",
+    "vacanciesList": "Available Vacancies",
     "goBack": "Go Back",
     "newVacancy": "+ New Vacancy",
     "createVacancyTitle": "Create New Vacancy",

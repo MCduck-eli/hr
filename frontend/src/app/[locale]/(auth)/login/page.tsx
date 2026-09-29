@@ -107,7 +107,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="w-full h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden flex flex-col lg:flex-row bg-[#fafafc]">
+        <div className="w-full min-h-screen h-screen overflow-hidden flex flex-col lg:flex-row bg-[#fafafc]">
             <div className="hidden lg:block lg:w-1/2 h-full relative overflow-hidden bg-slate-950 shrink-0">
                 <img
                     src="/images/auth-banner.jpg"

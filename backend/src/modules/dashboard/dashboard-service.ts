@@ -767,6 +767,473 @@ export class DashboardService {
             });
         }
     }
+
+    async getHRDashboardActivities(userId: string) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, role: true, companyName: true },
+        });
+
+        if (!user) {
+            throw new AppError("Foydalanuvchi topilmadi", 404);
+        }
+
+        const companyName = user.companyName;
+        const employeeCompanyFilter = companyName
+            ? { user: { companyName } }
+            : {};
+
+        const [
+            attendances,
+            leaveRequests,
+            onboardings,
+            promotionRequests,
+            feedbackAssignments,
+            objectives,
+            lifecycleEvents,
+            notifications,
+        ] = await Promise.all([
+            prisma.attendance.findMany({
+                where: {
+                    employee: employeeCompanyFilter,
+                },
+                include: {
+                    employee: {
+                        include: { department: true },
+                    },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 15,
+            }),
+            prisma.leaveRequest.findMany({
+                where: {
+                    employee: employeeCompanyFilter,
+                },
+                include: {
+                    employee: {
+                        include: { department: true },
+                    },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 10,
+            }),
+            prisma.employeeOnboarding.findMany({
+                where: {
+                    employee: employeeCompanyFilter,
+                },
+                include: {
+                    employee: {
+                        include: { department: true },
+                    },
+                    tasks: true,
+                    courses: true,
+                },
+                orderBy: { updatedAt: "desc" },
+                take: 10,
+            }),
+            prisma.promotionRequest.findMany({
+                where: {
+                    employee: employeeCompanyFilter,
+                },
+                include: {
+                    employee: {
+                        include: { department: true },
+                    },
+                    targetGrade: true,
+                },
+                orderBy: { createdAt: "desc" },
+                take: 10,
+            }),
+            prisma.feedbackAssignment.findMany({
+                where: {
+                    target: employeeCompanyFilter,
+                    isCompleted: true,
+                },
+                include: {
+                    target: {
+                        include: { department: true },
+                    },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 10,
+            }),
+            prisma.objective.findMany({
+                where: {
+                    ...(companyName ? { companyName } : {}),
+                    employeeId: { not: null },
+                },
+                include: {
+                    employee: {
+                        include: { department: true },
+                    },
+                },
+                orderBy: { updatedAt: "desc" },
+                take: 10,
+            }),
+            prisma.employeeLifecycleEvent.findMany({
+                where: {
+                    employee: employeeCompanyFilter,
+                },
+                include: {
+                    employee: {
+                        include: { department: true },
+                    },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 10,
+            }),
+            prisma.notification.findMany({
+                where: {
+                    ...(companyName ? { user: { companyName } } : {}),
+                },
+                include: {
+                    user: {
+                        include: {
+                            employee: {
+                                include: { department: true },
+                            },
+                        },
+                    },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 10,
+            }),
+        ]);
+
+        const GRADIENTS = [
+            "from-purple-500 to-violet-600",
+            "from-amber-500 to-orange-600",
+            "from-emerald-500 to-teal-600",
+            "from-blue-500 to-indigo-600",
+            "from-indigo-500 to-purple-600",
+            "from-cyan-500 to-blue-600",
+            "from-rose-500 to-pink-600",
+        ];
+
+        const getInitials = (name: string) => {
+            const parts = name.trim().split(/\s+/);
+            if (parts.length >= 2) {
+                return (parts[0][0] + parts[1][0]).toUpperCase();
+            }
+            return name.slice(0, 2).toUpperCase() || "HR";
+        };
+
+        const getAvatarBg = (name: string) => {
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const idx = Math.abs(hash) % GRADIENTS.length;
+            return GRADIENTS[idx];
+        };
+
+        const formatTimeAgo = (dateInput: Date | string | null | undefined) => {
+            if (!dateInput) return "Yaqinda";
+            const date = new Date(dateInput);
+            const now = new Date();
+            const diffMs = now.getTime() - date.getTime();
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            if (diffMins < 1) return "Hozirgina";
+            if (diffMins < 60) return `${diffMins} daqiqa oldin`;
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `${diffHours} soat oldin`;
+            const diffDays = Math.floor(diffHours / 24);
+            if (diffDays < 7) return `${diffDays} kun oldin`;
+            return date.toLocaleDateString("uz-UZ");
+        };
+
+        const items: any[] = [];
+
+        for (const att of attendances) {
+            const empName = att.employee ? `${att.employee.firstName} ${att.employee.lastName}`.trim() : "Xodim";
+            const deptName = att.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            const isLate = att.status === "LATE" || (att.lateMinutes && att.lateMinutes > 0);
+
+            items.push({
+                id: `att-${att.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                department: deptName,
+                eventText: isLate
+                    ? `Bugun ${att.lateMinutes ? `${att.lateMinutes} daqiqa` : "kechikib"} keldi`
+                    : att.status === "PRESENT"
+                    ? "Bugungi ish kuniga o'z vaqtida yetib keldi"
+                    : "Davomat qayd etildi",
+                timeAgo: formatTimeAgo(att.createdAt || att.date),
+                category: "delay",
+                badgeText: isLate ? `Kechikish${att.lateMinutes ? ` (+${att.lateMinutes}m)` : ""}` : "O'z vaqtida",
+                badgeClass: isLate
+                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                rawDate: att.createdAt ? new Date(att.createdAt).getTime() : new Date(att.date).getTime(),
+            });
+        }
+
+        for (const lr of leaveRequests) {
+            const empName = lr.employee ? `${lr.employee.firstName} ${lr.employee.lastName}`.trim() : "Xodim";
+            const deptName = lr.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            const leaveName = lr.type === "SICK" ? "Kasallik ta'tili (Sick Leave)" : lr.type === "ANNUAL" ? "Yillik mehnat ta'tili" : "Mehnat ta'tili";
+
+            items.push({
+                id: `leave-${lr.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                department: deptName,
+                eventText: `${leaveName} so'rovini qoldirdi${lr.reason ? `: ${lr.reason}` : ""}`.trim(),
+                timeAgo: formatTimeAgo(lr.createdAt),
+                category: "leave",
+                badgeText: lr.status === "APPROVED" ? "Tasdiqlangan" : lr.status === "REJECTED" ? "Rad etilgan" : "Ta'til so'rovi",
+                badgeClass: lr.status === "APPROVED"
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : lr.status === "REJECTED"
+                    ? "bg-rose-50 text-rose-700 border border-rose-200"
+                    : "bg-blue-50 text-blue-700 border border-blue-200",
+                rawDate: new Date(lr.createdAt).getTime(),
+            });
+        }
+
+        for (const ob of onboardings) {
+            const empName = ob.employee ? `${ob.employee.firstName} ${ob.employee.lastName}`.trim() : "Xodim";
+            const deptName = ob.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            const totalItems = (ob.tasks?.length || 0) + (ob.courses?.length || 0);
+            const completedItems = (ob.tasks?.filter((t) => t.status === "COMPLETED").length || 0) + (ob.courses?.filter((c) => c.isCompleted).length || 0);
+            const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : (ob.status === "COMPLETED" ? 100 : 0);
+
+            items.push({
+                id: `ob-${ob.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                department: deptName,
+                eventText: progress >= 100
+                    ? "Onboarding adaptatsiya dasturini to'liq yakunladi"
+                    : "Onboarding adaptatsiya jarayonini davom ettirmoqda",
+                timeAgo: formatTimeAgo(ob.updatedAt || ob.createdAt),
+                category: "onboarding",
+                badgeText: progress >= 100 ? "Onboarding yakunlandi" : "Adaptatsiya jarayoni",
+                badgeClass: progress >= 100
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-cyan-50 text-cyan-700 border border-cyan-200",
+                progress,
+                progressColor: progress >= 100 ? "#10b981" : "#06b6d4",
+                progressLabel: "Adaptatsiya",
+                rawDate: new Date(ob.updatedAt || ob.createdAt).getTime(),
+            });
+        }
+
+        for (const pr of promotionRequests) {
+            const empName = pr.employee ? `${pr.employee.firstName} ${pr.employee.lastName}`.trim() : "Xodim";
+            const deptName = pr.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            const gradeTitle = pr.targetGrade?.title || "Yangi daraja";
+
+            items.push({
+                id: `pr-${pr.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                department: deptName,
+                eventText: `${gradeTitle} bo'yicha lavozimni oshirish (Level Up) arizasini topshirdi`,
+                timeAgo: formatTimeAgo(pr.createdAt),
+                category: "evaluation",
+                badgeText: "Karyera arizasi",
+                badgeClass: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+                rawDate: new Date(pr.createdAt).getTime(),
+            });
+        }
+
+        for (const fb of feedbackAssignments) {
+            const empName = fb.target ? `${fb.target.firstName} ${fb.target.lastName}`.trim() : "Xodim";
+            const deptName = fb.target?.department?.name || "Bo'lim ko'rsatilmagan";
+
+            items.push({
+                id: `fb-${fb.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                department: deptName,
+                eventText: "360 darajali baholash so'rovnomasini to'liq yakunladi",
+                timeAgo: formatTimeAgo(fb.createdAt),
+                category: "evaluation",
+                badgeText: "360° Baholash",
+                badgeClass: "bg-purple-50 text-[#9327FF] border border-purple-200",
+                progress: 100,
+                progressColor: "#9327FF",
+                progressLabel: "Baholash",
+                rawDate: new Date(fb.createdAt).getTime(),
+            });
+        }
+
+        for (const obj of objectives) {
+            const empName = obj.employee ? `${obj.employee.firstName} ${obj.employee.lastName}`.trim() : "Xodim";
+            const deptName = obj.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+
+            items.push({
+                id: `obj-${obj.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                department: deptName,
+                eventText: `"${obj.title}" OKR maqsadi bo'yicha oraliq ko'rsatkichni yangiladi`,
+                timeAgo: formatTimeAgo(obj.updatedAt || obj.createdAt),
+                category: "evaluation",
+                badgeText: "OKR Natijasi",
+                badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                progress: Math.round(obj.progress || 0),
+                progressColor: (obj.progress || 0) >= 70 ? "#10b981" : "#f59e0b",
+                progressLabel: "Haftalik OKR",
+                rawDate: new Date(obj.updatedAt || obj.createdAt).getTime(),
+            });
+        }
+
+        for (const evt of lifecycleEvents) {
+            const empName = evt.employee ? `${evt.employee.firstName} ${evt.employee.lastName}`.trim() : "Xodim";
+            const deptName = evt.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+
+            items.push({
+                id: `evt-${evt.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                department: deptName,
+                eventText: evt.title ? `${evt.title}${evt.description ? `: ${evt.description}` : ""}`.trim() : (evt.description || "Hodisa qayd etildi"),
+                timeAgo: formatTimeAgo(evt.createdAt || evt.eventDate),
+                category: "all",
+                badgeText: "Lifecycle",
+                badgeClass: "bg-slate-100 text-slate-700 border border-slate-200",
+                rawDate: new Date(evt.createdAt || evt.eventDate).getTime(),
+            });
+        }
+
+        for (const notif of notifications) {
+            const emp = notif.user?.employee;
+            if (!emp) continue;
+            const empName = `${emp.firstName} ${emp.lastName}`.trim();
+            const deptName = emp.department?.name || "Bo'lim ko'rsatilmagan";
+
+            items.push({
+                id: `notif-${notif.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                department: deptName,
+                eventText: `${notif.title}: ${notif.message}`.trim(),
+                timeAgo: formatTimeAgo(notif.createdAt),
+                category: "all",
+                badgeText: "Bildirishnoma",
+                badgeClass: "bg-purple-50 text-[#9327FF] border border-purple-200",
+                rawDate: new Date(notif.createdAt).getTime(),
+            });
+        }
+
+        items.sort((a, b) => b.rawDate - a.rawDate);
+
+        return items.slice(0, 30);
+    }
+
+    async getHRDashboardSummary(userId: string) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, role: true, companyName: true },
+        });
+
+        if (!user) {
+            throw new AppError("Foydalanuvchi topilmadi", 404);
+        }
+
+        const companyName = user.companyName;
+        const employeeCompanyFilter = companyName
+            ? { user: { companyName } }
+            : {};
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const [
+            totalEmployees,
+            totalDepartments,
+            allOnboardings,
+            todayCheckedInCount,
+        ] = await Promise.all([
+            prisma.employee.count({
+                where: {
+                    ...(companyName ? { user: { companyName } } : {}),
+                    user: {
+                        role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
+                    },
+                },
+            }),
+            prisma.department.count({
+                where: {
+                    ...(companyName ? { companyName } : {}),
+                },
+            }),
+            prisma.employeeOnboarding.findMany({
+                where: {
+                    employee: employeeCompanyFilter,
+                },
+                include: {
+                    tasks: true,
+                    courses: true,
+                },
+            }),
+            prisma.attendance.count({
+                where: {
+                    employee: employeeCompanyFilter,
+                    date: { gte: today, lt: tomorrow },
+                    OR: [
+                        { checkIn: { not: null } },
+                        { status: { in: ["PRESENT", "LATE", "HALF_DAY"] } },
+                    ],
+                },
+            }),
+        ]);
+
+        let onboardingPercentage = 0;
+        if (allOnboardings.length > 0) {
+            let totalPercentageSum = 0;
+            for (const ob of allOnboardings) {
+                const totalItems = (ob.tasks?.length || 0) + (ob.courses?.length || 0);
+                const completedItems = (ob.tasks?.filter((t) => t.status === "COMPLETED").length || 0) + (ob.courses?.filter((c) => c.isCompleted).length || 0);
+                const p = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : (ob.status === "COMPLETED" ? 100 : 0);
+                totalPercentageSum += p;
+            }
+            onboardingPercentage = Math.round(totalPercentageSum / allOnboardings.length);
+        }
+
+        const onboardingStatusText = onboardingPercentage >= 80
+            ? "Yuqori"
+            : onboardingPercentage >= 50
+            ? "O'rta"
+            : onboardingPercentage > 0
+            ? "Boshlang'ich"
+            : "Rejalar yo'q";
+
+        const attendancePercentage = totalEmployees > 0
+            ? Math.min(100, Math.round((todayCheckedInCount / totalEmployees) * 100))
+            : 0;
+
+        const attendanceStatusText = attendancePercentage >= 80
+            ? "Faol"
+            : attendancePercentage >= 50
+            ? "O'rtacha"
+            : attendancePercentage > 0
+            ? "Past"
+            : "Qayd etilmadi";
+
+        return {
+            totalEmployees,
+            totalDepartments,
+            onboardingPercentage,
+            onboardingStatusText,
+            attendancePercentage,
+            attendanceStatusText,
+            todayCheckedInCount,
+        };
+    }
 }
 
 export const dashboardService = new DashboardService();

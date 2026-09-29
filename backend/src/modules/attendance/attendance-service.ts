@@ -797,8 +797,10 @@ export class AttendanceService {
             } else if (att?.absenceReason) {
                 displayStatus = "SABABLI";
                 todayReasonGiven++;
+                todayUnmarked++;
             } else if (!isEmpWorkingDay) {
                 displayStatus = "DAM_OLISH";
+                todayUnmarked++;
             } else {
                 displayStatus = "BELGILANMADI";
                 todayUnmarked++;

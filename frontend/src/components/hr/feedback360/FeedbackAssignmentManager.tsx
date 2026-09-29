@@ -44,6 +44,17 @@ export default function FeedbackAssignmentManager() {
 
     const [reportModalData, setReportModalData] = useState<any>(null);
     const [reportLoading, setReportLoading] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteAssignmentId, setDeleteAssignmentId] = useState<string | null>(null);
+
+    const showToast = (message: string, type: "success" | "error" = "success") => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast(null);
+        }, 3500);
+    };
 
     const loadInitialData = async () => {
         try {
@@ -191,13 +202,13 @@ export default function FeedbackAssignmentManager() {
         if (!newReviewerId) return;
 
         if (newReviewerId === selectedTargetId && newReviewerType !== "SELF") {
-            alert(t("cannotAssignSelfAsPeer"));
+            showToast(t("cannotAssignSelfAsPeer") || "O'zingizni baholovchi qilib qo'sha olmaysiz", "error");
             return;
         }
 
         const exists = assignments.some((a) => a.reviewerId === newReviewerId);
         if (exists) {
-            alert(t("reviewerAlreadyAssigned"));
+            showToast(t("reviewerAlreadyAssigned") || "Bu baholovchi allaqachon biriktirilgan", "error");
             return;
         }
 
@@ -235,12 +246,12 @@ export default function FeedbackAssignmentManager() {
                     type: a.type,
                 })),
             );
-            alert(t("successSave"));
+            showToast(t("successSave") || "Muvaffaqiyatli saqlandi!");
             loadAssignments();
             loadGlobalAssignments();
         } catch (err) {
             console.error(err);
-            alert(t("errorDefault"));
+            showToast(t("errorDefault") || "Xatolik yuz berdi", "error");
         } finally {
             setSaving(false);
         }
@@ -248,15 +259,31 @@ export default function FeedbackAssignmentManager() {
 
     const handleDeleteCycle = async () => {
         if (!selectedCycleId) return;
-        if (!window.confirm("Haqiqatan ham bu siklni o'chirmoqchimisiz? Barcha biriktirishlar o'chib ketishi mumkin!")) return;
-
+        setDeleting(true);
         try {
             await deleteCycle(selectedCycleId);
             setSelectedCycleId("");
             loadInitialData();
+            showToast("Sikl muvaffaqiyatli o'chirildi!");
+            setIsDeleteModalOpen(false);
         } catch (err) {
             console.error(err);
-            alert("Siklni o'chirishda xatolik yuz berdi");
+            showToast("Siklni o'chirishda xatolik yuz berdi", "error");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleConfirmDeleteAssignment = async () => {
+        if (!deleteAssignmentId) return;
+        try {
+            await deleteAssignment(deleteAssignmentId);
+            setGlobalAssignments(globalAssignments.filter((g: any) => g.id !== deleteAssignmentId));
+            showToast("Biriktirish bekor qilindi!");
+            setDeleteAssignmentId(null);
+        } catch (err) {
+            console.error(err);
+            showToast("Xatolik yuz berdi", "error");
         }
     };
 
@@ -276,7 +303,7 @@ export default function FeedbackAssignmentManager() {
             setReportModalData(report);
         } catch (err) {
             console.error(err);
-            alert("Hisobotni yuklashda xatolik yuz berdi");
+            showToast("Hisobotni yuklashda xatolik yuz berdi", "error");
         } finally {
             setReportLoading(false);
         }
@@ -304,16 +331,16 @@ export default function FeedbackAssignmentManager() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                 <div className="flex flex-col gap-2">
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         {t("selectCycle")}
                     </label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 w-full">
                         <select
                             value={selectedCycleId}
                             onChange={(e) => setSelectedCycleId(e.target.value)}
-                            className="w-full bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all text-gray-800"
+                            className="flex-1 w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 px-4 py-2.5 outline-none bg-white transition-all text-sm font-medium text-gray-800"
                         >
                             <option value="">{t("selectCycleOption")}</option>
                             {cycles.map((c) => (
@@ -323,7 +350,7 @@ export default function FeedbackAssignmentManager() {
                             ))}
                         </select>
                         {selectedCycleId && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 shrink-0">
                                 <button
                                     onClick={handleEditCycle}
                                     className="p-2.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all cursor-pointer"
@@ -332,7 +359,7 @@ export default function FeedbackAssignmentManager() {
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                                 </button>
                                 <button
-                                    onClick={handleDeleteCycle}
+                                    onClick={() => setIsDeleteModalOpen(true)}
                                     className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
                                     title="O'chirish"
                                 >
@@ -350,7 +377,7 @@ export default function FeedbackAssignmentManager() {
                     <select
                         value={selectedTargetId}
                         onChange={(e) => setSelectedTargetId(e.target.value)}
-                        className="w-full bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all text-gray-800"
+                        className="w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 px-4 py-2.5 outline-none bg-white transition-all text-sm font-medium text-gray-800"
                     >
                         <option value="">{t("selectTargetOption")}</option>
                         {users.map((u) => (
@@ -651,17 +678,7 @@ export default function FeedbackAssignmentManager() {
                                                             </button>
                                                         )}
                                                         <button
-                                                            onClick={async () => {
-                                                                if (window.confirm("Haqiqatan ham bu biriktirishni bekor qilmoqchimisiz?")) {
-                                                                    try {
-                                                                        await deleteAssignment(a.id);
-                                                                        setGlobalAssignments(globalAssignments.filter((g: any) => g.id !== a.id));
-                                                                    } catch (err) {
-                                                                        console.error(err);
-                                                                        alert("Xatolik yuz berdi");
-                                                                    }
-                                                                }
-                                                            }}
+                                                            onClick={() => setDeleteAssignmentId(a.id)}
                                                             className="text-[11px] font-semibold uppercase tracking-wider text-red-500 hover:text-red-700 cursor-pointer"
                                                         >
                                                             Bekor qilish
@@ -681,10 +698,12 @@ export default function FeedbackAssignmentManager() {
             {isCreateModalOpen && (
                 <CreateFeedbackCycleModal
                     initialData={editCycleData}
+                    showToast={showToast}
                     onClose={() => setIsCreateModalOpen(false)}
-                    onSuccess={() => {
+                    onSuccess={(isEdit?: boolean) => {
                         setIsCreateModalOpen(false);
                         loadInitialData();
+                        showToast(isEdit ? "Sikl muvaffaqiyatli yangilandi!" : "Sikl muvaffaqiyatli yaratildi!");
                     }}
                 />
             )}
@@ -767,6 +786,96 @@ export default function FeedbackAssignmentManager() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div className="fixed top-5 right-5 z-50 bg-white rounded-xl shadow-lg border border-gray-100 p-4 flex items-center gap-3 transform transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+                    {toast.type === "error" ? (
+                        <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    )}
+                    <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-900">
+                            {toast.message}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setToast(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs ml-2 cursor-pointer"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
+
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all scale-100">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            Siklni o'chirish
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-2">
+                            Haqiqatan ham bu siklni o'chirmoqchimisiz? Barcha biriktirishlar o'chib ketishi mumkin!
+                        </p>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                type="button"
+                                onClick={() => setIsDeleteModalOpen(false)}
+                                disabled={deleting}
+                                className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors cursor-pointer"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteCycle}
+                                disabled={deleting}
+                                className="px-5 py-2.5 rounded-xl bg-rose-500 text-white font-medium hover:bg-rose-600 shadow-sm transition-colors cursor-pointer"
+                            >
+                                {deleting ? "..." : "O'chirish"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteAssignmentId && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all scale-100">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            Biriktirishni bekor qilish
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-2">
+                            Haqiqatan ham bu biriktirishni bekor qilmoqchimisiz?
+                        </p>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteAssignmentId(null)}
+                                className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors cursor-pointer"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmDeleteAssignment}
+                                className="px-5 py-2.5 rounded-xl bg-rose-500 text-white font-medium hover:bg-rose-600 shadow-sm transition-colors cursor-pointer"
+                            >
+                                O'chirish
+                            </button>
                         </div>
                     </div>
                 </div>

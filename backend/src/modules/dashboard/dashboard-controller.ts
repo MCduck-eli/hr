@@ -63,6 +63,54 @@ export class DashboardController {
             next(error);
         }
     }
+
+    async getHRDashboardActivities(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const userId = (req as any).user?.id;
+            if (!userId) {
+                return res
+                    .status(401)
+                    .json({ message: "Avtorizatsiyadan o'tilmagan" });
+            }
+
+            const data = await dashboardService.getHRDashboardActivities(userId);
+
+            res.status(200).json({
+                status: "success",
+                data,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getHRDashboardSummary(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const userId = (req as any).user?.id;
+            if (!userId) {
+                return res
+                    .status(401)
+                    .json({ message: "Avtorizatsiyadan o'tilmagan" });
+            }
+
+            const data = await dashboardService.getHRDashboardSummary(userId);
+
+            res.status(200).json({
+                status: "success",
+                data,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const dashboardController = new DashboardController();

@@ -11,6 +11,7 @@ const getHeaders = () => {
 export const getVacancies = async () => {
     const res = await fetch(`${API_URL}/recruitment/vacancies`, {
         headers: getHeaders(),
+        cache: "no-store",
     });
     if (!res.ok) {
         const error = await res.json();
@@ -28,6 +29,7 @@ export const getPublicVacancies = async (params?: { company?: string; search?: s
 
     const res = await fetch(`${API_URL}/recruitment/public/vacancies?${query.toString()}`, {
         headers: { "Content-Type": "application/json" },
+        cache: "no-store",
     });
     if (!res.ok) {
         const error = await res.json();

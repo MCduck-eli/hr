@@ -70,15 +70,15 @@ export default function RegulationFormModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-2xl max-h-[92vh] flex flex-col rounded-sm shadow-2xl overflow-hidden border border-gray-200">
-                <div className="p-6 bg-[#fcfcfc] border-b border-gray-200 flex items-center justify-between">
-                    <h2 className="text-base font-black uppercase tracking-wider text-black">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+                <div className="p-6 bg-white border-b border-gray-100 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-gray-900">
                         {editingPolicy ? t("editRegulation") : t("addRegulation")}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-black text-xl font-bold p-1 leading-none"
+                        className="text-gray-400 hover:text-gray-700 text-xl font-bold p-1 leading-none rounded-lg hover:bg-gray-50 transition-colors"
                     >
                         &times;
                     </button>
@@ -86,7 +86,7 @@ export default function RegulationFormModal({
 
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
                     <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             {t("formTitle")} *
                         </label>
                         <input
@@ -95,12 +95,12 @@ export default function RegulationFormModal({
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder={t("formTitlePlaceholder")}
-                            className="w-full p-3 border border-gray-300 text-sm focus:outline-none focus:border-black rounded-sm font-medium"
+                            className="w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 text-sm font-medium"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             {t("formDesc")}
                         </label>
                         <input
@@ -108,12 +108,12 @@ export default function RegulationFormModal({
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder={t("formDescPlaceholder")}
-                            className="w-full p-3 border border-gray-300 text-sm focus:outline-none focus:border-black rounded-sm font-medium"
+                            className="w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 text-sm font-medium"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             {t("formContent")}
                         </label>
                         <textarea
@@ -121,12 +121,12 @@ export default function RegulationFormModal({
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             placeholder={t("formContentPlaceholder")}
-                            className="w-full p-3 border border-gray-300 text-sm focus:outline-none focus:border-black rounded-sm font-medium resize-y"
+                            className="w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 text-sm font-medium resize-y"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             {t("formFile")}
                         </label>
                         <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ export default function RegulationFormModal({
                                 type="file"
                                 accept=".pdf,.doc,.docx,.zip,.png,.jpg,.jpeg"
                                 onChange={(e) => setFile(e.target.files?.[0] || null)}
-                                className="text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-black file:uppercase file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer"
+                                className="w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
                             />
                             {file && (
                                 <button
@@ -163,11 +163,11 @@ export default function RegulationFormModal({
                             id="isRequiredInput"
                             checked={isRequired}
                             onChange={(e) => setIsRequired(e.target.checked)}
-                            className="w-4 h-4 text-black border-gray-300 rounded cursor-pointer accent-black"
+                            className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500 border-gray-300 cursor-pointer"
                         />
                         <label
                             htmlFor="isRequiredInput"
-                            className="text-xs font-bold text-gray-700 cursor-pointer select-none"
+                            className="text-sm font-medium text-gray-700 cursor-pointer select-none"
                         >
                             {t("formRequired")}
                         </label>
@@ -177,14 +177,14 @@ export default function RegulationFormModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:text-black hover:border-black text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
+                            className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl transition-all"
                         >
                             {t("cancel")}
                         </button>
                         <button
                             type="submit"
                             disabled={loading || !title.trim()}
-                            className="px-6 py-2.5 bg-black text-white disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-black uppercase tracking-wider rounded-sm hover:bg-gray-800 transition-colors shadow-sm"
+                            className="px-6 py-2.5 bg-[#9327FF] text-white disabled:opacity-50 text-xs font-semibold rounded-xl hover:opacity-90 transition-all shadow-sm"
                         >
                             {loading ? t("saving") : t("save")}
                         </button>

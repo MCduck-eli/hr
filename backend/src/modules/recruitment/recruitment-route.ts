@@ -100,27 +100,27 @@ recruitmentRouter.use(authenticate);
 
 recruitmentRouter.get(
     "/vacancies",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER", "DEPARTMENT_HEAD", "EMPLOYEE", "ACCOUNTANT"),
     recruitmentController.getAllVacancies,
 );
 
 recruitmentRouter.post(
     "/vacancies",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER", "DEPARTMENT_HEAD"),
     validate(createVacancySchema),
     recruitmentController.createVacancy,
 );
 
 recruitmentRouter.put(
     "/vacancies/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER", "DEPARTMENT_HEAD"),
     validate(updateVacancySchema),
     recruitmentController.updateVacancy,
 );
 
 recruitmentRouter.delete(
     "/vacancies/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "RECRUITER", "DEPARTMENT_HEAD"),
     recruitmentController.deleteVacancy,
 );
 

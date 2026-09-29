@@ -23,6 +23,14 @@ export default function HROnboardingPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("ALL");
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+    const showToast = (message: string, type: "success" | "error" = "success") => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast(null);
+        }, 3500);
+    };
 
     const loadData = async () => {
         try {
@@ -98,12 +106,13 @@ export default function HROnboardingPage() {
                 throw new Error(result.message || t("errorDefault"));
             }
 
+            const isEditing = Boolean(editingId);
             loadData();
             resetForm();
-            alert(editingId ? t("successUpdate") : t("successAdd"));
+            showToast(isEditing ? "Onboarding shabloni muvaffaqiyatli yangilandi!" : "Onboarding shabloni muvaffaqiyatli qo'shildi!");
         } catch (err: any) {
             console.error(err);
-            alert(err.message || t("errorDefault"));
+            showToast(err.message || t("errorDefault"), "error");
         } finally {
             setLoading(false);
         }
@@ -136,10 +145,10 @@ export default function HROnboardingPage() {
             }
 
             loadData();
-            alert(t("successDelete"));
+            showToast(t("successDelete"));
         } catch (err: any) {
             console.error(err);
-            alert(err.message || t("errorDefault"));
+            showToast(err.message || t("errorDefault"), "error");
         }
     };
 
@@ -182,7 +191,7 @@ export default function HROnboardingPage() {
 
             <div className="flex flex-col gap-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h2 className="text-xl font-black uppercase tracking-tight text-black">
+                    <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">
                         {t("templatesHeading")}
                     </h2>
                 </div>
@@ -195,7 +204,7 @@ export default function HROnboardingPage() {
                 />
 
                 {filteredTemplates.length === 0 ? (
-                    <div className="p-12 text-center bg-white border border-gray-200 text-sm font-bold text-gray-400 uppercase tracking-widest">
+                    <div className="p-12 text-center bg-white rounded-2xl border border-gray-100 shadow-sm text-sm font-semibold text-slate-400 uppercase tracking-wider">
                         {t("noTemplates")}
                     </div>
                 ) : (
@@ -212,6 +221,36 @@ export default function HROnboardingPage() {
                     </div>
                 )}
             </div>
+
+            {toast && (
+                <div className="fixed top-5 right-5 z-50 bg-white rounded-xl shadow-lg border border-gray-100 p-4 flex items-center gap-3 transform transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+                    {toast.type === "error" ? (
+                        <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    )}
+                    <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-900">
+                            {toast.message}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setToast(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs ml-2 cursor-pointer"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

@@ -127,6 +127,10 @@ export default function Navbar() {
         return `/${locale}/profile`;
     };
 
+    if (pathname.includes("/login") || pathname.endsWith("/login")) {
+        return null;
+    }
+
     return (
         <nav className="sticky top-0 z-50 w-full border-b border-gray-200 bg-[#f8f8f8]">
             <div className="flex h-16 items-center justify-between px-4 md:px-8 max-w-[1400px] mx-auto relative">
@@ -161,73 +165,6 @@ export default function Navbar() {
                         HR Platform
                     </Link>
                 </div>
-
-                {(userRole === "DIRECTOR" || userRole === "HR_ADMIN" || userRole === "ACCOUNTANT") && (
-                    <div className="hidden md:flex items-center gap-8 text-[11px] font-bold text-gray-500 uppercase tracking-widest bg-gray-200/50 px-6 py-2 rounded-sm">
-                        {userRole === "ACCOUNTANT" ? (
-                            <>
-                                <Link
-                                    href={`/${locale}/profile`}
-                                    className="hover:text-black text-black font-black transition-colors"
-                                >
-                                    👤 {t("myProfile") || "Profilim"}
-                                </Link>
-                                <Link
-                                    href={`/${locale}/profile?tab=payroll`}
-                                    className="hover:text-black text-black font-black transition-colors"
-                                >
-                                    💵 {t("payroll") || "Oylik & Moliya"}
-                                </Link>
-                            </>
-                        ) : (
-                            <>
-                                <Link
-                                    href={`/${locale}/profile`}
-                                    className="hover:text-black font-black text-black transition-colors flex items-center gap-1"
-                                >
-                                    <span>👤</span>
-                                    <span>{t("myProfile") || "Profilim"}</span>
-                                </Link>
-                                <Link
-                                    href={`/${locale}/hr/okr`}
-                                    className="hover:text-black transition-colors"
-                                >
-                                    {t("okr")}
-                                </Link>
-                                <Link
-                                    href={`/${locale}/grading`}
-                                    className="hover:text-black transition-colors"
-                                >
-                                    {t("grading")}
-                                </Link>
-                                <Link
-                                    href={`/${locale}/disc`}
-                                    className="hover:text-black transition-colors"
-                                >
-                                    {t("disc")}
-                                </Link>
-                                <Link
-                                    href={`/${locale}/hr/feedback360`}
-                                    className="hover:text-black transition-colors"
-                                >
-                                    {t("feedback")}
-                                </Link>
-                                <Link
-                                    href={`/${locale}/hr/analytics`}
-                                    className="hover:text-black transition-colors"
-                                >
-                                    📊 {t("analytics") || "BI Analitika"}
-                                </Link>
-                                <Link
-                                    href={`/${locale}/hr/payroll`}
-                                    className="hover:text-black transition-colors"
-                                >
-                                    {t("payroll") || "Oylik & Moliya"}
-                                </Link>
-                            </>
-                        )}
-                    </div>
-                )}
 
                 <div className="hidden md:flex items-center gap-5">
                     <LanguageSwitcher />

@@ -10,6 +10,7 @@ interface RecruitingBoardProps {
     onHire: (candidateId: string, departmentId: string, managerId: string) => void;
     onEdit: (vacancy: any) => void;
     onDelete: (vacancyId: string) => void;
+    showToast?: (message: string, type?: "success" | "error") => void;
 }
 
 const STAGE_KEYS: Record<string, string> = {
@@ -53,6 +54,7 @@ export default function RecruitingBoard({
     onHire,
     onEdit,
     onDelete,
+    showToast,
 }: RecruitingBoardProps) {
     const t = useTranslations("Recruiting");
     const [selectedVacancyId, setSelectedVacancyId] = useState<string>(vacancies[0]?.id || "");
@@ -145,14 +147,14 @@ export default function RecruitingBoard({
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex gap-4 overflow-x-auto pb-4">
+            <div className="flex gap-3 overflow-x-auto pb-2">
                 {vacancies.map((v) => (
                     <button
                         key={v.id}
                         onClick={() => setSelectedVacancyId(v.id)}
-                        className={`px-6 py-3 whitespace-nowrap text-xs font-bold uppercase tracking-widest border transition-colors ${selectedVacancy?.id === v.id
-                            ? "bg-black text-white border-black"
-                            : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                        className={`whitespace-nowrap transition-all cursor-pointer ${selectedVacancy?.id === v.id
+                            ? "bg-violet-100 text-violet-700 rounded-xl px-5 py-2.5 font-semibold text-sm tracking-wide"
+                            : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300 rounded-xl px-5 py-2.5 font-semibold text-sm tracking-wide"
                             }`}
                     >
                         {v.title} ({v._count?.candidates || 0})
@@ -161,38 +163,36 @@ export default function RecruitingBoard({
             </div>
 
             {selectedVacancy && (
-                <div className="bg-white border border-gray-200">
-                    <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                        <div className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div className="text-xs font-bold uppercase tracking-widest text-gray-500">
                             {t("publicLinkTitle")}
                         </div>
-                        <div className="flex gap-2 items-center">
-                            <button
-                                onClick={() => onEdit(selectedVacancy)}
-                                className="text-[10px] font-bold uppercase tracking-widest bg-white border border-gray-200 text-black px-4 py-2 hover:bg-gray-100 transition-colors"
-                            >
-                                {t("edit")}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    if (confirm(t("confirmDeleteVacancy"))) {
-                                        onDelete(selectedVacancy.id);
-                                    }
-                                }}
-                                className="text-[10px] font-bold uppercase tracking-widest bg-white border border-red-200 text-red-500 px-4 py-2 hover:bg-red-50 transition-colors"
-                            >
-                                {t("delete")}
-                            </button>
+                        <div className="flex items-center gap-3">
                             <button
                                 onClick={() => {
                                     const locale = typeof window !== "undefined" ? window.location.pathname.split("/")[1] || "ru" : "ru";
                                     const url = `${window.location.origin}/${locale}/jobs/${selectedVacancy.id}`;
                                     navigator.clipboard.writeText(url);
-                                    alert(t("linkCopied") + url);
+                                    if (showToast) {
+                                        showToast(t("linkCopied") + " " + url, "success");
+                                    }
                                 }}
-                                className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-4 py-2 hover:bg-gray-800 transition-colors ml-2"
+                                className="bg-[#9327FF] text-white rounded-xl px-5 py-2.5 shadow-sm hover:opacity-90 transition-all font-medium text-sm cursor-pointer"
                             >
                                 {t("copyLink")}
+                            </button>
+                            <button
+                                onClick={() => onEdit(selectedVacancy)}
+                                className="bg-white border border-gray-200 text-gray-700 rounded-xl px-5 py-2.5 hover:bg-gray-50 transition-all font-medium text-sm shadow-sm cursor-pointer"
+                            >
+                                {t("edit")}
+                            </button>
+                            <button
+                                onClick={() => onDelete(selectedVacancy.id)}
+                                className="bg-rose-50 text-rose-600 rounded-xl px-5 py-2.5 hover:bg-rose-100 transition-all font-medium text-sm cursor-pointer"
+                            >
+                                {t("delete")}
                             </button>
                         </div>
                     </div>

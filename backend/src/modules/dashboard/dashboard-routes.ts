@@ -14,6 +14,16 @@ dashboardRouter.get(
     dashboardController.getEmployeeDashboard,
 );
 
+dashboardRouter.get(
+    "/hr-activities",
+    dashboardController.getHRDashboardActivities,
+);
+
+dashboardRouter.get(
+    "/hr-summary",
+    dashboardController.getHRDashboardSummary,
+);
+
 dashboardRouter.patch("/progress", dashboardController.updateProgress);
 
 export default dashboardRouter;

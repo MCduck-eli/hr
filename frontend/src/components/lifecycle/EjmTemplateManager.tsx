@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import {
     LifecycleTemplate,
     fetchLifecycleTemplates,
+    fetchStageStats,
     createLifecycleTemplate,
     updateLifecycleTemplate,
     deleteLifecycleTemplate,
@@ -29,6 +30,51 @@ interface TransitionConditionItem {
     code: string;
     label: string;
     defaultPlaceholder?: string;
+}
+
+function CircularProgress({
+    value,
+    size = 38,
+    strokeWidth = 3.5,
+    color = "#9327FF",
+}: {
+    value: number;
+    size?: number;
+    strokeWidth?: number;
+    color?: string;
+}) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (Math.min(Math.max(value, 0), 100) / 100) * circumference;
+
+    return (
+        <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+            <svg className="w-full h-full transform -rotate-90" viewBox={`0 0 ${size} ${size}`}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    className="text-gray-100"
+                    fill="transparent"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    className="transition-all duration-700 ease-out"
+                    fill="transparent"
+                />
+            </svg>
+            <span className="absolute text-[10px] font-bold text-gray-800">{value}%</span>
+        </div>
+    );
 }
 
 export default function EjmTemplateManager() {
@@ -145,6 +191,7 @@ export default function EjmTemplateManager() {
     const [newConditionLabel, setNewConditionLabel] = useState("");
     const [editingConditionId, setEditingConditionId] = useState<string | null>(null);
     const [editingConditionLabel, setEditingConditionLabel] = useState("");
+    const [stageStats, setStageStats] = useState<Record<string, { total: number; completed: number; percentage: number }>>({});
 
     const [isStageModalOpen, setIsStageModalOpen] = useState(false);
     const [editingStage, setEditingStage] = useState<RoadmapStageItem | null>(null);
@@ -181,12 +228,14 @@ export default function EjmTemplateManager() {
             setLoading(true);
             setError(null);
 
-            const [tplData, deptData] = await Promise.all([
+            const [tplData, deptData, statsData] = await Promise.all([
                 fetchLifecycleTemplates().catch(() => []),
                 fetchDepartments().catch(() => []),
+                fetchStageStats(selectedDepartmentId).catch(() => ({})),
             ]);
 
             setTemplates(tplData || []);
+            setStageStats(statsData || {});
 
             if (Array.isArray(deptData)) {
                 setDepartments(deptData);
@@ -229,6 +278,12 @@ export default function EjmTemplateManager() {
     useEffect(() => {
         loadInitialData();
     }, []);
+
+    useEffect(() => {
+        fetchStageStats(selectedDepartmentId)
+            .then((res) => setStageStats(res || {}))
+            .catch(() => {});
+    }, [selectedDepartmentId]);
 
     const saveStagesToStorage = (updated: RoadmapStageItem[]) => {
         setRoadmapStages(updated);
@@ -315,13 +370,13 @@ export default function EjmTemplateManager() {
         }
 
         const colorMap: Record<string, string> = {
-            PRE_HIRE: "border-sky-500 bg-sky-50 text-sky-900",
-            HIRED: "border-emerald-500 bg-emerald-50 text-emerald-900",
-            ONBOARDING: "border-blue-500 bg-blue-50 text-blue-900",
-            PROBATION: "border-teal-500 bg-teal-50 text-teal-900",
-            REGULAR_WORK: "border-violet-500 bg-violet-50 text-violet-900",
-            PROMOTION: "border-purple-500 bg-purple-50 text-purple-900",
-            OFFBOARDING: "border-red-500 bg-red-50 text-red-900",
+            PRE_HIRE: "bg-white",
+            HIRED: "bg-white",
+            ONBOARDING: "bg-white",
+            PROBATION: "bg-white",
+            REGULAR_WORK: "bg-white",
+            PROMOTION: "bg-white",
+            OFFBOARDING: "bg-white",
         };
 
         if (editingStage) {
@@ -334,7 +389,7 @@ export default function EjmTemplateManager() {
                           icon: stageIcon,
                           stage: stageType,
                           departmentId: stageDept,
-                          color: colorMap[stageType] || "border-black bg-gray-50 text-black",
+                          color: colorMap[stageType] || "bg-white",
                           transitionCondition: stageCondition,
                           transitionValue: stageConditionValue.trim(),
                       }
@@ -353,7 +408,7 @@ export default function EjmTemplateManager() {
                 stage: stageType,
                 icon: stageIcon,
                 departmentId: stageDept,
-                color: colorMap[stageType] || "border-black bg-gray-50 text-black",
+                color: colorMap[stageType] || "bg-white",
                 transitionCondition: stageCondition,
                 transitionValue: stageConditionValue.trim(),
             };
@@ -476,21 +531,21 @@ export default function EjmTemplateManager() {
     const selectedDeptObj = departments.find((d) => d.id === selectedDepartmentId);
 
     return (
-        <div className="flex flex-col gap-8 bg-white p-6 md:p-8 border border-black shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-black pb-4">
-                <div className="flex flex-col gap-1">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                        {t("badge")}
-                    </span>
-                    <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-black">
+        <div className="flex flex-col gap-8 w-full">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900">
                         {t("title")}
                     </h2>
+                    <p className="text-xs text-gray-500 font-medium mt-0.5">
+                        {t("badge")} &bull; Employee Journey Map
+                    </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                     <button
                         onClick={handleOpenCreateStageModal}
-                        className="px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center gap-2 shadow-xs"
+                        className="bg-[#9327FF] text-white rounded-xl shadow-sm hover:opacity-90 px-5 py-2.5 font-medium transition-all flex items-center gap-2 text-sm"
                     >
                         <span>+</span>
                         <span>{t("addStage")}</span>
@@ -498,7 +553,7 @@ export default function EjmTemplateManager() {
 
                     <button
                         onClick={handleOpenCreateTemplateModal}
-                        className="px-4 py-2 bg-purple-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-800 transition-colors flex items-center gap-2 shadow-xs"
+                        className="bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 px-5 py-2.5 shadow-sm font-medium transition-all flex items-center gap-2 text-sm"
                     >
                         <span>+</span>
                         <span>{t("newTemplate")}</span>
@@ -507,31 +562,31 @@ export default function EjmTemplateManager() {
             </div>
 
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-800 p-3 text-xs font-bold uppercase tracking-wider">
+                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs font-semibold">
                     {error}
                 </div>
             )}
 
             {successMessage && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 text-xs font-bold uppercase tracking-wider">
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-xl text-xs font-semibold">
                     {successMessage}
                 </div>
             )}
 
-            <div className="flex flex-col gap-3 bg-gray-50 p-4 border border-gray-200">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-3">
+            <div className="flex flex-col gap-3 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-black uppercase tracking-wider text-black">
-                            {t("plansByDept")}
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            {t("plansByDept")}:
                         </span>
-                        <span className="text-[11px] font-bold px-2 py-0.5 bg-black text-white uppercase rounded-xs">
+                        <span className="text-xs font-semibold px-2.5 py-0.5 bg-violet-100 text-violet-700 rounded-lg">
                             {selectedDepartmentId === "ALL" ? t("allEmployees") : selectedDeptObj?.name || "Department"}
                         </span>
                     </div>
 
                     <button
                         onClick={handleResetStagesToDefault}
-                        className="text-[10px] font-bold text-gray-500 hover:text-black uppercase tracking-wider underline"
+                        className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors underline"
                     >
                         {t("resetDefault")}
                     </button>
@@ -540,10 +595,10 @@ export default function EjmTemplateManager() {
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                     <button
                         onClick={() => setSelectedDepartmentId("ALL")}
-                        className={`px-3.5 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
+                        className={`px-4 py-2 text-xs font-medium rounded-xl transition-all ${
                             selectedDepartmentId === "ALL"
-                                ? "bg-black text-white shadow-xs"
-                                : "bg-white text-black border border-gray-300 hover:border-black"
+                                ? "bg-violet-100 text-violet-700 font-semibold"
+                                : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                         }`}
                     >
                         🏢 {t("allEmployees")}
@@ -553,10 +608,10 @@ export default function EjmTemplateManager() {
                         <button
                             key={dept.id}
                             onClick={() => setSelectedDepartmentId(dept.id)}
-                            className={`px-3.5 py-2 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${
+                            className={`px-4 py-2 text-xs font-medium rounded-xl transition-all flex items-center gap-1.5 ${
                                 selectedDepartmentId === dept.id
-                                    ? "bg-purple-700 text-white shadow-xs"
-                                    : "bg-white text-gray-800 border border-gray-300 hover:border-purple-600"
+                                    ? "bg-violet-100 text-violet-700 font-semibold"
+                                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                             }`}
                         >
                             <span>📁</span>
@@ -569,104 +624,113 @@ export default function EjmTemplateManager() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-black uppercase tracking-wider text-black">
+                        <h3 className="text-base font-bold text-gray-900">
                             {selectedDepartmentId === "ALL"
                                 ? t("generalStagesSequence")
                                 : t("deptStagesSequence", { dept: selectedDeptObj?.name || "Department" })}
                         </h3>
-                        <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 border border-purple-200">
+                        <span className="text-xs font-semibold text-violet-700 bg-violet-50 px-2.5 py-0.5 rounded-lg border border-violet-100">
                             {t("stageCount", { count: visibleStages.length })}
                         </span>
                     </div>
                 </div>
 
                 {visibleStages.length === 0 ? (
-                    <div className="p-8 text-center border border-dashed border-gray-300 flex flex-col items-center justify-center gap-3">
-                        <span className="text-2xl">📁</span>
-                        <p className="text-xs font-bold uppercase text-gray-500">
+                    <div className="p-12 text-center bg-white rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-3">
+                        <span className="text-3xl">📁</span>
+                        <p className="text-xs font-semibold text-gray-500">
                             {t("noStagesForDept", { dept: selectedDeptObj?.name || "Department" })}
                         </p>
                         <button
                             onClick={handleOpenCreateStageModal}
-                            className="px-4 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-gray-800"
+                            className="px-5 py-2 bg-[#9327FF] text-white text-xs font-semibold rounded-xl hover:opacity-90 shadow-sm transition-all"
                         >
                             {t("addStageForDept")}
                         </button>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {visibleStages.map((st, idx) => (
-                            <div
-                                key={st.id || idx}
-                                className={`border p-4 flex flex-col justify-between gap-3 relative transition-all hover:shadow-xs ${st.color}`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-xs font-black px-2 py-0.5 bg-black text-white rounded-xs">
-                                            {t("stage")} {st.step || String(idx + 1).padStart(2, "0")}
-                                        </span>
-                                        <span className="text-base">{st.icon}</span>
+                        {visibleStages.map((st, idx) => {
+                            const progressVal = stageStats[st.stage]?.percentage ?? 0;
+                            return (
+                                <div
+                                    key={st.id || idx}
+                                    className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-4 relative transition-all hover:shadow-md"
+                                >
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-gray-50 text-gray-700 rounded-lg px-3 py-1.5 font-semibold text-xs border border-gray-100 flex items-center gap-1.5">
+                                                    <span>{st.icon}</span>
+                                                    <span>{t("stage")} {st.step || String(idx + 1).padStart(2, "0")}</span>
+                                                </span>
+                                            </div>
+
+                                            <CircularProgress value={progressVal} size={38} strokeWidth={3.5} color="#9327FF" />
+                                        </div>
+
+                                        <div className="flex flex-col gap-1">
+                                            <h4 className="text-sm font-bold text-gray-900 leading-snug">
+                                                {st.title}
+                                            </h4>
+                                            <p className="text-xs text-gray-500 font-normal leading-relaxed">
+                                                {st.desc}
+                                            </p>
+                                        </div>
+
+                                        {st.transitionValue && (
+                                            <div className="text-[11px] font-medium text-violet-700 bg-violet-50/80 border border-violet-100 px-3 py-1.5 rounded-xl flex items-center justify-between">
+                                                <span className="text-gray-500">{t("transitionCriterion")}:</span>
+                                                <span className="font-bold text-violet-900">{st.transitionValue}</span>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            onClick={() => handleOpenEditStageModal(st)}
-                                            className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-white text-black border border-gray-300 hover:bg-black hover:text-white transition-colors"
-                                        >
-                                            {t("edit")}
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteStage(st.id)}
-                                            className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-white text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition-colors"
-                                        >
-                                            {t("delete")}
-                                        </button>
+                                    <div className="flex flex-col gap-2 pt-3 border-t border-gray-50">
+                                        <div className="flex items-center justify-between text-[10px] font-medium text-gray-400">
+                                            <span>{t("systemPrefix")} {st.stage}</span>
+                                            {st.departmentId && st.departmentId !== "ALL" && (
+                                                <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-md font-semibold truncate max-w-[110px]">
+                                                    {departments.find((d) => d.id === st.departmentId)?.name || "Department"}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-end gap-2 pt-1">
+                                            <button
+                                                onClick={() => handleOpenEditStageModal(st)}
+                                                className="px-3 py-1 text-xs font-semibold text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors"
+                                            >
+                                                {t("edit")}
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteStage(st.id)}
+                                                className="px-3 py-1 text-xs font-semibold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                            >
+                                                {t("delete")}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <div className="flex flex-col gap-1">
-                                    <h4 className="text-xs font-black uppercase tracking-tight">
-                                        {st.title}
-                                    </h4>
-                                    <p className="text-[11px] font-medium leading-relaxed opacity-90">
-                                        {st.desc}
-                                    </p>
-                                </div>
-
-                                {st.transitionValue && (
-                                    <div className="text-[9px] font-bold text-purple-800 bg-purple-100/80 border border-purple-200 px-2 py-1 rounded-xs flex items-center justify-between">
-                                        <span>{t("transitionCriterion")}</span>
-                                        <span className="font-extrabold">{st.transitionValue}</span>
-                                    </div>
-                                )}
-
-                                <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-gray-600 border-t border-gray-300/40 pt-2">
-                                    <span>{t("systemPrefix")} {st.stage}</span>
-                                    {st.departmentId && st.departmentId !== "ALL" && (
-                                        <span className="px-1.5 py-0.5 bg-purple-200 text-purple-900 rounded-xs font-bold truncate max-w-[120px]">
-                                            {departments.find((d) => d.id === st.departmentId)?.name || "Department"}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-            <div className="flex flex-col gap-4 border-t border-gray-200 pt-6">
+            <div className="flex flex-col gap-4 border-t border-gray-100 pt-6">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-black uppercase tracking-wider text-black">
+                    <h3 className="text-base font-bold text-gray-900">
                         {t("specialTemplatesTitle", { count: templates.length })}
                     </h3>
                 </div>
 
                 {loading ? (
-                    <div className="p-8 text-center border border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-400 animate-pulse">
+                    <div className="p-8 text-center bg-white rounded-2xl border border-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-400 animate-pulse">
                         {t("loadingTemplates")}
                     </div>
                 ) : templates.length === 0 ? (
-                    <div className="p-8 text-center border border-dashed border-gray-300 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <div className="p-10 text-center bg-white rounded-3xl border border-gray-100 text-xs font-medium text-gray-400 shadow-sm">
                         {t("noTemplates")}
                     </div>
                 ) : (
@@ -674,53 +738,53 @@ export default function EjmTemplateManager() {
                         {templates.map((tpl) => (
                             <div
                                 key={tpl.id}
-                                className="border border-black bg-white p-5 flex flex-col justify-between gap-4 shadow-xs"
+                                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between gap-4 hover:shadow-md transition-all"
                             >
                                 <div className="flex flex-col gap-2">
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-purple-50 text-purple-800 border border-purple-200">
+                                        <span className="px-2.5 py-0.5 text-xs font-semibold rounded-lg bg-violet-50 text-violet-700 border border-violet-100">
                                             {tpl.stage}
                                         </span>
                                         <div className="flex items-center gap-1.5">
                                             <button
                                                 onClick={() => handleOpenEditTemplateModal(tpl)}
-                                                className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-gray-100 hover:bg-black hover:text-white border border-gray-300 transition-colors"
+                                                className="px-3 py-1 text-xs font-semibold text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors"
                                             >
                                                 {t("editTemplate")}
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteTemplate(tpl.id)}
-                                                className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 hover:bg-red-600 hover:text-white border border-red-200 transition-colors"
+                                                className="px-3 py-1 text-xs font-semibold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                                             >
                                                 {t("deleteTemplate")}
                                             </button>
                                         </div>
                                     </div>
 
-                                    <h4 className="text-base font-black text-black">
+                                    <h4 className="text-base font-bold text-gray-900 mt-1">
                                         {tpl.title}
                                     </h4>
 
                                     {tpl.description && (
-                                        <p className="text-xs font-medium text-gray-600">
+                                        <p className="text-xs font-normal text-gray-500 leading-relaxed">
                                             {tpl.description}
                                         </p>
                                     )}
                                 </div>
 
                                 {tpl.tasks && tpl.tasks.length > 0 && (
-                                    <div className="border-t border-gray-100 pt-3 flex flex-col gap-1.5">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                    <div className="border-t border-gray-50 pt-3 flex flex-col gap-2">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
                                             {t("plannedTasks", { count: tpl.tasks.length })}
                                         </span>
-                                        <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col gap-1.5">
                                             {tpl.tasks.map((tsk, tIdx) => (
                                                 <div
                                                     key={tsk.id || tIdx}
-                                                    className="flex items-center justify-between text-xs font-medium text-gray-700 bg-gray-50 p-1.5 border border-gray-200"
+                                                    className="flex items-center justify-between text-xs font-medium text-gray-700 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100"
                                                 >
                                                     <span>• {tsk.title}</span>
-                                                    <span className="text-[10px] font-bold font-mono text-gray-500">
+                                                    <span className="text-[11px] font-semibold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-md">
                                                         {t("daysSuffix", { days: tsk.dueDays })}
                                                     </span>
                                                 </div>
@@ -735,15 +799,15 @@ export default function EjmTemplateManager() {
             </div>
 
             {isStageModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-lg p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-black pb-3">
-                            <h3 className="text-base font-black uppercase tracking-tight text-black">
+                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl border border-gray-100 w-full max-w-lg p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                            <h3 className="text-base font-bold text-gray-900">
                                 {editingStage ? t("stageModalEditTitle") : t("stageModalAddTitle")}
                             </h3>
                             <button
                                 onClick={() => setIsStageModalOpen(false)}
-                                className="text-sm font-bold text-gray-500 hover:text-black"
+                                className="text-gray-400 hover:text-gray-700 text-lg font-bold p-1 rounded-lg hover:bg-gray-50"
                             >
                                 ✕
                             </button>
@@ -751,13 +815,13 @@ export default function EjmTemplateManager() {
 
                         <form onSubmit={handleSaveStage} className="flex flex-col gap-4">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                <label className="text-xs font-semibold text-gray-700">
                                     {t("relatedDept")}
                                 </label>
                                 <select
                                     value={stageDept}
                                     onChange={(e) => setStageDept(e.target.value)}
-                                    className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-black"
+                                    className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                                 >
                                     <option value="ALL">🏢 {t("allEmployees")}</option>
                                     {departments.map((d) => (
@@ -769,7 +833,7 @@ export default function EjmTemplateManager() {
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                <label className="text-xs font-semibold text-gray-700">
                                     {t("stageName")}
                                 </label>
                                 <input
@@ -778,19 +842,19 @@ export default function EjmTemplateManager() {
                                     placeholder={t("stageNamePlaceholder")}
                                     value={stageTitle}
                                     onChange={(e) => setStageTitle(e.target.value)}
-                                    className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
+                                    className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                    <label className="text-xs font-semibold text-gray-700">
                                         {t("systemStageType")}
                                     </label>
                                     <select
                                         value={stageType}
                                         onChange={(e) => setStageType(e.target.value)}
-                                        className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-black"
+                                        className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                                     >
                                         <option value="PRE_HIRE">📝 PRE_HIRE</option>
                                         <option value="HIRED">🚀 HIRED</option>
@@ -803,44 +867,44 @@ export default function EjmTemplateManager() {
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                    <label className="text-xs font-semibold text-gray-700">
                                         {t("iconEmoji")}
                                     </label>
                                     <input
                                         type="text"
                                         value={stageIcon}
                                         onChange={(e) => setStageIcon(e.target.value)}
-                                        className="p-2.5 bg-white border border-gray-300 text-xs font-bold text-center text-black focus:outline-none focus:border-black"
+                                        className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
                                     />
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-2.5 p-3.5 bg-purple-50/70 border border-purple-200">
+                            <div className="flex flex-col gap-2.5 p-3.5 bg-violet-50/50 border border-violet-100 rounded-xl">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <label className="text-xs font-black uppercase tracking-wider text-purple-950">
+                                        <label className="text-xs font-bold text-violet-950">
                                             {t("autoTransitionCriterion")}
                                         </label>
-                                        <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">
+                                        <span className="text-[9px] font-semibold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded">
                                             {t("automationBadge")}
                                         </span>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => setIsManagingConditions(!isManagingConditions)}
-                                        className="text-[10px] font-black uppercase tracking-wider text-purple-700 hover:text-black underline cursor-pointer"
+                                        className="text-[11px] font-semibold text-violet-700 hover:text-violet-900 underline cursor-pointer"
                                     >
                                         {isManagingConditions ? t("closeManaging") : t("manageCriteria")}
                                     </button>
                                 </div>
 
                                 {isManagingConditions ? (
-                                    <div className="flex flex-col gap-2.5 bg-white p-3 border border-purple-200 shadow-xs">
-                                        <div className="flex items-center justify-between border-b border-gray-200 pb-1.5">
-                                            <span className="text-[11px] font-black uppercase tracking-wider text-black">
+                                    <div className="flex flex-col gap-2.5 bg-white p-3 border border-violet-100 rounded-xl shadow-xs">
+                                        <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+                                            <span className="text-xs font-bold text-gray-900">
                                                 {t("criteriaCategoriesTitle")}
                                             </span>
-                                            <span className="text-[9px] font-bold text-gray-500">
+                                            <span className="text-[10px] font-medium text-gray-500">
                                                 {t("companyOnly")}
                                             </span>
                                         </div>
@@ -849,7 +913,7 @@ export default function EjmTemplateManager() {
                                             {transitionConditions.map((cond) => (
                                                 <div
                                                     key={cond.id}
-                                                    className="flex items-center justify-between gap-2 p-1.5 bg-gray-50 border border-gray-200 text-xs"
+                                                    className="flex items-center justify-between gap-2 p-2 bg-gray-50 border border-gray-100 rounded-lg text-xs"
                                                 >
                                                     {editingConditionId === cond.id ? (
                                                         <div className="flex items-center gap-1.5 flex-1">
@@ -857,13 +921,13 @@ export default function EjmTemplateManager() {
                                                                 type="text"
                                                                 value={editingConditionLabel}
                                                                 onChange={(e) => setEditingConditionLabel(e.target.value)}
-                                                                className="flex-1 p-1 bg-white border border-gray-300 text-xs font-bold"
+                                                                className="flex-1 p-1 bg-white border border-gray-200 rounded text-xs font-medium"
                                                                 autoFocus
                                                             />
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleSaveEditCondition(cond.id)}
-                                                                className="px-2 py-0.5 bg-black text-white text-[10px] font-bold uppercase"
+                                                                className="px-2.5 py-1 bg-[#9327FF] text-white text-[10px] font-semibold rounded-lg"
                                                             >
                                                                 {t("save")}
                                                             </button>
@@ -873,14 +937,14 @@ export default function EjmTemplateManager() {
                                                                     setEditingConditionId(null);
                                                                     setEditingConditionLabel("");
                                                                 }}
-                                                                className="px-1.5 py-0.5 text-[10px] text-gray-600 hover:text-black font-bold"
+                                                                className="px-2 py-1 text-[10px] text-gray-600 hover:text-gray-900 font-medium"
                                                             >
                                                                 {t("cancel")}
                                                             </button>
                                                         </div>
                                                     ) : (
                                                         <>
-                                                            <span className="font-bold text-gray-800 truncate">
+                                                            <span className="font-semibold text-gray-800 truncate">
                                                                 {cond.label}
                                                             </span>
                                                             <div className="flex items-center gap-1">
@@ -890,14 +954,14 @@ export default function EjmTemplateManager() {
                                                                         setEditingConditionId(cond.id);
                                                                         setEditingConditionLabel(cond.label);
                                                                     }}
-                                                                    className="px-1.5 py-0.5 text-[9px] font-bold bg-white text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white"
+                                                                    className="px-2 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded"
                                                                 >
                                                                     {t("edit")}
                                                                 </button>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleDeleteCondition(cond.id)}
-                                                                    className="px-1.5 py-0.5 text-[9px] font-bold bg-white text-red-600 border border-red-200 hover:bg-red-600 hover:text-white"
+                                                                    className="px-2 py-0.5 text-[10px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded"
                                                                 >
                                                                     {t("delete")}
                                                                 </button>
@@ -908,18 +972,18 @@ export default function EjmTemplateManager() {
                                             ))}
                                         </div>
 
-                                        <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                                        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                                             <input
                                                 type="text"
                                                 placeholder={t("newCriterionPlaceholder")}
                                                 value={newConditionLabel}
                                                 onChange={(e) => setNewConditionLabel(e.target.value)}
-                                                className="flex-1 p-1.5 bg-gray-50 border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
+                                                className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 outline-none"
                                             />
                                             <button
                                                 type="button"
                                                 onClick={handleAddCondition}
-                                                className="px-3 py-1.5 bg-purple-700 text-white text-xs font-black uppercase tracking-wider hover:bg-purple-800 shrink-0"
+                                                className="px-4 py-2 bg-[#9327FF] text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-all shrink-0"
                                             >
                                                 {t("addBtn")}
                                             </button>
@@ -928,7 +992,7 @@ export default function EjmTemplateManager() {
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                                         <div className="flex flex-col gap-1">
-                                            <label className="text-[11px] font-bold uppercase text-gray-700">{t("transitionCondition")}</label>
+                                            <label className="text-xs font-semibold text-gray-700">{t("transitionCondition")}</label>
                                             <select
                                                 value={stageCondition}
                                                 onChange={(e) => {
@@ -938,7 +1002,7 @@ export default function EjmTemplateManager() {
                                                         setStageConditionValue(matched.defaultPlaceholder);
                                                     }
                                                 }}
-                                                className="p-2 bg-white border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
+                                                className="p-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 outline-none"
                                             >
                                                 {transitionConditions.map((cond) => (
                                                     <option key={cond.id} value={cond.code}>
@@ -948,13 +1012,13 @@ export default function EjmTemplateManager() {
                                             </select>
                                         </div>
                                         <div className="flex flex-col gap-1">
-                                            <label className="text-[11px] font-bold uppercase text-gray-700">{t("criterionValue")}</label>
+                                            <label className="text-xs font-semibold text-gray-700">{t("criterionValue")}</label>
                                             <input
                                                 type="text"
                                                 placeholder={t("criterionValuePlaceholder")}
                                                 value={stageConditionValue}
                                                 onChange={(e) => setStageConditionValue(e.target.value)}
-                                                className="p-2 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
+                                                className="p-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 outline-none"
                                             />
                                         </div>
                                     </div>
@@ -962,7 +1026,7 @@ export default function EjmTemplateManager() {
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                <label className="text-xs font-semibold text-gray-700">
                                     {t("descAndResults")}
                                 </label>
                                 <textarea
@@ -970,21 +1034,21 @@ export default function EjmTemplateManager() {
                                     placeholder={t("descPlaceholder")}
                                     value={stageDesc}
                                     onChange={(e) => setStageDesc(e.target.value)}
-                                    className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black resize-none"
+                                    className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 outline-none resize-none"
                                 />
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
                                 <button
                                     type="button"
                                     onClick={() => setIsStageModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
+                                    className="px-5 py-2.5 bg-white border border-gray-200 text-xs font-semibold rounded-xl text-gray-700 hover:bg-gray-50 transition-all"
                                 >
                                     {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                                    className="px-6 py-2.5 bg-[#9327FF] text-white text-xs font-semibold rounded-xl hover:opacity-90 shadow-sm transition-all"
                                 >
                                     {t("save")}
                                 </button>
@@ -995,15 +1059,15 @@ export default function EjmTemplateManager() {
             )}
 
             {isTemplateModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-black pb-3">
-                            <h3 className="text-base font-black uppercase tracking-tight text-black">
+                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl border border-gray-100 w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                            <h3 className="text-base font-bold text-gray-900">
                                 {editingTemplate ? t("templateModalEditTitle") : t("templateModalAddTitle")}
                             </h3>
                             <button
                                 onClick={() => setIsTemplateModalOpen(false)}
-                                className="text-sm font-bold text-gray-500 hover:text-black"
+                                className="text-gray-400 hover:text-gray-700 text-lg font-bold p-1 rounded-lg hover:bg-gray-50"
                             >
                                 ✕
                             </button>
@@ -1011,7 +1075,7 @@ export default function EjmTemplateManager() {
 
                         <form onSubmit={handleSaveTemplate} className="flex flex-col gap-4">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                <label className="text-xs font-semibold text-gray-700">
                                     {t("templateName")}
                                 </label>
                                 <input
@@ -1020,18 +1084,18 @@ export default function EjmTemplateManager() {
                                     placeholder={t("templateNamePlaceholder")}
                                     value={formTitle}
                                     onChange={(e) => setFormTitle(e.target.value)}
-                                    className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
+                                    className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 outline-none"
                                 />
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                <label className="text-xs font-semibold text-gray-700">
                                     {t("lifecycleStage")}
                                 </label>
                                 <select
                                     value={formStage}
                                     onChange={(e) => setFormStage(e.target.value)}
-                                    className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-black"
+                                    className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 outline-none"
                                 >
                                     <option value="PRE_HIRE">📝 PRE_HIRE</option>
                                     <option value="ONBOARDING">📚 ONBOARDING</option>
@@ -1043,7 +1107,7 @@ export default function EjmTemplateManager() {
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                <label className="text-xs font-semibold text-gray-700">
                                     {t("desc")}
                                 </label>
                                 <textarea
@@ -1051,21 +1115,21 @@ export default function EjmTemplateManager() {
                                     placeholder={t("templateDescPlaceholder")}
                                     value={formDescription}
                                     onChange={(e) => setFormDescription(e.target.value)}
-                                    className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black resize-none"
+                                    className="p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500/20 outline-none resize-none"
                                 />
                             </div>
 
-                            <div className="flex flex-col gap-2 border-t border-gray-200 pt-3">
+                            <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold uppercase tracking-wider text-black">
+                                    <label className="text-xs font-semibold text-gray-700">
                                         {t("stageTasksAndSteps")}
                                     </label>
                                     <button
                                         type="button"
                                         onClick={handleAddTaskRow}
-                                        className="text-[11px] font-bold text-blue-600 hover:text-black uppercase tracking-wider"
+                                        className="text-xs font-semibold text-violet-600 hover:text-violet-800"
                                     >
-                                        {t("addStep")}
+                                        + {t("addStep")}
                                     </button>
                                 </div>
 
@@ -1073,7 +1137,7 @@ export default function EjmTemplateManager() {
                                     {tasks.map((task, tIdx) => (
                                         <div
                                             key={tIdx}
-                                            className="flex items-center gap-2 bg-gray-50 p-2 border border-gray-200"
+                                            className="flex items-center gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100"
                                         >
                                             <input
                                                 type="text"
@@ -1081,7 +1145,7 @@ export default function EjmTemplateManager() {
                                                 placeholder={t("taskNamePlaceholder")}
                                                 value={task.title}
                                                 onChange={(e) => handleTaskChange(tIdx, "title", e.target.value)}
-                                                className="flex-1 p-1.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
+                                                className="flex-1 p-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-violet-500/20 outline-none"
                                             />
                                             <div className="flex items-center gap-1">
                                                 <input
@@ -1089,15 +1153,15 @@ export default function EjmTemplateManager() {
                                                     min="1"
                                                     value={task.dueDays}
                                                     onChange={(e) => handleTaskChange(tIdx, "dueDays", e.target.value === "" ? "" : (parseInt(e.target.value) || 1))}
-                                                    className="w-16 p-1.5 bg-white border border-gray-300 text-xs font-bold text-center text-black focus:outline-none focus:border-black"
+                                                    className="w-16 p-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-center focus:ring-2 focus:ring-violet-500/20 outline-none"
                                                 />
-                                                <span className="text-[10px] font-bold text-gray-500 uppercase">{t("day")}</span>
+                                                <span className="text-[11px] font-medium text-gray-500">{t("day")}</span>
                                             </div>
                                             {tasks.length > 1 && (
                                                 <button
                                                     type="button"
                                                     onClick={() => handleRemoveTaskRow(tIdx)}
-                                                    className="p-1.5 text-xs text-red-600 hover:bg-red-50 font-bold"
+                                                    className="p-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg font-bold"
                                                 >
                                                     ✕
                                                 </button>
@@ -1107,18 +1171,18 @@ export default function EjmTemplateManager() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
                                 <button
                                     type="button"
                                     onClick={() => setIsTemplateModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
+                                    className="px-5 py-2.5 bg-white border border-gray-200 text-xs font-semibold rounded-xl text-gray-700 hover:bg-gray-50 transition-all"
                                 >
                                     {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                                    className="px-6 py-2.5 bg-[#9327FF] text-white text-xs font-semibold rounded-xl hover:opacity-90 shadow-sm transition-all disabled:opacity-50"
                                 >
                                     {saving ? t("saving") : t("save")}
                                 </button>

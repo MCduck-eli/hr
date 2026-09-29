@@ -3,18 +3,20 @@ import { z } from "zod";
 export const createVacancySchema = z.object({
     body: z.object({
         title: z.string().min(3),
-        companyName: z.string().optional(),
+        companyName: z.string().optional().nullable(),
         description: z.string().min(10),
         requirements: z.string(),
+        departmentId: z.string().optional().nullable(),
     }),
 });
 
 export const updateVacancySchema = z.object({
     body: z.object({
         title: z.string().min(3).optional(),
-        companyName: z.string().optional(),
+        companyName: z.string().optional().nullable(),
         description: z.string().min(10).optional(),
         requirements: z.string().optional(),
+        departmentId: z.string().optional().nullable(),
     }),
 });
 

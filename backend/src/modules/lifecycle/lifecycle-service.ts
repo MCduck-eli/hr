@@ -1413,6 +1413,70 @@ export class LifecycleService {
             csvContent,
         };
     }
+
+    async getStageStats(departmentId?: string, currentUser?: any) {
+        const companyWhere: any = {};
+        if (currentUser && currentUser.role !== "SUPER_ADMIN" && currentUser.companyName) {
+            companyWhere.user = { companyName: currentUser.companyName };
+        }
+        if (departmentId && departmentId !== "ALL") {
+            companyWhere.departmentId = departmentId;
+        }
+
+        const checklists = await prisma.employeeLifecycleChecklist.findMany({
+            where: {
+                employee: companyWhere,
+            },
+            include: {
+                task: {
+                    include: {
+                        template: true,
+                    },
+                },
+            },
+        });
+
+        const offboardingTasks = await prisma.offboardingTaskItem.findMany({
+            where: {
+                offboarding: {
+                    employee: companyWhere,
+                },
+            },
+        });
+
+        const stages = ["PRE_HIRE", "HIRED", "ONBOARDING", "PROBATION", "REGULAR_WORK", "PROMOTION", "OFFBOARDING"];
+        const stats: Record<string, { total: number; completed: number; percentage: number }> = {};
+
+        stages.forEach((st) => {
+            stats[st] = { total: 0, completed: 0, percentage: 0 };
+        });
+
+        checklists.forEach((item) => {
+            const stage = item.task?.template?.stage;
+            if (stage && stats[stage]) {
+                stats[stage].total += 1;
+                if (item.status === "COMPLETED") {
+                    stats[stage].completed += 1;
+                }
+            }
+        });
+
+        offboardingTasks.forEach((item) => {
+            if (stats["OFFBOARDING"]) {
+                stats["OFFBOARDING"].total += 1;
+                if (item.status === "COMPLETED") {
+                    stats["OFFBOARDING"].completed += 1;
+                }
+            }
+        });
+
+        stages.forEach((st) => {
+            const s = stats[st];
+            s.percentage = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
+        });
+
+        return stats;
+    }
 }
 
 export const lifecycleService = new LifecycleService();

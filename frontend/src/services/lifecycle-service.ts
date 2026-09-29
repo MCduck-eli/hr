@@ -219,3 +219,17 @@ export async function deleteLifecycleTemplate(templateId: string): Promise<any> 
     const json = await res.json();
     return json.data;
 }
+
+export async function fetchStageStats(departmentId?: string): Promise<Record<string, { total: number; completed: number; percentage: number }>> {
+    const qs = departmentId && departmentId !== "ALL" ? `?departmentId=${departmentId}` : "";
+    const res = await fetch(`${API_URL}/lifecycle/stage-stats${qs}`, {
+        headers: getHeaders(),
+    });
+
+    if (!res.ok) {
+        return {};
+    }
+
+    const json = await res.json();
+    return json.data || {};
+}

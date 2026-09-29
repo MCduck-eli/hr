@@ -33,23 +33,23 @@ export default function OnboardingFilterTabs({
     ];
 
     return (
-        <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+        <div className="flex flex-wrap gap-2 pb-1">
             {tabs.map((tab) => (
                 <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-sm transition-all flex items-center gap-2 ${
+                    className={`px-4 py-2 text-xs font-medium rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
                         activeTab === tab.id
-                            ? "bg-black text-white shadow-sm"
-                            : "bg-white text-gray-600 border border-gray-200 hover:border-black"
+                            ? "bg-violet-100 text-violet-700 font-medium"
+                            : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                 >
                     <span>{tab.label}</span>
                     <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                             activeTab === tab.id
-                                ? "bg-white/20 text-white"
-                                : "bg-gray-100 text-gray-700"
+                                ? "bg-violet-200 text-violet-800"
+                                : "bg-gray-100 text-gray-600"
                         }`}
                     >
                         {tab.count}
