@@ -1,8 +1,10 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 import { hashPassword } from "../../utils/password";
 import { employeeStatusService } from "../employee-status/employee-status-service";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class UserService {
     async getAllUsers(currentUser?: any) {
@@ -396,30 +398,6 @@ export class UserService {
         }
 
         try {
-            let transporter;
-            if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-                transporter = nodemailer.createTransport({
-                    host: process.env.SMTP_HOST || "smtp.gmail.com",
-                    port: Number(process.env.SMTP_PORT) || 587,
-                    secure: Number(process.env.SMTP_PORT) === 465,
-                    auth: {
-                        user: process.env.SMTP_USER,
-                        pass: process.env.SMTP_PASS,
-                    },
-                });
-            } else {
-                const testAccount = await nodemailer.createTestAccount();
-                transporter = nodemailer.createTransport({
-                    host: "smtp.ethereal.email",
-                    port: 587,
-                    secure: false,
-                    auth: {
-                        user: testAccount.user,
-                        pass: testAccount.pass,
-                    },
-                });
-            }
-
             const fullName = `${firstName || ""} ${lastName || ""}`.trim() || "Xodim";
             const appUrl = process.env.APP_URL || "http://localhost:3000";
 
@@ -479,13 +457,8 @@ export class UserService {
                 </html>
             `;
 
-            const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@hrplatform.com";
-            const cleanFrom = fromAddress.includes("<")
-                ? fromAddress
-                : `"HR Platform" <${fromAddress}>`;
-
-            await transporter.sendMail({
-                from: cleanFrom,
+            await resend.emails.send({
+                from: "onboarding@resend.dev",
                 to: email,
                 subject: "Tabriklaymiz! Siz ishga qabul qilindingiz — HR Platform",
                 text: `Hurmatli ${fullName},\n\nSizni jamoamizga qabul qilinganingiz bilan tabriklaymiz!\n\nEmail: ${email}\nParol: ${password}\n\nKirish: ${appUrl}\n\nHurmat bilan,\nHR Bo'limi`,

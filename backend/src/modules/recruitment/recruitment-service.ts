@@ -5,7 +5,10 @@ import { aiScreeningService } from "./ai-screening-service";
 import { cvParserService } from "./cv-parser-service";
 import { onboardingService } from "../onboarding/onboarding-service";
 import { hashPassword } from "../../utils/password";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 
 export class RecruitmentService {
     async createVacancy(payload: {
@@ -550,30 +553,6 @@ export class RecruitmentService {
             throw new AppError("Ruxsat berilmadi", 403);
         }
 
-        let transporter;
-
-        if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-            transporter = nodemailer.createTransport({
-                host: process.env.SMTP_HOST || "smtp.gmail.com",
-                port: Number(process.env.SMTP_PORT) || 587,
-                secure: Number(process.env.SMTP_PORT) === 465,
-                auth: {
-                    user: process.env.SMTP_USER,
-                    pass: process.env.SMTP_PASS,
-                },
-            });
-        } else {
-            const testAccount = await nodemailer.createTestAccount();
-            transporter = nodemailer.createTransport({
-                host: "smtp.ethereal.email",
-                port: 587,
-                secure: false,
-                auth: {
-                    user: testAccount.user,
-                    pass: testAccount.pass,
-                },
-            });
-        }
 
         const getBadgeInfo = (type: string) => {
             switch (type) {
@@ -653,18 +632,14 @@ export class RecruitmentService {
             </html>
         `;
 
-        const fromAddress = process.env.SMTP_FROM
-            ? process.env.SMTP_FROM.replace(/^["']|["']$/g, "")
-            : `"HR Platform" <${process.env.SMTP_USER || "hr@company.com"}>`;
-
-        const info = await transporter.sendMail({
-            from: fromAddress,
+        await resend.emails.send({
+            from: "onboarding@resend.dev",
             to: candidate.email,
             subject: payload.subject,
             html: htmlContent,
         });
 
-        return { success: true, previewUrl: nodemailer.getTestMessageUrl(info) };
+        return { success: true };
     }
 
     async sendCandidateSms(

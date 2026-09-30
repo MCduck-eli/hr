@@ -2,7 +2,10 @@ import prisma from "../../config/db";
 import { hashPassword, comparePassword } from "../../utils/password";
 import { generateToken } from "../../utils/jwt";
 import { AppError } from "../../utils/appError";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 
 interface OtpRecord {
     code: string;
@@ -112,30 +115,6 @@ export class AuthService {
         });
 
         try {
-            let transporter;
-            if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-                transporter = nodemailer.createTransport({
-                    host: process.env.SMTP_HOST || "smtp.gmail.com",
-                    port: Number(process.env.SMTP_PORT) || 587,
-                    secure: Number(process.env.SMTP_PORT) === 465,
-                    auth: {
-                        user: process.env.SMTP_USER,
-                        pass: process.env.SMTP_PASS,
-                    },
-                });
-            } else {
-                const testAccount = await nodemailer.createTestAccount();
-                transporter = nodemailer.createTransport({
-                    host: "smtp.ethereal.email",
-                    port: 587,
-                    secure: false,
-                    auth: {
-                        user: testAccount.user,
-                        pass: testAccount.pass,
-                    },
-                });
-            }
-
             const htmlContent = `
                 <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
                     <h2 style="color: #0f172a; margin-bottom: 8px;">HR Platformasi</h2>
@@ -147,8 +126,8 @@ export class AuthService {
                 </div>
             `;
 
-            await transporter.sendMail({
-                from: `"HR Platform" <${process.env.SMTP_USER || "no-reply@hrplatform.com"}>`,
+            await resend.emails.send({
+                from: "onboarding@resend.dev",
                 to: normalizedEmail,
                 subject: `Tasdiqlash kodi: ${code}`,
                 html: htmlContent,

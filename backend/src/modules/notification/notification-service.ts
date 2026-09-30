@@ -1,20 +1,10 @@
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class NotificationService {
-    private transporter;
-
-    constructor() {
-        this.transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || "smtp.mailtrap.io",
-            port: Number(process.env.SMTP_PORT) || 2525,
-            auth: {
-                user: process.env.SMTP_USER || "",
-                pass: process.env.SMTP_PASS || "",
-            },
-        });
-    }
 
     async registerDeviceToken(
         userId: string,
@@ -215,10 +205,8 @@ export class NotificationService {
     }
 
     private async sendEmail(to: string, subject: string, text: string) {
-        const mailOptions = {
-            from:
-                process.env.SMTP_FROM ||
-                '"HR System" <no-reply@hrplatform.com>',
+        return resend.emails.send({
+            from: "onboarding@resend.dev",
             to,
             subject,
             text,
@@ -228,9 +216,7 @@ export class NotificationService {
                 <hr />
                 <small>Bu xabar HR Platform tizimi tomonidan avtomatik yuborildi.</small>
              </div>`,
-        };
-
-        return this.transporter.sendMail(mailOptions);
+        });
     }
 
     private async sendPushNotification(
