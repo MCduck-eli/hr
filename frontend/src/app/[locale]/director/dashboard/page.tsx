@@ -11,8 +11,7 @@ import { fetchAllUsers, createUser, updateUser, deleteUser } from "@/src/service
 import { fetchDepartments, createDepartment, deleteDepartment } from "@/src/services/department-service";
 import ExecutiveAnalyticsDashboard from "@/src/components/analytics/ExecutiveAnalyticsDashboard";
 import OrgChartTree from "@/src/components/org-chart/OrgChartTree";
-import EmailVerificationModal from "@/src/components/common/EmailVerificationModal";
-import { sendOtpApi } from "@/src/services/auth";
+
 
 export default function DirectorDashboard() {
     const t = useTranslations("DirectorDashboard");
@@ -30,8 +29,7 @@ export default function DirectorDashboard() {
     const [formLoading, setFormLoading] = useState(false);
     const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
     const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
-    const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
-    const [pendingEmployeeData, setPendingEmployeeData] = useState<any>(null);
+
     const [editingUser, setEditingUser] = useState<any>(null);
     const [deleteModalUser, setDeleteModalUser] = useState<any | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -136,26 +134,11 @@ export default function DirectorDashboard() {
 
         setFormLoading(true);
         try {
-            await sendOtpApi({ email: formData.email, checkExisting: true });
-            setPendingEmployeeData(formData);
-            setIsVerificationModalOpen(true);
-        } catch (err: any) {
-            alert(err.message || "Error");
-        } finally {
-            setFormLoading(false);
-        }
-    };
-
-    const handleVerifiedEmployeeSubmit = async () => {
-        if (!pendingEmployeeData) return;
-        setFormLoading(true);
-        try {
-            await createUser(pendingEmployeeData);
-            setIsVerificationModalOpen(false);
+            await createUser(formData);
             setIsEmployeeModalOpen(false);
-            setPendingEmployeeData(null);
             setEditingUser(null);
             loadData();
+            showToast("Muvaffaqiyatli yaratildi", "success");
         } catch (err: any) {
             alert(err.message || "Error");
         } finally {
@@ -806,13 +789,6 @@ export default function DirectorDashboard() {
                 departments={departments}
             />
 
-            <EmailVerificationModal
-                isOpen={isVerificationModalOpen}
-                email={pendingEmployeeData?.email || ""}
-                onClose={() => setIsVerificationModalOpen(false)}
-                onVerified={handleVerifiedEmployeeSubmit}
-                checkExisting={true}
-            />
 
             {deleteModalUser && (
                 <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">

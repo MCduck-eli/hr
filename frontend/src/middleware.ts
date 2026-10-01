@@ -70,10 +70,6 @@ export function middleware(request: NextRequest) {
         const localeCookie = request.cookies.get("NEXT_LOCALE")?.value;
         const locale = (localeCookie && locales.includes(localeCookie)) ? localeCookie : defaultLocale;
         if (pathname === "/") {
-            if (isAuthenticated) {
-                const targetPath = getRoleDashboardPath(locale, role);
-                return NextResponse.redirect(new URL(targetPath, request.url));
-            }
             return NextResponse.redirect(new URL(`/${locale}`, request.url));
         }
         const targetPath = `/${locale}${pathname}`;
@@ -85,10 +81,6 @@ export function middleware(request: NextRequest) {
     const routeAfterLocale = "/" + segments.slice(1).join("/");
 
     if (pathname === `/${locale}` || pathname === `/${locale}/`) {
-        if (isAuthenticated) {
-            const targetPath = getRoleDashboardPath(locale, role);
-            return NextResponse.redirect(new URL(targetPath, request.url));
-        }
         return NextResponse.next();
     }
 

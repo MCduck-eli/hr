@@ -6,8 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import EmployeeForm from "@/src/components/hr/employees/employee-form";
 import EmployeeDetailsTable from "@/src/components/hr/employees/employee-details-table";
-import EmailVerificationModal from "@/src/components/common/EmailVerificationModal";
-import { sendOtpApi } from "@/src/services/auth";
+
 import {
     createUser,
     deleteUser,
@@ -52,8 +51,7 @@ export default function HREmployeesPage() {
     const [editingUser, setEditingUser] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [pendingFormData, setPendingFormData] = useState<any>(null);
-    const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+
     const [deleteModalUser, setDeleteModalUser] = useState<any | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -126,27 +124,11 @@ export default function HREmployeesPage() {
 
         setLoading(true);
         try {
-            await sendOtpApi({ email: formData.email, checkExisting: true });
-            setPendingFormData(formData);
-            setIsVerificationModalOpen(true);
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleVerifiedCreate = async () => {
-        if (!pendingFormData) return;
-        setLoading(true);
-        try {
-            await createUser(pendingFormData);
+            await createUser(formData);
             if (candidateData) {
                 setCandidateData(null);
                 router.replace(window.location.pathname);
             }
-            setIsVerificationModalOpen(false);
-            setPendingFormData(null);
             setEditingUser(null);
             loadUsers();
             showToast("Xodim muvaffaqiyatli yaratildi", "success");
@@ -252,13 +234,6 @@ export default function HREmployeesPage() {
                 />
             </div>
 
-            <EmailVerificationModal
-                isOpen={isVerificationModalOpen}
-                email={pendingFormData?.email || ""}
-                onClose={() => setIsVerificationModalOpen(false)}
-                onVerified={handleVerifiedCreate}
-                checkExisting={true}
-            />
 
             {deleteModalUser && (
                 <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">

@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import EmailVerificationModal from "@/src/components/common/EmailVerificationModal";
-import { sendOtpApi } from "@/src/services/auth";
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -92,7 +91,7 @@ export default function SuperAdminDashboard() {
     const [error, setError] = useState("");
     const [deleteModalUser, setDeleteModalUser] = useState<any | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
     const showToast = (message: string, type: "success" | "error" = "success") => {
@@ -233,21 +232,6 @@ export default function SuperAdminDashboard() {
         }
 
         try {
-            await sendOtpApi({ email: form.email, checkExisting: true });
-            setIsVerificationModalOpen(true);
-        } catch (err: any) {
-            setError(err.message);
-            showToast(err.message || t("toastError"), "error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleVerifiedCreateDirector = async () => {
-        setLoading(true);
-        setError("");
-
-        try {
             const token = localStorage.getItem("token");
 
             const payload: any = {
@@ -267,7 +251,6 @@ export default function SuperAdminDashboard() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Error");
 
-            setIsVerificationModalOpen(false);
             resetForm();
             fetchDirectors();
             showToast(t("toastSaved"), "success");
@@ -763,13 +746,6 @@ export default function SuperAdminDashboard() {
                 </div>
             )}
 
-            <EmailVerificationModal
-                isOpen={isVerificationModalOpen}
-                email={form.email}
-                onClose={() => setIsVerificationModalOpen(false)}
-                onVerified={handleVerifiedCreateDirector}
-                checkExisting={true}
-            />
         </div>
     );
 }

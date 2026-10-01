@@ -7,7 +7,11 @@
         "helmet": "^8.3.0",
         "jsonwebtoken": "^9.0.3",
         "multer": "^2.2.0",
+<<<<<<< HEAD
         "resend": "^6.31.0",
+=======
+        "nodemailer": "^9.1.1",
+>>>>>>> 268697d (i clear auth page)
         "zod": "^4.4.3"
     },
     "scripts": {

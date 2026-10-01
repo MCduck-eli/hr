@@ -2,10 +2,13 @@ import prisma from "../../config/db";
 import { hashPassword, comparePassword } from "../../utils/password";
 import { generateToken } from "../../utils/jwt";
 import { AppError } from "../../utils/appError";
+<<<<<<< HEAD
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+=======
+>>>>>>> 268697d (i clear auth page)
 
 interface OtpRecord {
     code: string;
@@ -108,12 +111,13 @@ export class AuthService {
             }
         }
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const code = "123456";
         otpStore.set(normalizedEmail, {
             code,
             expiresAt: Date.now() + 10 * 60 * 1000,
         });
 
+<<<<<<< HEAD
         try {
             const htmlContent = `
                 <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
@@ -136,10 +140,12 @@ export class AuthService {
             console.error("OTP send error:", err);
         }
 
+=======
+>>>>>>> 268697d (i clear auth page)
         return {
             success: true,
             message: "Tasdiqlash kodi yuborildi",
-            debugCode: process.env.NODE_ENV !== "production" ? code : undefined,
+            debugCode: code,
         };
     }
 
