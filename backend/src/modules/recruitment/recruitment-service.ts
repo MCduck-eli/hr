@@ -5,9 +5,6 @@ import { aiScreeningService } from "./ai-screening-service";
 import { cvParserService } from "./cv-parser-service";
 import { onboardingService } from "../onboarding/onboarding-service";
 import { hashPassword } from "../../utils/password";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 
 export class RecruitmentService {
@@ -553,91 +550,6 @@ export class RecruitmentService {
             throw new AppError("Ruxsat berilmadi", 403);
         }
 
-
-        const getBadgeInfo = (type: string) => {
-            switch (type) {
-                case "HIRED":
-                case "HIRE":
-                    return { text: "QABUL QILINDI", color: "#10B981", bg: "#ECFDF5" };
-                case "INTERVIEW":
-                    return { text: "SUHBATGA TAKLIFNOMA", color: "#2563EB", bg: "#EFF6FF" };
-                case "TEST_TASK":
-                    return { text: "TEST TOPSHIRIG'I", color: "#D97706", bg: "#FFFBEB" };
-                case "TASK_REMINDER":
-                    return { text: "ESLATMA — TEST TOPSHIRIG'I", color: "#EA580C", bg: "#FFF7ED" };
-                case "OFFER":
-                    return { text: "ISH TAKLIFI (OFFER)", color: "#0D9488", bg: "#F0FDFA" };
-                case "REJECTED":
-                case "REJECT":
-                    return { text: "RAD ETILDI", color: "#DC2626", bg: "#FEF2F2" };
-                case "SCREENING":
-                    return { text: "SKRINING BOSQICHI", color: "#7C3AED", bg: "#F5F3FF" };
-                default:
-                    return { text: "XABARNOMA", color: "#475569", bg: "#F8FAFC" };
-            }
-        };
-
-        const { text: badgeText, color: badgeColor, bg: badgeBg } = getBadgeInfo(payload.type);
-
-        const htmlContent = `
-            <!DOCTYPE html>
-            <html lang="uz">
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>${payload.subject}</title>
-            </head>
-            <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
-                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 30px 15px;">
-                    <tr>
-                        <td align="center">
-                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
-                                <tr>
-                                    <td style="background-color: #0f172a; padding: 28px 32px; border-bottom: 4px solid ${badgeColor};">
-                                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                                            <tr>
-                                                <td>
-                                                    <span style="display: inline-block; padding: 4px 12px; background-color: ${badgeBg}; color: ${badgeColor}; font-size: 11px; font-weight: 700; border-radius: 9999px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
-                                                        ${badgeText}
-                                                    </span>
-                                                    <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">HR PLATFORM</h1>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 36px 32px 28px 32px;">
-                                        <h2 style="margin-top: 0; margin-bottom: 24px; color: #0f172a; font-size: 18px; font-weight: 700; line-height: 1.4;">
-                                            ${payload.subject}
-                                        </h2>
-                                        <div style="font-size: 15px; color: #334155; line-height: 1.75; white-space: pre-wrap;">${payload.text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline; font-weight: bold; word-break: break-all;">$1</a>')}</div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="background-color: #f8fafc; padding: 24px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
-                                        <p style="margin: 0 0 6px 0; color: #64748b; font-size: 12px; font-weight: 500;">
-                                            Ushbu xat platforma tomonidan avtomatik tarzda yuborildi.
-                                        </p>
-                                        <p style="margin: 0; color: #94a3b8; font-size: 11px;">
-                                            &copy; ${new Date().getFullYear()} ${candidate.companyName || "Kompaniya"} HR Bo'limi. Barcha huquqlar himoyalangan.
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-            </body>
-            </html>
-        `;
-
-        await resend.emails.send({
-            from: "onboarding@resend.dev",
-            to: candidate.email,
-            subject: payload.subject,
-            html: htmlContent,
-        });
 
         return { success: true };
     }
