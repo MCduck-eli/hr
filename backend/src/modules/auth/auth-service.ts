@@ -2,13 +2,6 @@ import prisma from "../../config/db";
 import { hashPassword, comparePassword } from "../../utils/password";
 import { generateToken } from "../../utils/jwt";
 import { AppError } from "../../utils/appError";
-<<<<<<< HEAD
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-=======
->>>>>>> 268697d (i clear auth page)
 
 interface OtpRecord {
     code: string;
@@ -117,31 +110,6 @@ export class AuthService {
             expiresAt: Date.now() + 10 * 60 * 1000,
         });
 
-<<<<<<< HEAD
-        try {
-            const htmlContent = `
-                <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
-                    <h2 style="color: #0f172a; margin-bottom: 8px;">HR Platformasi</h2>
-                    <p style="color: #64748b; font-size: 14px;">Elektron pochtangizni tasdiqlash uchun maxsus kod:</p>
-                    <div style="background: #f8fafc; border-radius: 12px; padding: 16px; text-align: center; margin: 20px 0; border: 1px dashed #cbd5e1;">
-                        <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #9333ea; font-family: monospace;">${code}</span>
-                    </div>
-                    <p style="color: #94a3b8; font-size: 12px;">Ushbu kod 10 daqiqa davomida amal qiladi. Agar siz ushbu so'rovni yubormagan bo'lsangiz, xabarni e'tiborsiz qoldiring.</p>
-                </div>
-            `;
-
-            await resend.emails.send({
-                from: "onboarding@resend.dev",
-                to: normalizedEmail,
-                subject: `Tasdiqlash kodi: ${code}`,
-                html: htmlContent,
-            });
-        } catch (err) {
-            console.error("OTP send error:", err);
-        }
-
-=======
->>>>>>> 268697d (i clear auth page)
         return {
             success: true,
             message: "Tasdiqlash kodi yuborildi",
