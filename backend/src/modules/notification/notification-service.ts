@@ -1,8 +1,6 @@
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
-import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class NotificationService {
 
@@ -204,20 +202,7 @@ export class NotificationService {
         });
     }
 
-    private async sendEmail(to: string, subject: string, text: string) {
-        return resend.emails.send({
-            from: "onboarding@resend.dev",
-            to,
-            subject,
-            text,
-            html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>${subject}</h2>
-                <p>${text}</p>
-                <hr />
-                <small>Bu xabar HR Platform tizimi tomonidan avtomatik yuborildi.</small>
-             </div>`,
-        });
-    }
+    private async sendEmail(to: string, subject: string, text: string) {}
 
     private async sendPushNotification(
         tokens: string[],
