@@ -7,13 +7,19 @@ import OnboardingForm from "../../../../components/hr/onboarding/OnboardingForm"
 import OnboardingFilterTabs from "../../../../components/hr/onboarding/OnboardingFilterTabs";
 import OnboardingTemplateCard from "../../../../components/hr/onboarding/OnboardingTemplateCard";
 import { fetchAllStatuses } from "@/src/services/employee-status-service";
+import Skeleton from "@/src/components/ui/Skeleton";
+import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
 
 export default function HROnboardingPage() {
     const t = useTranslations("HROnboardingPage");
     const router = useRouter();
 
-    const [templates, setTemplates] = useState<any[]>([]);
-    const [statuses, setStatuses] = useState<any[]>([]);
+    const cachedTemplates = getQueryData<any[]>("onboarding:templates");
+    const cachedStatuses = getQueryData<any[]>("onboarding:statuses");
+
+    const [templates, setTemplates] = useState<any[]>(() => cachedTemplates || []);
+    const [statuses, setStatuses] = useState<any[]>(() => cachedStatuses || []);
+    const [isInitialLoading, setIsInitialLoading] = useState(() => !cachedTemplates);
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [targetStatus, setTargetStatus] = useState("ALL");
@@ -32,24 +38,44 @@ export default function HROnboardingPage() {
         }, 3500);
     };
 
-    const loadData = async () => {
+    const loadData = async (isBackground = false) => {
+        const cachedT = getQueryData<any[]>("onboarding:templates");
+        const cachedS = getQueryData<any[]>("onboarding:statuses");
+        const isStale = isQueryStale("onboarding:templates") || isQueryStale("onboarding:statuses");
+
+        if (cachedT && cachedS) {
+            setTemplates(cachedT);
+            setStatuses(cachedS);
+        } else if (!isBackground) {
+            setIsInitialLoading(true);
+        }
+
+        if (cachedT && cachedS && !isStale && !isBackground) {
+            setIsInitialLoading(false);
+            return;
+        }
+
         try {
             const token = localStorage.getItem("token");
             const API_URL = process.env.NEXT_PUBLIC_API_URL;
             const [templatesRes, statusesData] = await Promise.all([
                 fetch(`${API_URL}/onboarding/templates`, {
                     headers: { Authorization: `Bearer ${token}` },
-                }).then((r) => r.json()),
+                }).then((r) => r.json()).catch(() => []),
                 fetchAllStatuses().catch(() => []),
             ]);
 
             const list = Array.isArray(templatesRes)
                 ? templatesRes
                 : templatesRes.data || templatesRes.templates || [];
-            setTemplates(list);
+            setTemplates(list || []);
             setStatuses(statusesData || []);
+            setQueryData("onboarding:templates", list || []);
+            setQueryData("onboarding:statuses", statusesData || []);
         } catch (err) {
             console.error(err);
+        } finally {
+            setIsInitialLoading(false);
         }
     };
 
@@ -107,7 +133,8 @@ export default function HROnboardingPage() {
             }
 
             const isEditing = Boolean(editingId);
-            loadData();
+            invalidateQuery("onboarding:templates");
+            await loadData();
             resetForm();
             showToast(isEditing ? "Onboarding shabloni muvaffaqiyatli yangilandi!" : "Onboarding shabloni muvaffaqiyatli qo'shildi!");
         } catch (err: any) {
@@ -144,7 +171,8 @@ export default function HROnboardingPage() {
                 throw new Error(result.message || t("errorDefault"));
             }
 
-            loadData();
+            invalidateQuery("onboarding:templates");
+            await loadData();
             showToast(t("successDelete"));
         } catch (err: any) {
             console.error(err);
@@ -203,7 +231,30 @@ export default function HROnboardingPage() {
                     templates={templates}
                 />
 
-                {filteredTemplates.length === 0 ? (
+                {isInitialLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="p-6 bg-white border border-gray-100 rounded-2xl flex flex-col justify-between gap-5 shadow-sm">
+                                <div className="space-y-3">
+                                    <Skeleton className="w-full h-44 rounded-xl" />
+                                    <div className="flex justify-between items-center pt-1">
+                                        <Skeleton className="w-24 h-5 rounded-lg" />
+                                        <Skeleton className="w-16 h-5 rounded-lg" />
+                                    </div>
+                                    <Skeleton className="w-3/4 h-6 rounded-lg" />
+                                    <Skeleton className="w-full h-10 rounded-md" />
+                                </div>
+                                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                                    <Skeleton className="w-24 h-4 rounded" />
+                                    <div className="flex gap-2">
+                                        <Skeleton className="w-8 h-8 rounded-lg" />
+                                        <Skeleton className="w-8 h-8 rounded-lg" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : filteredTemplates.length === 0 ? (
                     <div className="p-12 text-center bg-white rounded-2xl border border-gray-100 shadow-sm text-sm font-semibold text-slate-400 uppercase tracking-wider">
                         {t("noTemplates")}
                     </div>

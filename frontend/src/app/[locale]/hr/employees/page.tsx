@@ -13,6 +13,7 @@ import {
     fetchAllUsers,
     updateUser,
 } from "@/src/services/user-service";
+import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
 
 function isEmailExists(msg: string): boolean {
     if (!msg) return false;
@@ -47,9 +48,10 @@ export default function HREmployeesPage() {
         return null;
     });
 
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>(() => getQueryData<any[]>("hr:users") || []);
     const [editingUser, setEditingUser] = useState<any>(null);
     const [loading, setLoading] = useState(false);
+    const [tableLoading, setTableLoading] = useState(() => !getQueryData("hr:users"));
     const [error, setError] = useState("");
 
     const [deleteModalUser, setDeleteModalUser] = useState<any | null>(null);
@@ -68,7 +70,22 @@ export default function HREmployeesPage() {
         }, 4000);
         return () => clearTimeout(timer);
     }, [error]);
+
     const loadUsers = async () => {
+        const cached = getQueryData<any[]>("hr:users");
+        const isStale = isQueryStale("hr:users");
+
+        if (cached) {
+            setUsers(cached);
+        } else {
+            setTableLoading(true);
+        }
+
+        if (cached && !isStale) {
+            setTableLoading(false);
+            return;
+        }
+
         try {
             const data = await fetchAllUsers();
             let currentUserId = "";
@@ -91,8 +108,11 @@ export default function HREmployeesPage() {
                     user.employee?.offboarding?.status !== "COMPLETED",
             );
             setUsers(filteredUsers);
+            setQueryData("hr:users", filteredUsers);
         } catch (err: any) {
             console.error(err);
+        } finally {
+            setTableLoading(false);
         }
     };
 
@@ -112,6 +132,8 @@ export default function HREmployeesPage() {
                 }
                 await updateUser(editingUser.id, payload);
                 setEditingUser(null);
+                invalidateQuery("hr");
+                invalidateQuery("director");
                 loadUsers();
                 showToast("Muvaffaqiyatli saqlandi", "success");
             } catch (err: any) {
@@ -130,6 +152,8 @@ export default function HREmployeesPage() {
                 router.replace(window.location.pathname);
             }
             setEditingUser(null);
+            invalidateQuery("hr");
+            invalidateQuery("director");
             loadUsers();
             showToast("Xodim muvaffaqiyatli yaratildi", "success");
         } catch (err: any) {
@@ -161,6 +185,8 @@ export default function HREmployeesPage() {
             }
 
             setDeleteModalUser(null);
+            invalidateQuery("hr");
+            invalidateQuery("director");
             loadUsers();
             showToast(t("deletedSuccess") || "Xodim muvaffaqiyatli o'chirildi", "success");
         } catch (err: any) {
@@ -226,6 +252,7 @@ export default function HREmployeesPage() {
                 />
                 <EmployeeDetailsTable
                     users={users}
+                    loading={tableLoading}
                     onEdit={(user) => {
                         setEditingUser(user);
                         window.scrollTo({ top: 0, behavior: "smooth" });

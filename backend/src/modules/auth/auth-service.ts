@@ -73,6 +73,7 @@ export class AuthService {
             email: user.email,
             role: user.role,
             companyName: user.companyName,
+            permissions: user.permissions || [],
         });
 
         return {
@@ -81,7 +82,11 @@ export class AuthService {
                 id: user.id,
                 email: user.email,
                 role: user.role,
+                customRoleId: user.customRoleId,
                 companyName: user.companyName,
+                phone: user.phone,
+                avatar: user.avatar,
+                permissions: user.permissions || [],
                 employee: user.employee,
             },
         };
@@ -144,4 +149,6 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
-authService.onApplicationBootstrap();
+authService.onApplicationBootstrap().catch((err) => {
+    console.error("Auth bootstrap error:", err.message);
+});

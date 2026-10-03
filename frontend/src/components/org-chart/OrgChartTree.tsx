@@ -7,17 +7,22 @@ import {
     fetchOrgTree,
     updateEmployeeHierarchy,
 } from "@/src/services/org-chart-service";
+import Skeleton from "@/src/components/ui/Skeleton";
+import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
 
 interface OrgChartTreeProps {
     initialDepartmentId?: string;
 }
 
 export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps) {
-    const [data, setData] = useState<OrgTreeResponse | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [selectedDepartment, setSelectedDepartment] = useState(initialDepartmentId || "");
     const [searchQuery, setSearchQuery] = useState("");
+
+    const cacheKey = `orgchart:${selectedDepartment}:${searchQuery}`;
+    const [data, setData] = useState<OrgTreeResponse | null>(() => getQueryData<OrgTreeResponse>(`orgchart:${initialDepartmentId || ""}:`));
+    const [loading, setLoading] = useState(() => !getQueryData(`orgchart:${initialDepartmentId || ""}:`));
+    const [error, setError] = useState<string | null>(null);
+
     const [viewMode, setViewMode] = useState<"tree" | "departments">("tree");
     const [showMatrixLines, setShowMatrixLines] = useState(true);
     const [zoom, setZoom] = useState(1);
@@ -36,14 +41,28 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
     const containerRef = useRef<HTMLDivElement>(null);
 
     const loadData = async () => {
-        setLoading(true);
+        const cached = getQueryData<OrgTreeResponse>(cacheKey);
+        const isStale = isQueryStale(cacheKey);
+
+        if (cached) {
+            setData(cached);
+        } else {
+            setLoading(true);
+        }
         setError(null);
+
+        if (cached && !isStale) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const res = await fetchOrgTree({
                 departmentId: selectedDepartment || undefined,
                 search: searchQuery || undefined,
             });
             setData(res);
+            setQueryData(cacheKey, res);
         } catch (err: any) {
             setError(err.message || "Tashkiliy tuzilmani yuklashda xatolik yuz berdi");
         } finally {
@@ -142,6 +161,8 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
                 reason: editReason || undefined,
             });
             setIsEditModalOpen(false);
+            invalidateQuery("orgchart");
+            invalidateQuery("director");
             loadData();
         } catch (err: any) {
             alert(err.message || "Xatolik yuz berdi");
@@ -263,11 +284,36 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
 
     if (loading && !data) {
         return (
-            <div className="p-16 text-center flex flex-col items-center justify-center gap-3">
-                <div className="w-8 h-8 border-3 border-[#9327FF] border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Tashkiliy tuzilma yuklanmoqda...
-                </span>
+            <div className="flex flex-col gap-6 w-full animate-pulse">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-gray-100">
+                    <div className="flex flex-col gap-2">
+                        <Skeleton className="w-64 h-8 rounded-xl" />
+                        <Skeleton className="w-96 h-4 rounded-md" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="w-48 h-10 rounded-xl" />
+                        <Skeleton className="w-36 h-10 rounded-xl" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col gap-3 shadow-xs">
+                            <Skeleton className="w-24 h-3.5 rounded-md" />
+                            <Skeleton className="w-16 h-8 rounded-lg" />
+                            <Skeleton className="w-32 h-3 rounded-md" />
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex flex-col items-center justify-center p-12 gap-8 bg-slate-50/50 rounded-2xl border border-slate-100 min-h-[300px]">
+                    <Skeleton className="w-64 h-24 rounded-2xl" />
+                    <div className="flex items-center justify-center gap-12 w-full">
+                        <Skeleton className="w-56 h-24 rounded-2xl" />
+                        <Skeleton className="w-56 h-24 rounded-2xl" />
+                        <Skeleton className="w-56 h-24 rounded-2xl" />
+                    </div>
+                </div>
             </div>
         );
     }

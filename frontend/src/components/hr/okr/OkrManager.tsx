@@ -13,16 +13,24 @@ import {
     reviewCheckIn
 } from "@/src/services/okr-service";
 import { fetchDepartments } from "@/src/services/department-service";
+import Skeleton from "@/src/components/ui/Skeleton";
+import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
 
 export default function OkrManager() {
     const t = useTranslations("HROkr");
-    const [loading, setLoading] = useState(true);
-    const [cycles, setCycles] = useState<any[]>([]);
-    const [selectedCycleId, setSelectedCycleId] = useState<string>("");
-    const [dashboard, setDashboard] = useState<any>(null);
+    const cachedCycles = getQueryData<any[]>("okr:cycles");
+    const defaultCycle = cachedCycles?.find((c: any) => c.isCurrent) || cachedCycles?.[0];
+    const initialCycleId = defaultCycle?.id || "";
+    const cachedDashboard = initialCycleId ? getQueryData<any>(`okr:dashboard:${initialCycleId}`) : null;
+    const cachedPendingCheckIns = getQueryData<any[]>("okr:pendingCheckIns");
+
+    const [loading, setLoading] = useState(() => !cachedCycles || (initialCycleId ? !cachedDashboard : false));
+    const [cycles, setCycles] = useState<any[]>(() => cachedCycles || []);
+    const [selectedCycleId, setSelectedCycleId] = useState<string>(() => initialCycleId);
+    const [dashboard, setDashboard] = useState<any>(() => cachedDashboard || null);
     const [employees, setEmployees] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
-    const [pendingCheckIns, setPendingCheckIns] = useState<any[]>([]);
+    const [pendingCheckIns, setPendingCheckIns] = useState<any[]>(() => cachedPendingCheckIns || []);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
@@ -60,31 +68,65 @@ export default function OkrManager() {
     }, [selectedCycleId]);
 
     const loadInitialData = async () => {
-        try {
+        const cached = getQueryData<any[]>("okr:cycles");
+        const isStale = isQueryStale("okr:cycles");
+
+        if (cached) {
+            setCycles(cached);
+            if (cached.length > 0 && !selectedCycleId) {
+                const current = cached.find((c: any) => c.isCurrent) || cached[0];
+                setSelectedCycleId(current.id);
+            }
+        } else {
             setLoading(true);
+        }
+
+        if (cached && !isStale) {
+            return;
+        }
+
+        try {
             const cyclesData = await fetchOkrCycles();
             setCycles(cyclesData || []);
-            if (cyclesData?.length > 0) {
+            setQueryData("okr:cycles", cyclesData || []);
+            if (cyclesData?.length > 0 && !selectedCycleId) {
                 const current = cyclesData.find((c: any) => c.isCurrent) || cyclesData[0];
                 setSelectedCycleId(current.id);
-            } else {
-                setLoading(false);
             }
         } catch (e) {
             console.error(e);
-            setLoading(false);
+        } finally {
+            if (!selectedCycleId) {
+                setLoading(false);
+            }
         }
     };
 
-    const loadDashboard = async (cycleId: string) => {
-        try {
+    const loadDashboard = async (cycleId: string, isBackground = false) => {
+        const cacheKey = `okr:dashboard:${cycleId}`;
+        const cached = getQueryData<any>(cacheKey);
+        const isStale = isQueryStale(cacheKey);
+
+        if (cached) {
+            setDashboard(cached);
+        } else if (!isBackground) {
             setLoading(true);
+        }
+
+        if (cached && !isStale && !isBackground) {
+            setLoading(false);
+            return;
+        }
+
+        try {
             const [data, checkInsData] = await Promise.all([
                 fetchOkrDashboard(cycleId),
                 fetchPendingCheckIns()
             ]);
             setDashboard(data);
+            setQueryData(cacheKey, data);
             setPendingCheckIns(checkInsData || []);
+            setQueryData("okr:pendingCheckIns", checkInsData || []);
         } catch (e) {
             console.error(e);
         } finally {
@@ -113,7 +155,7 @@ export default function OkrManager() {
                 const data = await res.json();
                 setEmployees(
                     data.data?.filter(
-                        (u: any) => u.employee && u.role !== "SUPER_ADMIN"
+                        (u: any) => u.employee && u.role !== "SUPER_ADMIN" && u.role !== "DIRECTOR"
                     ) || []
                 );
             }
@@ -205,7 +247,8 @@ export default function OkrManager() {
                 await createObjective(payload);
             }
             setIsModalOpen(false);
-            loadDashboard(selectedCycleId);
+            invalidateQuery("okr");
+            loadDashboard(selectedCycleId, true);
         } catch (e: any) {
             alert(e.message);
         }
@@ -215,7 +258,8 @@ export default function OkrManager() {
         if (!confirm(t("confirmDeleteOkr"))) return;
         try {
             await deleteObjective(id);
-            loadDashboard(selectedCycleId);
+            invalidateQuery("okr");
+            loadDashboard(selectedCycleId, true);
         } catch (e: any) {
             alert(e.message);
         }
@@ -224,7 +268,8 @@ export default function OkrManager() {
     const handleReviewCheckIn = async (checkInId: string, status: "APPROVED" | "REJECTED") => {
         try {
             await reviewCheckIn(checkInId, status);
-            loadDashboard(selectedCycleId);
+            invalidateQuery("okr");
+            loadDashboard(selectedCycleId, true);
         } catch (e: any) {
             alert(e.message);
         }
@@ -241,6 +286,7 @@ export default function OkrManager() {
             };
             await createOkrCycle(payload);
             setIsCycleModalOpen(false);
+            invalidateQuery("okr");
             loadInitialData();
         } catch (e: any) {
             alert(e.message);
@@ -285,10 +331,61 @@ export default function OkrManager() {
                 </div>
             </div>
 
-            {loading ? (
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-16 flex flex-col items-center justify-center gap-3">
-                    <div className="w-8 h-8 border-3 border-[#9327FF] border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t("loading")}</span>
+            {loading && !dashboard ? (
+                <div className="flex flex-col gap-10 animate-pulse">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {Array.from({ length: 3 }).map((_, idx) => (
+                            <div key={`okr-stat-skel-${idx}`} className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col gap-3">
+                                <Skeleton className="w-28 h-3 rounded-md" />
+                                <Skeleton className="w-20 h-10 rounded-lg" />
+                                <Skeleton className="w-full h-1.5 rounded-full mt-2" />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                            <Skeleton className="w-24 h-4 rounded-md" />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            {Array.from({ length: 3 }).map((_, idx) => (
+                                <div key={`okr-item-skel-${idx}`} className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col gap-6">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex flex-col gap-2.5">
+                                            <div className="flex items-center gap-2.5">
+                                                <Skeleton className="w-20 h-5 rounded-md" />
+                                                <Skeleton className="w-28 h-4 rounded-md" />
+                                                <Skeleton className="w-24 h-4 rounded-md" />
+                                            </div>
+                                            <Skeleton className="w-72 h-6 rounded-lg" />
+                                            <Skeleton className="w-96 h-4 rounded-md" />
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex flex-col items-end gap-1">
+                                                <Skeleton className="w-16 h-8 rounded-lg" />
+                                                <Skeleton className="w-10 h-3 rounded-md" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50/70 rounded-xl p-4 flex flex-col gap-3 border border-gray-100">
+                                        <Skeleton className="w-24 h-3 rounded-md" />
+                                        <div className="flex flex-col gap-2.5">
+                                            <div className="flex items-center justify-between">
+                                                <Skeleton className="w-48 h-4 rounded-md" />
+                                                <Skeleton className="w-1/3 h-3 rounded-full" />
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <Skeleton className="w-40 h-4 rounded-md" />
+                                                <Skeleton className="w-1/3 h-3 rounded-full" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             ) : !dashboard ? (
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-16 flex flex-col items-center justify-center gap-3 text-center">

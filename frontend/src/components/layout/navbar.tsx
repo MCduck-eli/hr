@@ -18,11 +18,14 @@ export default function Navbar() {
     const [userRole, setUserRole] = useState("");
     const [userName, setUserName] = useState("");
     const [userInitials, setUserInitials] = useState("");
+    const [userAvatar, setUserAvatar] = useState<string | null>(null);
+    const [avatarError, setAvatarError] = useState(false);
     const [isLoadingUser, setIsLoadingUser] = useState(true);
     const [hasOriginalAdmin, setHasOriginalAdmin] = useState(false);
 
     useEffect(() => {
         setIsLoadingUser(true);
+        setAvatarError(false);
         const token = localStorage.getItem("token");
         const userStr = localStorage.getItem("user");
         const originalAdminUser = localStorage.getItem("originalAdminUser");
@@ -56,17 +59,33 @@ export default function Navbar() {
                 } else {
                     setUserInitials("U");
                 }
+
+                const rawAvatar = user.avatar || user.employee?.avatar || user.image || user.employee?.image || user.picture || user.employee?.picture || user.photo || user.employee?.photo || "";
+                if (rawAvatar) {
+                    if (rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://") || rawAvatar.startsWith("data:")) {
+                        setUserAvatar(rawAvatar);
+                    } else {
+                        const rawApi = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+                        const baseOrigin = rawApi.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/+$/, "");
+                        const cleanPath = rawAvatar.startsWith("/") ? rawAvatar : `/${rawAvatar}`;
+                        setUserAvatar(`${baseOrigin}${cleanPath}`);
+                    }
+                } else {
+                    setUserAvatar(null);
+                }
             } catch (e) {
                 setIsLoggedIn(false);
                 setUserRole("");
                 setUserName("");
                 setUserInitials("");
+                setUserAvatar(null);
             }
         } else {
             setIsLoggedIn(false);
             setUserRole("");
             setUserName("");
             setUserInitials("");
+            setUserAvatar(null);
         }
         setIsLoadingUser(false);
     }, [pathname]);
@@ -178,8 +197,17 @@ export default function Navbar() {
                         </div>
                     ) : isLoggedIn && userName ? (
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-[#f3e8ff] text-[#9327FF] flex items-center justify-center text-xs font-bold shrink-0">
-                                {userInitials}
+                            <div className="w-8 h-8 rounded-full bg-[#f3e8ff] text-[#9327FF] flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden shadow-xs">
+                                {userAvatar && !avatarError ? (
+                                    <img
+                                        src={userAvatar}
+                                        alt={userName}
+                                        onError={() => setAvatarError(true)}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    userInitials
+                                )}
                             </div>
                             <span className="text-sm font-medium text-gray-700 max-w-[150px] truncate">
                                 {userName}
@@ -225,6 +253,7 @@ export default function Navbar() {
                     isLoggedIn={isLoggedIn}
                     userName={userName}
                     userInitials={userInitials}
+                    userAvatar={userAvatar}
                     locale={locale}
                     onLogout={handleLogout}
                     dashboardLink={getDashboardLink()}

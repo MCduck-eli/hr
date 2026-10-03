@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { fetchDepartments, createDepartment } from "@/src/services/department-service";
@@ -19,6 +21,7 @@ interface FormErrors {
     lastName?: "requiredField" | "minLetters" | "onlyLetters";
     email?: "requiredField" | "invalidEmail";
     password?: "requiredField" | "minPassword" | "weakPassword";
+    phone?: "requiredField";
 }
 
 const NAME_REGEX = /^[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ'ʻʼ`\s-]+$/;
@@ -65,6 +68,33 @@ function validatePasswordField(val: string, isRequired: boolean): "requiredField
     }
     return null;
 }
+
+function validatePhoneField(val: string): "requiredField" | null {
+    const trimmed = (val || "").trim();
+    if (!trimmed) {
+        return "requiredField";
+    }
+    return null;
+}
+
+const PLATFORM_PERMISSIONS = [
+    { key: "hr_dashboard", label: "HR Dashboard", description: "HR boshqaruv paneli va monitoring" },
+    { key: "employees", label: "Xodimlar Ro'yxati", description: "Xodimlarni ko'rish va boshqarish" },
+    { key: "attendance", label: "Davomat Tizimi", description: "Xodimlar davomatini nazorat qilish" },
+    { key: "payroll", label: "Bugalteriya (Payroll)", description: "Ish haqi, avans va hisob-kitoblar" },
+    { key: "org_chart", label: "Tashkiliy Tuzilma", description: "Kompaniya ierarxik daraxti" },
+    { key: "analytics", label: "BI & 9-Box Analitika", description: "Kompaniya ko'rsatkichlari va tahlillar" },
+    { key: "okr", label: "OKR Maqsadlar", description: "Maqsadlar va kalit natijalar tizimi" },
+    { key: "grading", label: "Greyding Tizimi", description: "Darajalar va lavozimlar mezonlari" },
+    { key: "disc", label: "DISC Modeli", description: "Psixologik xarakter tahlili" },
+    { key: "feedback360", label: "360° Baholash", description: "360 darajali so'rovnoma va baholashlar" },
+    { key: "recruiting", label: "Rekruting", description: "Vakansiyalar va nomzodlar boshqaruvi" },
+    { key: "onboarding", label: "Onboarding", description: "Yangi xodimlarni moslashtirish dasturi" },
+    { key: "offboarding", label: "Offboarding", description: "Xodimni ishdan bo'shatish jarayoni" },
+    { key: "academy", label: "Akademiya", description: "Ta'lim kurslari va video darsliklar" },
+    { key: "regulations", label: "Ichki Nizomlar", description: "Kompaniya qoidalari va nizomlari" },
+    { key: "ejm", label: "EJM Roadmap", description: "Xodim sayohati xaritasi" },
+];
 
 export default function EmployeeForm({
     initialData,
@@ -126,11 +156,26 @@ export default function EmployeeForm({
         loadRoles();
     }, []);
 
+    const getFormattedAvatarUrl = (raw: string) => {
+        if (!raw) return "";
+        if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:") || raw.startsWith("blob:")) {
+            return raw;
+        }
+        const rawApi = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+        const baseOrigin = rawApi.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/+$/, "");
+        const cleanPath = raw.startsWith("/") ? raw : `/${raw}`;
+        return `${baseOrigin}${cleanPath}`;
+    };
+
+    const [avatarError, setAvatarError] = useState(false);
     const [form, setForm] = useState<any>({
         email: "",
         password: "",
         firstName: "",
         lastName: "",
+        phone: "",
+        avatar: null,
+        avatarPreview: "",
         role: "EMPLOYEE",
         customRoleId: "",
         status: "NEW",
@@ -138,10 +183,12 @@ export default function EmployeeForm({
         departmentId: "",
         positionId: "",
         leaveBalance: "",
+        permissions: [],
     });
 
     useEffect(() => {
         setFormErrors({});
+        setAvatarError(false);
         if (initialData) {
             let defaultPass = "";
             if (initialData.candidateId && !initialData.password) {
@@ -150,6 +197,9 @@ export default function EmployeeForm({
                     defaultPass += chars.charAt(Math.floor(Math.random() * chars.length));
                 }
             }
+
+            const existingAvatar = initialData.avatar || initialData.employee?.avatar || initialData.image || initialData.employee?.image || initialData.photo || initialData.employee?.photo || "";
+            const formattedAvatarUrl = getFormattedAvatarUrl(existingAvatar);
 
             setForm({
                 candidateId: initialData.candidateId || undefined,
@@ -163,6 +213,12 @@ export default function EmployeeForm({
                     initialData.lastName ||
                     initialData.employee?.lastName ||
                     "",
+                phone:
+                    initialData.phone ||
+                    initialData.employee?.phone ||
+                    "",
+                avatar: null,
+                avatarPreview: formattedAvatarUrl,
                 role: initialData.customRoleId || initialData.role || "EMPLOYEE",
                 customRoleId: initialData.customRoleId || "",
                 status: initialData.status || initialData.employee?.status || "NEW",
@@ -179,6 +235,7 @@ export default function EmployeeForm({
                     initialData.employee?.positionId ||
                     "",
                 leaveBalance: initialData.employee?.leaveBalance ?? "",
+                permissions: initialData.permissions || initialData.employee?.user?.permissions || initialData.user?.permissions || [],
             });
         } else {
             setForm({
@@ -186,6 +243,9 @@ export default function EmployeeForm({
                 password: "",
                 firstName: "",
                 lastName: "",
+                phone: "",
+                avatar: null,
+                avatarPreview: "",
                 role: "EMPLOYEE",
                 customRoleId: "",
                 status: "NEW",
@@ -193,9 +253,32 @@ export default function EmployeeForm({
                 departmentId: "",
                 positionId: "",
                 leaveBalance: "",
+                permissions: [],
             });
         }
     }, [initialData]);
+
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setAvatarError(false);
+            const previewUrl = URL.createObjectURL(file);
+            setForm((prev: any) => ({
+                ...prev,
+                avatar: file,
+                avatarPreview: previewUrl,
+            }));
+        }
+    };
+
+    const handleRemoveAvatar = () => {
+        setAvatarError(false);
+        setForm((prev: any) => ({
+            ...prev,
+            avatar: null,
+            avatarPreview: "",
+        }));
+    };
 
     const generateCredentials = () => {
         const generatedEmail =
@@ -247,13 +330,15 @@ export default function EmployeeForm({
         const lastNameErr = validateNameField(form.lastName);
         const emailErr = validateEmailField(form.email);
         const passwordErr = validatePasswordField(form.password, !initialData);
+        const phoneErr = validatePhoneField(form.phone);
 
-        if (firstNameErr || lastNameErr || emailErr || passwordErr) {
+        if (firstNameErr || lastNameErr || emailErr || passwordErr || phoneErr) {
             setFormErrors({
                 firstName: firstNameErr || undefined,
                 lastName: lastNameErr || undefined,
                 email: emailErr || undefined,
                 password: passwordErr || undefined,
+                phone: phoneErr || undefined,
             });
             return;
         }
@@ -274,13 +359,27 @@ export default function EmployeeForm({
             }
         }
 
-        const payload = {
+        const payload: any = {
             ...form,
             role: payloadRole,
             customRoleId: payloadCustomRoleId,
             leaveBalance:
                 form.leaveBalance === "" ? 0 : Number(form.leaveBalance),
         };
+
+        delete payload.avatarPreview;
+
+        if (currentUserRole !== "DIRECTOR" && currentUserRole !== "SUPER_ADMIN") {
+            delete payload.permissions;
+        }
+
+        if (form.avatar instanceof File) {
+            payload.avatar = form.avatar;
+        } else if (!form.avatarPreview && initialData) {
+            payload.avatar = null;
+        } else {
+            delete payload.avatar;
+        }
 
         onSubmit(payload);
     };
@@ -316,6 +415,62 @@ export default function EmployeeForm({
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+                <div className="flex items-center gap-4 p-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl">
+                    <div className="relative w-16 h-16 rounded-2xl bg-white border-2 border-dashed border-purple-300 flex items-center justify-center overflow-hidden shadow-xs shrink-0">
+                        {form.avatarPreview && !avatarError ? (
+                            <img
+                                src={form.avatarPreview}
+                                alt="Avatar"
+                                onError={() => setAvatarError(true)}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-400">
+                                {form.firstName ? (
+                                    <span className="text-base font-bold text-[#9327FF] uppercase">
+                                        {form.firstName[0]}
+                                    </span>
+                                ) : (
+                                    <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <label className="text-xs font-bold text-slate-800 block">
+                            Rasm yuklash
+                        </label>
+                        <p className="text-[11px] text-slate-500 mb-2">
+                            PNG, JPG yoki WEBP formatda (ixtiyoriy)
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <label className="px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[#9327FF] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1.5">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                <span>{form.avatarPreview ? "O'zgartirish" : "Fayl tanlash"}</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleAvatarChange}
+                                    className="hidden"
+                                />
+                            </label>
+                            {form.avatarPreview && (
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveAvatar}
+                                    className="px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                >
+                                    O'chirish
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-700">
@@ -436,6 +591,69 @@ export default function EmployeeForm({
                                 {tErr(formErrors.password)}
                             </span>
                         )}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                            Telefon raqami *
+                        </label>
+                        <input
+                            type="tel"
+                            value={form.phone}
+                            placeholder="+998 90 123 45 67"
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setForm({ ...form, phone: val });
+                                if (formErrors.phone) {
+                                    setFormErrors((prev) => ({
+                                        ...prev,
+                                        phone: validatePhoneField(val) || undefined,
+                                    }));
+                                }
+                            }}
+                            className={`p-3 border ${
+                                formErrors.phone
+                                    ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                                    : "border-slate-200 focus:ring-[#9327FF]/10 focus:border-[#9327FF]"
+                            } text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 transition-all`}
+                        />
+                        {formErrors.phone && (
+                            <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                {tErr(formErrors.phone)}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700">
+                                {t("department")}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setIsCreatingDept(true)}
+                                className="text-[10px] font-bold text-[#9327FF] hover:underline"
+                            >
+                                + Yangi
+                            </button>
+                        </div>
+                        <select
+                            value={form.departmentId}
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    departmentId: e.target.value,
+                                })
+                            }
+                            className="p-3 border border-slate-200 text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] w-full"
+                        >
+                            <option value="">-- Tanlang --</option>
+                            {departments.map((d: any) => (
+                                <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 
@@ -570,50 +788,87 @@ export default function EmployeeForm({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-slate-700">
-                                {t("department")}
-                            </label>
-                            <button
-                                type="button"
-                                onClick={() => setIsCreatingDept(true)}
-                                className="text-[10px] font-bold text-[#9327FF] hover:underline"
-                            >
-                                + Yangi
-                            </button>
+                {(currentUserRole === "DIRECTOR" || currentUserRole === "SUPER_ADMIN") && (
+                    <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-slate-900">
+                                    Qo'shimcha Ruxsatlar (Permissions)
+                                </span>
+                                <span className="text-[11px] text-slate-500 font-medium">
+                                    Xodimga individual ochib beriladigan platforma modullari
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setForm((prev: any) => ({
+                                            ...prev,
+                                            permissions: PLATFORM_PERMISSIONS.map((p) => p.key),
+                                        }))
+                                    }
+                                    className="text-[11px] font-bold text-[#9327FF] hover:underline"
+                                >
+                                    Hammasini tanlash
+                                </button>
+                                <span className="text-slate-300">•</span>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setForm((prev: any) => ({
+                                            ...prev,
+                                            permissions: [],
+                                        }))
+                                    }
+                                    className="text-[11px] font-bold text-slate-500 hover:underline"
+                                >
+                                    Tozalash
+                                </button>
+                            </div>
                         </div>
-                        <select
-                            value={form.departmentId}
-                            onChange={(e) =>
-                                setForm({
-                                    ...form,
-                                    departmentId: e.target.value,
-                                })
-                            }
-                            className="p-3 border border-slate-200 text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] w-full"
-                        >
-                            <option value="">-- Tanlang --</option>
-                            {departments.map((d: any) => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
-                            ))}
-                        </select>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-50/70 p-3.5 rounded-2xl border border-slate-100 max-h-64 overflow-y-auto">
+                            {PLATFORM_PERMISSIONS.map((perm) => {
+                                const isChecked = (form.permissions || []).includes(perm.key);
+                                return (
+                                    <label
+                                        key={perm.key}
+                                        onClick={() => {
+                                            const current = form.permissions || [];
+                                            setForm((prev: any) => ({
+                                                ...prev,
+                                                permissions: isChecked
+                                                    ? current.filter((k: string) => k !== perm.key)
+                                                    : [...current, perm.key],
+                                            }));
+                                        }}
+                                        className={`flex items-start gap-3 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                                            isChecked
+                                                ? "bg-purple-50/60 border-purple-200 text-purple-950 shadow-2xs"
+                                                : "bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50"
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={isChecked}
+                                            onChange={() => {}}
+                                            className="mt-0.5 rounded border-gray-300 text-[#9327FF] focus:ring-[#9327FF] w-4 h-4 cursor-pointer"
+                                        />
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-xs font-bold leading-snug">
+                                                {perm.label}
+                                            </span>
+                                            <span className="text-[10px] text-slate-500 leading-tight">
+                                                {perm.description}
+                                            </span>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-700">
-                            {t("position")}
-                        </label>
-                        <input
-                            type="text"
-                            value={form.positionId}
-                            onChange={(e) =>
-                                setForm({ ...form, positionId: e.target.value })
-                            }
-                            className="p-3 border border-slate-200 text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] transition-all"
-                        />
-                    </div>
-                </div>
+                )}
 
                 <div className="flex gap-3 mt-4 pt-4 border-t border-slate-100">
                     {initialData && (

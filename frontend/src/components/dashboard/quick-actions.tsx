@@ -9,7 +9,6 @@ import {
     fetchTodayAttendanceStatus,
     checkOutAttendance,
 } from "@/src/services/attendance-service";
-import FaceCheckInModal from "./face-checkin-modal";
 import AbsenceReasonModal from "../hr/attendance/absence-reason-modal";
 
 interface QuickActionsProps {
@@ -23,7 +22,6 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
 
     const [attendanceStatus, setAttendanceStatus] =
         useState<TodayAttendanceStatus | null>(null);
-    const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
     const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -51,18 +49,13 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
         }
     };
 
-    const handleFaceCheckInSuccess = () => {
-        loadStatus();
-        if (onAttendanceUpdated) onAttendanceUpdated();
-    };
-
     const isCheckedIn = Boolean(attendanceStatus?.isCheckedIn);
     const isCheckedOut = Boolean(attendanceStatus?.isCheckedOut);
 
     return (
         <div className="flex flex-col gap-3">
             {isCheckedOut ? (
-                <div className="w-full py-4 px-6 bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-widest flex items-center justify-between">
+                <div className="w-full py-4 px-6 bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-widest flex items-center justify-between rounded-xl">
                     <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
                         <span>{t("attendanceCompleted")}</span>
@@ -89,7 +82,7 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
                 <button
                     onClick={handleCheckOut}
                     disabled={loading}
-                    className="w-full py-4 px-6 text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-between bg-white border border-gray-300 text-black hover:border-black shadow-sm"
+                    className="w-full py-4 px-6 text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-between bg-white border border-gray-300 text-black hover:border-black shadow-sm rounded-xl cursor-pointer"
                 >
                     <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -114,24 +107,8 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
                 </button>
             ) : (
                 <button
-                    onClick={() => setIsFaceModalOpen(true)}
-                    disabled={loading}
-                    className="w-full py-4 px-6 bg-[#1a1a1a] text-white hover:bg-black text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-between shadow-sm group"
-                >
-                    <div className="flex items-center gap-2">
-                        <span>📷</span>
-                        <span>{t("checkInFaceId")}</span>
-                    </div>
-                    <span className="group-hover:translate-x-1 transition-transform">
-                        &#9654;
-                    </span>
-                </button>
-            )}
-
-            {!isCheckedIn && !isCheckedOut && (
-                <button
                     onClick={() => setIsReasonModalOpen(true)}
-                    className="w-full py-3 px-6 bg-amber-50/50 border border-amber-200 text-amber-900 hover:bg-amber-100 text-xs font-bold uppercase tracking-widest transition-colors text-left flex items-center justify-between"
+                    className="w-full py-3.5 px-5 bg-amber-50 border border-amber-200 text-amber-900 hover:bg-amber-100 text-xs font-bold uppercase tracking-widest transition-colors text-left flex items-center justify-between rounded-xl cursor-pointer"
                 >
                     <span className="flex items-center gap-2">
                         <span>📝</span>
@@ -147,7 +124,7 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
 
             <Link
                 href={`/${locale}/regulations`}
-                className="w-full py-4 px-6 bg-white border border-gray-200 text-black hover:border-black text-xs font-bold uppercase tracking-widest transition-colors text-left flex items-center justify-between"
+                className="w-full py-3.5 px-5 bg-white border border-slate-200 text-slate-800 hover:border-[#9327FF] text-xs font-bold uppercase tracking-widest transition-colors text-left flex items-center justify-between rounded-xl"
             >
                 <span className="flex items-center gap-2">
                     <span>⚖️</span>
@@ -155,22 +132,6 @@ export default function QuickActions({ onAttendanceUpdated }: QuickActionsProps)
                 </span>
                 <span>&rarr;</span>
             </Link>
-
-            <button className="w-full py-4 px-6 bg-white border border-gray-200 text-black hover:border-black text-xs font-bold uppercase tracking-widest transition-colors text-left flex items-center justify-between">
-                <span>{t("requestLeave")}</span>
-                <span>+</span>
-            </button>
-
-            <button className="w-full py-4 px-6 bg-white border border-gray-200 text-black hover:border-black text-xs font-bold uppercase tracking-widest transition-colors text-left flex items-center justify-between">
-                <span>{t("updateOkrProgress")}</span>
-                <span>+</span>
-            </button>
-
-            <FaceCheckInModal
-                isOpen={isFaceModalOpen}
-                onClose={() => setIsFaceModalOpen(false)}
-                onSuccess={handleFaceCheckInSuccess}
-            />
 
             <AbsenceReasonModal
                 isOpen={isReasonModalOpen}

@@ -10,6 +10,7 @@ import {
 } from "@/src/services/policy-service";
 import EmployeeRegulationCard from "@/src/components/regulations/employee-regulation-card";
 import RegulationViewerModal from "@/src/components/regulations/regulation-viewer-modal";
+import Skeleton from "@/src/components/ui/Skeleton";
 
 export default function EmployeeRegulationsPage() {
     const t = useTranslations("RegulationsPage");
@@ -136,8 +137,21 @@ export default function EmployeeRegulationsPage() {
             </div>
 
             {loading ? (
-                <div className="p-12 text-center text-xs font-bold uppercase tracking-widest text-gray-400">
-                    Yuklanmoqda...
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="bg-white border border-gray-200 rounded-sm p-6 space-y-4 shadow-sm">
+                            <div className="flex justify-between items-center">
+                                <Skeleton className="w-20 h-5 rounded" />
+                                <Skeleton className="w-16 h-4 rounded" />
+                            </div>
+                            <Skeleton className="w-3/4 h-5 rounded" />
+                            <Skeleton className="w-full h-12 rounded" />
+                            <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                                <Skeleton className="w-24 h-4 rounded" />
+                                <Skeleton className="w-20 h-8 rounded-sm" />
+                            </div>
+                        </div>
+                    ))}
                 </div>
             ) : filteredPolicies.length === 0 ? (
                 <div className="p-16 text-center bg-white border border-gray-200 rounded-sm text-xs font-bold uppercase tracking-widest text-gray-400">

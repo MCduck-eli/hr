@@ -251,7 +251,23 @@ export class AcademyController {
         }
     }
 
-
+    async updateProgress(req: Request, res: Response, next: NextFunction) {
+        try {
+            const userId = (req as any).user?.id;
+            const courseId = req.params.courseId || req.body.courseId || req.body.moduleId;
+            const progressPercent = Math.round(
+                Number(req.body.progressPercent ?? req.body.progress ?? req.body.progressPercentage ?? 0)
+            );
+            const result = await academyService.updateCourseProgress(
+                userId,
+                courseId,
+                progressPercent,
+            );
+            res.status(200).json({ status: "success", data: result });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const academyController = new AcademyController();

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { fetchAssignmentById, submitFeedback } from "@/src/services/feedback360-service";
+import Skeleton from "@/src/components/ui/Skeleton";
 
 export default function EvaluateEmployeePage() {
     const t = useTranslations("Feedback360");
@@ -90,8 +91,27 @@ export default function EvaluateEmployeePage() {
 
     if (loading) {
         return (
-            <div className="max-w-[1000px] mx-auto p-8 flex justify-center items-center h-64 font-sans">
-                <p className="text-gray-500 font-semibold uppercase tracking-wider text-sm">Yuklanmoqda...</p>
+            <div className="max-w-[1000px] mx-auto p-8 space-y-6 font-sans">
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-4">
+                    <Skeleton className="w-48 h-6 rounded-lg" />
+                    <Skeleton className="w-96 h-4 rounded" />
+                    <div className="flex gap-4 pt-2">
+                        <Skeleton className="w-32 h-8 rounded-xl" />
+                        <Skeleton className="w-32 h-8 rounded-xl" />
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+                            <Skeleton className="w-3/4 h-5 rounded" />
+                            <div className="flex gap-3">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                    <Skeleton key={s} className="w-12 h-10 rounded-xl" />
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }

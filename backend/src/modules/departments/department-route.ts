@@ -13,15 +13,40 @@ departmentRouter.get("/:id", departmentController.getOne);
 
 departmentRouter.post(
     "/",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     validate(createDepartmentSchema),
     departmentController.create,
 );
 
+departmentRouter.post(
+    "/:id/assign-employee",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
+    departmentController.assignEmployee,
+);
+
+departmentRouter.patch(
+    "/:id/assign-employee",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
+    departmentController.assignEmployee,
+);
+
+departmentRouter.post(
+    "/:id/unassign-employee",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
+    departmentController.unassignEmployee,
+);
+
+departmentRouter.patch(
+    "/:id/unassign-employee",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
+    departmentController.unassignEmployee,
+);
+
 departmentRouter.delete(
     "/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     departmentController.delete,
 );
 
 export default departmentRouter;
+

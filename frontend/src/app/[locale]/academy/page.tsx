@@ -62,7 +62,39 @@ export default function EmployeeAcademyPage() {
                 const data = await res.json();
                 if (res.ok) {
                     const fetchedCourses = data.data?.activeCourses || [];
-                    setCourses(fetchedCourses);
+                    if (fetchedCourses.length > 0) {
+                        setCourses(
+                            fetchedCourses.map((c: any) => ({
+                                ...c,
+                                progress: c.progress ?? c.progressPercent ?? 0,
+                                isCompleted: c.isCompleted || (c.progress ?? c.progressPercent ?? 0) >= 95,
+                            }))
+                        );
+                    } else {
+                        const academyRes = await fetch(`${API_URL}/academy/courses`, {
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                            },
+                        });
+                        if (academyRes.ok) {
+                            const academyData = await academyRes.json();
+                            const list = Array.isArray(academyData)
+                                ? academyData
+                                : academyData.data || academyData.courses || [];
+                            setCourses(
+                                list.map((c: any) => ({
+                                    id: c.id,
+                                    title: c.title,
+                                    description: c.description,
+                                    coverUrl: c.coverUrl,
+                                    videoUrl: c.videoUrl,
+                                    progress: c.progress ?? c.progressPercent ?? 0,
+                                    type: "ACADEMY",
+                                    isCompleted: c.isCompleted || (c.progress ?? c.progressPercent ?? 0) >= 95,
+                                }))
+                            );
+                        }
+                    }
                 }
             } catch (err) {
             } finally {
@@ -82,7 +114,9 @@ export default function EmployeeAcademyPage() {
         if (selectedCourse && !selectedCourse.isCompleted) {
             setCourses((prev) =>
                 prev.map((c) =>
-                    c.id === selectedCourse.id ? { ...c, progress } : c,
+                    c.id === selectedCourse.id && c.type === selectedCourse.type
+                        ? { ...c, progress, progressPercent: progress }
+                        : c,
                 ),
             );
 
@@ -130,9 +164,26 @@ export default function EmployeeAcademyPage() {
                 courseId: courseToSave.id,
                 type: courseToSave.type,
                 progress: progress,
+                progressPercent: progress,
+                progressPercentage: progress,
                 targetUserId: targetUserId || undefined,
             }),
         }).catch(() => {});
+
+        if (courseToSave.type === "ACADEMY") {
+            fetch(`${API_URL}/academy/courses/${courseToSave.id}/progress`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    progress: progress,
+                    progressPercent: progress,
+                    progressPercentage: progress,
+                }),
+            }).catch(() => {});
+        }
     };
 
     const handleVideoPause = () => {
@@ -181,9 +232,26 @@ export default function EmployeeAcademyPage() {
                     courseId: courseToComplete.id,
                     type: courseToComplete.type,
                     progress: 100,
+                    progressPercent: 100,
+                    progressPercentage: 100,
                     targetUserId: targetUserId || undefined,
                 }),
             });
+
+            if (courseToComplete.type === "ACADEMY") {
+                await fetch(`${API_URL}/academy/courses/${courseToComplete.id}/progress`, {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        progress: 100,
+                        progressPercent: 100,
+                        progressPercentage: 100,
+                    }),
+                }).catch(() => {});
+            }
 
             let endpoint = "";
             let method = "PATCH";
@@ -211,7 +279,7 @@ export default function EmployeeAcademyPage() {
                 prevCourses.map((c) =>
                     c.id === courseToComplete.id &&
                     c.type === courseToComplete.type
-                        ? { ...c, isCompleted: true, progress: 100 }
+                        ? { ...c, isCompleted: true, progress: 100, progressPercent: 100 }
                         : c,
                 ),
             );
@@ -222,6 +290,7 @@ export default function EmployeeAcademyPage() {
                           ...prev,
                           isCompleted: true,
                           progress: 100,
+                          progressPercent: 100,
                       }
                     : null,
             );

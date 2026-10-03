@@ -14,6 +14,8 @@ import {
     updateDiscQuestion,
     deleteDiscQuestion,
 } from "@/src/services/disc-service";
+import Skeleton from "@/src/components/ui/Skeleton";
+import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
 
 interface DiscTestManagerProps {
     locale?: string;
@@ -21,13 +23,22 @@ interface DiscTestManagerProps {
 
 export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps) {
     const t = useTranslations("Disc");
-    const [activeTab, setActiveTab] = useState<"profile" | "test" | "team" | "questions">("profile");
-    const [loading, setLoading] = useState(true);
+    const cachedProfile = getQueryData<DiscProfileResponse>("disc:profile");
+    const cachedQuestions = getQueryData<DiscQuestion[]>("disc:questions");
+    const cachedTeam = getQueryData<TeamDiscAnalytics>("disc:team");
+
+    const [activeTab, setActiveTab] = useState<"profile" | "test" | "team" | "questions">(() => {
+        if (cachedProfile && !cachedProfile.hasTakenTest && (cachedQuestions?.length || 0) > 0) {
+            return "test";
+        }
+        return "profile";
+    });
+    const [loading, setLoading] = useState(() => !cachedProfile || !cachedQuestions);
     const [submitting, setSubmitting] = useState(false);
     const [currentUser, setCurrentUser] = useState<any>(null);
-    const [questions, setQuestions] = useState<DiscQuestion[]>([]);
-    const [profileData, setProfileData] = useState<DiscProfileResponse | null>(null);
-    const [teamAnalytics, setTeamAnalytics] = useState<TeamDiscAnalytics | null>(null);
+    const [questions, setQuestions] = useState<DiscQuestion[]>(() => cachedQuestions || []);
+    const [profileData, setProfileData] = useState<DiscProfileResponse | null>(() => cachedProfile || null);
+    const [teamAnalytics, setTeamAnalytics] = useState<TeamDiscAnalytics | null>(() => cachedTeam || null);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
     const [error, setError] = useState<string | null>(null);
@@ -54,9 +65,27 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
         loadInitialData();
     }, []);
 
-    const loadInitialData = async () => {
-        try {
+    const loadInitialData = async (isBackground = false) => {
+        const cachedProf = getQueryData<DiscProfileResponse>("disc:profile");
+        const cachedQ = getQueryData<DiscQuestion[]>("disc:questions");
+        const isStale = isQueryStale("disc:profile") || isQueryStale("disc:questions");
+
+        if (cachedProf && cachedQ) {
+            setProfileData(cachedProf);
+            setQuestions(cachedQ);
+            if (!cachedProf.hasTakenTest && cachedQ.length > 0) {
+                setActiveTab("test");
+            }
+        } else if (!isBackground) {
             setLoading(true);
+        }
+
+        if (cachedProf && cachedQ && !isStale && !isBackground) {
+            setLoading(false);
+            return;
+        }
+
+        try {
             setError(null);
             const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
             let userObj: any = null;
@@ -73,6 +102,8 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
 
             setProfileData(profileRes);
             setQuestions(questionsRes);
+            setQueryData("disc:profile", profileRes);
+            setQueryData("disc:questions", questionsRes);
 
             if (!profileRes.hasTakenTest && questionsRes.length > 0) {
                 setActiveTab("test");
@@ -92,9 +123,21 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
     };
 
     const fetchTeamData = async (deptId?: string) => {
+        const cacheKey = deptId ? `disc:team:${deptId}` : "disc:team";
+        const cached = getQueryData<TeamDiscAnalytics>(cacheKey);
+        const isStale = isQueryStale(cacheKey);
+
+        if (cached) {
+            setTeamAnalytics(cached);
+        }
+        if (cached && !isStale) {
+            return;
+        }
+
         try {
             const data = await fetchTeamDiscAnalytics(deptId);
             setTeamAnalytics(data);
+            setQueryData(cacheKey, data);
         } catch {}
     };
 
@@ -126,8 +169,11 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
             }));
 
             await submitDiscAssessment(formattedAnswers);
+            invalidateQuery("disc:profile");
+            invalidateQuery("disc:team");
             const updatedProfile = await fetchMyDiscProfile();
             setProfileData(updatedProfile);
+            setQueryData("disc:profile", updatedProfile);
             setActiveTab("profile");
             fetchTeamData();
         } catch (err: any) {
@@ -204,9 +250,11 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                 await createDiscQuestion(payload);
             }
 
+            invalidateQuery("disc:questions");
             setIsQuestionModalOpen(false);
             const freshQuestions = await fetchDiscQuestions();
             setQuestions(freshQuestions);
+            setQueryData("disc:questions", freshQuestions);
         } catch (err: any) {
             setError(err.message || "Error");
         } finally {
@@ -218,8 +266,10 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
         if (!confirm(t("deleteConfirm"))) return;
         try {
             await deleteDiscQuestion(id);
+            invalidateQuery("disc:questions");
             const freshQuestions = await fetchDiscQuestions();
             setQuestions(freshQuestions);
+            setQueryData("disc:questions", freshQuestions);
         } catch (err: any) {
             setError(err.message || "Error");
         }
@@ -230,9 +280,68 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <div className="text-xs font-bold uppercase tracking-widest text-black animate-pulse">
-                    {t("loading")}
+            <div className="flex flex-col gap-8 max-w-[1400px] mx-auto py-8 px-4 md:px-8 font-sans">
+                <div className="flex flex-col gap-2 border-b border-gray-100 pb-6">
+                    <Skeleton className="w-24 h-4 rounded" />
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <Skeleton className="w-64 h-9 rounded-xl" />
+                        <div className="flex items-center gap-2">
+                            <Skeleton className="w-28 h-10 rounded-xl" />
+                            <Skeleton className="w-28 h-10 rounded-xl" />
+                            <Skeleton className="w-32 h-10 rounded-xl" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="rounded-2xl border border-gray-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
+                            <Skeleton className="w-28 h-4 rounded" />
+                            <div className="flex items-center gap-4">
+                                <Skeleton className="w-16 h-16 rounded-2xl shrink-0" />
+                                <div className="space-y-2 flex-1">
+                                    <Skeleton className="w-32 h-6 rounded-lg" />
+                                    <Skeleton className="w-24 h-4 rounded" />
+                                </div>
+                            </div>
+                            <div className="pt-4 border-t border-gray-100 space-y-2">
+                                <Skeleton className="w-full h-4 rounded" />
+                                <Skeleton className="w-3/4 h-4 rounded" />
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-2 rounded-2xl border border-gray-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
+                            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                <Skeleton className="w-48 h-5 rounded-lg" />
+                                <Skeleton className="w-32 h-4 rounded" />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                {[1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 space-y-3">
+                                        <div className="flex justify-between">
+                                            <Skeleton className="w-24 h-4 rounded" />
+                                            <Skeleton className="w-10 h-4 rounded" />
+                                        </div>
+                                        <Skeleton className="w-full h-2 rounded-full" />
+                                        <Skeleton className="w-full h-3 rounded" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="rounded-2xl border border-gray-100 bg-white p-6 space-y-3 shadow-sm">
+                                <Skeleton className="w-28 h-4 rounded border-b border-gray-100 pb-2" />
+                                <div className="space-y-2 pt-2">
+                                    <Skeleton className="w-full h-3.5 rounded" />
+                                    <Skeleton className="w-5/6 h-3.5 rounded" />
+                                    <Skeleton className="w-4/6 h-3.5 rounded" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         );

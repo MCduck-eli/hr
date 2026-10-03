@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
-
-const prisma = new PrismaClient();
 
 export class DashboardService {
     async getEmployeeDashboardData(id: string) {
@@ -643,8 +641,10 @@ export class DashboardService {
         userId: string,
         payload: {
             courseId: string;
-            type: string;
-            progress: number;
+            type?: string;
+            progress?: number;
+            progressPercent?: number;
+            progressPercentage?: number;
             targetUserId?: string;
         },
     ) {
@@ -652,14 +652,10 @@ export class DashboardService {
             where: { id: userId },
         });
 
-        if (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN") {
-            return null;
-        }
-
         let targetId = userId;
         if (
             payload.targetUserId &&
-            (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN")
+            (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN" || user?.role === "DIRECTOR")
         ) {
             targetId = payload.targetUserId;
         }
@@ -675,12 +671,29 @@ export class DashboardService {
         }
 
         if (!employee) {
+            const targetUser = await prisma.user.findUnique({ where: { id: targetId } });
+            if (targetUser) {
+                employee = await prisma.employee.create({
+                    data: {
+                        userId: targetUser.id,
+                        firstName: targetUser.email.split("@")[0] || "User",
+                        lastName: "Employee",
+                        status: "NEW",
+                    },
+                });
+            }
+        }
+
+        if (!employee) {
             throw new AppError("Xodim topilmadi", 404);
         }
 
-        const isFullyCompleted = payload.progress >= 95;
+        const progressVal = Math.round(
+            Number(payload.progressPercent ?? payload.progress ?? payload.progressPercentage ?? 0)
+        );
+        const isFullyCompleted = progressVal >= 95;
 
-        if (payload.type === "ACADEMY") {
+        if (payload.type === "ACADEMY" || !payload.type) {
             return prisma.courseProgress.upsert({
                 where: {
                     courseId_employeeId: {
@@ -689,14 +702,14 @@ export class DashboardService {
                     },
                 },
                 update: {
-                    progressPercent: payload.progress,
+                    progressPercent: progressVal,
                     isCompleted: isFullyCompleted ? true : undefined,
                     completedAt: isFullyCompleted ? new Date() : undefined,
                 },
                 create: {
                     courseId: payload.courseId,
                     employeeId: employee.id,
-                    progressPercent: payload.progress,
+                    progressPercent: progressVal,
                     isCompleted: isFullyCompleted,
                     completedAt: isFullyCompleted ? new Date() : undefined,
                 },
@@ -753,14 +766,14 @@ export class DashboardService {
                     },
                 },
                 update: {
-                    progressPercent: payload.progress,
+                    progressPercent: progressVal,
                     isCompleted: isFullyCompleted ? true : undefined,
                     completedAt: isFullyCompleted ? new Date() : undefined,
                 },
                 create: {
                     onboardingId: onboarding.id,
                     courseId: validCourseId,
-                    progressPercent: payload.progress,
+                    progressPercent: progressVal,
                     isCompleted: isFullyCompleted,
                     completedAt: isFullyCompleted ? new Date() : undefined,
                 },
@@ -799,7 +812,7 @@ export class DashboardService {
                 },
                 include: {
                     employee: {
-                        include: { department: true },
+                        include: { department: true, user: true },
                     },
                 },
                 orderBy: { createdAt: "desc" },
@@ -811,7 +824,7 @@ export class DashboardService {
                 },
                 include: {
                     employee: {
-                        include: { department: true },
+                        include: { department: true, user: true },
                     },
                 },
                 orderBy: { createdAt: "desc" },
@@ -823,7 +836,7 @@ export class DashboardService {
                 },
                 include: {
                     employee: {
-                        include: { department: true },
+                        include: { department: true, user: true },
                     },
                     tasks: true,
                     courses: true,
@@ -837,7 +850,7 @@ export class DashboardService {
                 },
                 include: {
                     employee: {
-                        include: { department: true },
+                        include: { department: true, user: true },
                     },
                     targetGrade: true,
                 },
@@ -851,7 +864,7 @@ export class DashboardService {
                 },
                 include: {
                     target: {
-                        include: { department: true },
+                        include: { department: true, user: true },
                     },
                 },
                 orderBy: { createdAt: "desc" },
@@ -864,7 +877,7 @@ export class DashboardService {
                 },
                 include: {
                     employee: {
-                        include: { department: true },
+                        include: { department: true, user: true },
                     },
                 },
                 orderBy: { updatedAt: "desc" },
@@ -876,7 +889,7 @@ export class DashboardService {
                 },
                 include: {
                     employee: {
-                        include: { department: true },
+                        include: { department: true, user: true },
                     },
                 },
                 orderBy: { createdAt: "desc" },
@@ -890,7 +903,7 @@ export class DashboardService {
                     user: {
                         include: {
                             employee: {
-                                include: { department: true },
+                                include: { department: true, user: true },
                             },
                         },
                     },
@@ -942,6 +955,8 @@ export class DashboardService {
             return date.toLocaleDateString("uz-UZ");
         };
 
+        const getAvatarUrl = (emp: any) => emp?.avatar || emp?.user?.avatar || null;
+
         const items: any[] = [];
 
         for (const att of attendances) {
@@ -954,6 +969,7 @@ export class DashboardService {
                 employeeName: empName,
                 avatarInitials: getInitials(empName),
                 avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(att.employee),
                 department: deptName,
                 eventText: isLate
                     ? `Bugun ${att.lateMinutes ? `${att.lateMinutes} daqiqa` : "kechikib"} keldi`
@@ -980,6 +996,7 @@ export class DashboardService {
                 employeeName: empName,
                 avatarInitials: getInitials(empName),
                 avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(lr.employee),
                 department: deptName,
                 eventText: `${leaveName} so'rovini qoldirdi${lr.reason ? `: ${lr.reason}` : ""}`.trim(),
                 timeAgo: formatTimeAgo(lr.createdAt),
@@ -1006,6 +1023,7 @@ export class DashboardService {
                 employeeName: empName,
                 avatarInitials: getInitials(empName),
                 avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(ob.employee),
                 department: deptName,
                 eventText: progress >= 100
                     ? "Onboarding adaptatsiya dasturini to'liq yakunladi"
@@ -1033,6 +1051,7 @@ export class DashboardService {
                 employeeName: empName,
                 avatarInitials: getInitials(empName),
                 avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(pr.employee),
                 department: deptName,
                 eventText: `${gradeTitle} bo'yicha lavozimni oshirish (Level Up) arizasini topshirdi`,
                 timeAgo: formatTimeAgo(pr.createdAt),
@@ -1052,6 +1071,7 @@ export class DashboardService {
                 employeeName: empName,
                 avatarInitials: getInitials(empName),
                 avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(fb.target),
                 department: deptName,
                 eventText: "360 darajali baholash so'rovnomasini to'liq yakunladi",
                 timeAgo: formatTimeAgo(fb.createdAt),
@@ -1074,6 +1094,7 @@ export class DashboardService {
                 employeeName: empName,
                 avatarInitials: getInitials(empName),
                 avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(obj.employee),
                 department: deptName,
                 eventText: `"${obj.title}" OKR maqsadi bo'yicha oraliq ko'rsatkichni yangiladi`,
                 timeAgo: formatTimeAgo(obj.updatedAt || obj.createdAt),
@@ -1096,6 +1117,7 @@ export class DashboardService {
                 employeeName: empName,
                 avatarInitials: getInitials(empName),
                 avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(evt.employee),
                 department: deptName,
                 eventText: evt.title ? `${evt.title}${evt.description ? `: ${evt.description}` : ""}`.trim() : (evt.description || "Hodisa qayd etildi"),
                 timeAgo: formatTimeAgo(evt.createdAt || evt.eventDate),
@@ -1117,6 +1139,7 @@ export class DashboardService {
                 employeeName: empName,
                 avatarInitials: getInitials(empName),
                 avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(emp),
                 department: deptName,
                 eventText: `${notif.title}: ${notif.message}`.trim(),
                 timeAgo: formatTimeAgo(notif.createdAt),
@@ -1155,8 +1178,9 @@ export class DashboardService {
         const [
             totalEmployees,
             totalDepartments,
-            allOnboardings,
+            nonDirectorEmployees,
             todayCheckedInCount,
+            requiredPolicies,
         ] = await Promise.all([
             prisma.employee.count({
                 where: {
@@ -1171,13 +1195,26 @@ export class DashboardService {
                     ...(companyName ? { companyName } : {}),
                 },
             }),
-            prisma.employeeOnboarding.findMany({
+            prisma.employee.findMany({
                 where: {
-                    employee: employeeCompanyFilter,
+                    ...(companyName ? { user: { companyName } } : {}),
+                    user: {
+                        role: { not: "DIRECTOR" },
+                    },
                 },
                 include: {
-                    tasks: true,
-                    courses: true,
+                    user: {
+                        include: {
+                            customRole: true,
+                        },
+                    },
+                    onboarding: {
+                        include: {
+                            tasks: true,
+                            courses: true,
+                        },
+                    },
+                    courseProgresses: true,
                 },
             }),
             prisma.attendance.count({
@@ -1190,26 +1227,70 @@ export class DashboardService {
                     ],
                 },
             }),
+            prisma.companyPolicy.findMany({
+                where: {
+                    parentId: null,
+                    isRequired: true,
+                    ...(companyName ? { OR: [{ companyName }, { companyName: null }] } : {}),
+                },
+                include: {
+                    signatures: true,
+                },
+            }),
         ]);
 
+        const validEmployees = nonDirectorEmployees.filter((emp: any) => {
+            const role = emp.user?.role;
+            const baseRole = emp.user?.customRole?.baseRole;
+            return role !== "DIRECTOR" && baseRole !== "DIRECTOR";
+        });
+
         let onboardingPercentage = 0;
-        if (allOnboardings.length > 0) {
-            let totalPercentageSum = 0;
-            for (const ob of allOnboardings) {
-                const totalItems = (ob.tasks?.length || 0) + (ob.courses?.length || 0);
-                const completedItems = (ob.tasks?.filter((t) => t.status === "COMPLETED").length || 0) + (ob.courses?.filter((c) => c.isCompleted).length || 0);
-                const p = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : (ob.status === "COMPLETED" ? 100 : 0);
-                totalPercentageSum += p;
+        if (validEmployees.length > 0) {
+            let totalScoreSum = 0;
+            let countWithScore = 0;
+
+            for (const emp of validEmployees) {
+                const ob = emp.onboarding;
+                const tasks = ob?.tasks || [];
+                const courses = ob?.courses || [];
+                const academyCourses = emp.courseProgresses || [];
+
+                const totalTasks = tasks.length;
+                const completedTasks = tasks.filter((t: any) => t.status === "COMPLETED").length;
+
+                const allCourses = [...courses, ...academyCourses];
+                const totalCourses = allCourses.length;
+                const totalCourseProgress = allCourses.reduce(
+                    (acc: number, c: any) => acc + (c.isCompleted ? 100 : (c.progressPercent || 0)),
+                    0,
+                );
+
+                const maxPossibleScore = totalTasks * 100 + totalCourses * 100;
+                const currentScore = completedTasks * 100 + totalCourseProgress;
+
+                if (maxPossibleScore > 0) {
+                    const empProgress = Math.round((currentScore / maxPossibleScore) * 100);
+                    totalScoreSum += empProgress;
+                    countWithScore++;
+                } else if (ob?.status === "COMPLETED") {
+                    totalScoreSum += 100;
+                    countWithScore++;
+                } else if (ob) {
+                    totalScoreSum += 0;
+                    countWithScore++;
+                }
             }
-            onboardingPercentage = Math.round(totalPercentageSum / allOnboardings.length);
+
+            if (countWithScore > 0) {
+                onboardingPercentage = Math.round(totalScoreSum / countWithScore);
+            }
         }
 
-        const onboardingStatusText = onboardingPercentage >= 80
-            ? "Yuqori"
-            : onboardingPercentage >= 50
-            ? "O'rta"
+        const onboardingStatusText = onboardingPercentage >= 100
+            ? "Yakunlandi"
             : onboardingPercentage > 0
-            ? "Boshlang'ich"
+            ? "Jarayonda"
             : "Rejalar yo'q";
 
         const attendancePercentage = totalEmployees > 0
@@ -1224,6 +1305,24 @@ export class DashboardService {
             ? "Past"
             : "Qayd etilmadi";
 
+        let regulationsPercentage = 0;
+        const totalRequiredSlots = requiredPolicies.length * validEmployees.length;
+        if (totalRequiredSlots > 0) {
+            const validEmployeeIds = new Set(validEmployees.map((e: any) => e.id));
+            let totalSignedSlots = 0;
+            for (const policy of requiredPolicies) {
+                const validSignatures = policy.signatures.filter(
+                    (s: any) => validEmployeeIds.has(s.employeeId) && s.signedVersion === policy.version,
+                );
+                totalSignedSlots += validSignatures.length;
+            }
+            regulationsPercentage = Math.min(100, Math.round((totalSignedSlots / totalRequiredSlots) * 100));
+        }
+
+        const regulationsStatusText = regulationsPercentage >= 100
+            ? "To'liq tanishildi"
+            : "Jarayonda";
+
         return {
             totalEmployees,
             totalDepartments,
@@ -1232,6 +1331,8 @@ export class DashboardService {
             attendancePercentage,
             attendanceStatusText,
             todayCheckedInCount,
+            regulationsPercentage,
+            regulationsStatusText,
         };
     }
 }

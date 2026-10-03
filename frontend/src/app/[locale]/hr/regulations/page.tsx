@@ -14,6 +14,7 @@ import RegulationCard from "@/src/components/hr/regulations/regulation-card";
 import RegulationFormModal from "@/src/components/hr/regulations/regulation-form-modal";
 import RegulationSignaturesModal from "@/src/components/hr/regulations/regulation-signatures-modal";
 import RegulationViewerModal from "@/src/components/regulations/regulation-viewer-modal";
+import Skeleton from "@/src/components/ui/Skeleton";
 
 function CircularProgress({
     value,
@@ -206,8 +207,21 @@ export default function HRRegulationsPage() {
                 </div>
 
                 {loading ? (
-                    <div className="p-12 text-center text-xs font-semibold uppercase tracking-wider text-gray-400">
-                        Yuklanmoqda...
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                    <Skeleton className="w-20 h-5 rounded" />
+                                    <Skeleton className="w-16 h-4 rounded" />
+                                </div>
+                                <Skeleton className="w-3/4 h-5 rounded" />
+                                <Skeleton className="w-full h-12 rounded" />
+                                <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                                    <Skeleton className="w-24 h-4 rounded" />
+                                    <Skeleton className="w-20 h-8 rounded-xl" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : policies.length === 0 ? (
                     <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 flex flex-col items-center justify-center text-gray-500 text-center gap-2">

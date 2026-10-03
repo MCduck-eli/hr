@@ -8,6 +8,8 @@ import {
 import NineBoxGrid from "./NineBoxGrid";
 import AnalyticsExport from "./AnalyticsExport";
 import EnpsQuestionManagerModal from "./EnpsQuestionManagerModal";
+import Skeleton from "@/src/components/ui/Skeleton";
+import { getQueryData, setQueryData, isQueryStale } from "@/src/utils/query-cache";
 
 interface ExecutiveAnalyticsDashboardProps {
     initialDepartmentId?: string;
@@ -16,22 +18,38 @@ interface ExecutiveAnalyticsDashboardProps {
 export default function ExecutiveAnalyticsDashboard({
     initialDepartmentId,
 }: ExecutiveAnalyticsDashboardProps) {
-    const [data, setData] = useState<ExecutiveSummaryResponse | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [departmentFilter, setDepartmentFilter] = useState(initialDepartmentId || "");
     const [timeframe, setTimeframe] = useState("year");
     const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
 
+    const cacheKey = `analytics:${departmentFilter}:${timeframe}`;
+    const [data, setData] = useState<ExecutiveSummaryResponse | null>(() => getQueryData<ExecutiveSummaryResponse>(`analytics:${initialDepartmentId || ""}:year`));
+    const [loading, setLoading] = useState(() => !getQueryData(`analytics:${initialDepartmentId || ""}:year`));
+    const [error, setError] = useState<string | null>(null);
+
     const loadAnalytics = async () => {
-        setLoading(true);
+        const cached = getQueryData<ExecutiveSummaryResponse>(cacheKey);
+        const isStale = isQueryStale(cacheKey);
+
+        if (cached) {
+            setData(cached);
+        } else {
+            setLoading(true);
+        }
         setError(null);
+
+        if (cached && !isStale) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const res = await fetchExecutiveSummary({
                 timeframe,
                 departmentId: departmentFilter || undefined,
             });
             setData(res);
+            setQueryData(cacheKey, res);
         } catch (err: any) {
             setError(err.message || "Analitika ma'lumotlarini yuklashda xatolik yuz berdi");
         } finally {
@@ -45,11 +63,38 @@ export default function ExecutiveAnalyticsDashboard({
 
     if (loading && !data) {
         return (
-            <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
-                <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                    Executive BI Analitika yuklanmoqda...
-                </span>
+            <div className="flex flex-col gap-6 w-full animate-pulse">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+                    <div className="flex flex-col gap-2">
+                        <Skeleton className="w-64 h-8 rounded-xl" />
+                        <Skeleton className="w-96 h-4 rounded-md" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="w-32 h-10 rounded-xl" />
+                        <Skeleton className="w-28 h-10 rounded-xl" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col gap-3 shadow-xs">
+                            <Skeleton className="w-24 h-3.5 rounded-md" />
+                            <Skeleton className="w-16 h-8 rounded-lg" />
+                            <Skeleton className="w-36 h-3 rounded-md" />
+                        </div>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col gap-4 shadow-xs">
+                        <Skeleton className="w-48 h-6 rounded-lg" />
+                        <Skeleton className="w-full h-64 rounded-xl" />
+                    </div>
+                    <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col gap-4 shadow-xs">
+                        <Skeleton className="w-48 h-6 rounded-lg" />
+                        <Skeleton className="w-full h-64 rounded-xl" />
+                    </div>
+                </div>
             </div>
         );
     }

@@ -52,3 +52,38 @@ export const deleteDepartment = async (id: string) => {
     const json = await res.json();
     return json.data || json;
 };
+
+export const assignEmployeeToDepartment = async (
+    departmentId: string,
+    payload: { userId?: string; employeeId?: string },
+) => {
+    const res = await fetch(`${API_URL}/departments/${departmentId}/assign-employee`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to assign employee");
+    }
+    const json = await res.json();
+    return json.data || json;
+};
+
+export const unassignEmployeeFromDepartment = async (
+    departmentId: string,
+    payload: { userId?: string; employeeId?: string },
+) => {
+    const res = await fetch(`${API_URL}/departments/${departmentId}/unassign-employee`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to unassign employee");
+    }
+    const json = await res.json();
+    return json.data || json;
+};
+

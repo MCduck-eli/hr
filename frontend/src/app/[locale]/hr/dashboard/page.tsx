@@ -8,6 +8,8 @@ import HRMonitoring from "../components/hr-monitoring";
 import { fetchAllUsers } from "@/src/services/user-service";
 import { fetchDepartments } from "@/src/services/department-service";
 import { fetchHRDashboardActivities, fetchHRDashboardStats, HRActivityItem, HRDashboardStats } from "@/src/services/dashboard-service";
+import Skeleton from "@/src/components/ui/Skeleton";
+import { getQueryData, setQueryData, isQueryStale } from "@/src/utils/query-cache";
 
 function CircularProgress({ value, size = 48, strokeWidth = 4, color = "#9327FF" }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
     const radius = (size - strokeWidth) / 2;
@@ -44,6 +46,40 @@ function CircularProgress({ value, size = 48, strokeWidth = 4, color = "#9327FF"
     );
 }
 
+function ActivityAvatar({ act }: { act: HRActivityItem }) {
+    const [imageError, setImageError] = useState(false);
+    const rawAvatar = act.avatarUrl || "";
+
+    let avatarSrc: string | null = null;
+    if (rawAvatar && !imageError) {
+        if (rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://") || rawAvatar.startsWith("data:")) {
+            avatarSrc = rawAvatar;
+        } else {
+            const rawApi = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+            const baseOrigin = rawApi.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/+$/, "");
+            const cleanPath = rawAvatar.startsWith("/") ? rawAvatar : `/${rawAvatar}`;
+            avatarSrc = `${baseOrigin}${cleanPath}`;
+        }
+    }
+
+    return (
+        <div
+            className={`w-11 h-11 rounded-2xl ${avatarSrc ? "bg-slate-100" : `bg-gradient-to-br ${act.avatarBg}`} text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs overflow-hidden`}
+        >
+            {avatarSrc ? (
+                <img
+                    src={avatarSrc}
+                    alt={act.employeeName || "Avatar"}
+                    onError={() => setImageError(true)}
+                    className="w-full h-full object-cover"
+                />
+            ) : (
+                <span>{act.avatarInitials}</span>
+            )}
+        </div>
+    );
+}
+
 export default function HRAdminDashboard() {
     const t = useTranslations("HRDashboard");
     const params = useParams();
@@ -52,9 +88,9 @@ export default function HRAdminDashboard() {
     const router = useRouter();
     const [companyName, setCompanyName] = useState("");
     const [activeCategory, setActiveCategory] = useState<string>("all");
-    const [activities, setActivities] = useState<HRActivityItem[]>([]);
-    const [isLoadingActivities, setIsLoadingActivities] = useState(true);
-    const [stats, setStats] = useState<HRDashboardStats>({
+    const [activities, setActivities] = useState<HRActivityItem[]>(() => getQueryData<HRActivityItem[]>("hr:activities") || []);
+    const [isLoadingActivities, setIsLoadingActivities] = useState(() => !getQueryData("hr:activities"));
+    const [stats, setStats] = useState<HRDashboardStats>(() => getQueryData<HRDashboardStats>("hr:dashboardStats") || {
         totalEmployees: 0,
         totalDepartments: 0,
         onboardingPercentage: 0,
@@ -62,6 +98,8 @@ export default function HRAdminDashboard() {
         attendancePercentage: 0,
         attendanceStatusText: "Qayd etilmadi",
         todayCheckedInCount: 0,
+        regulationsPercentage: 0,
+        regulationsStatusText: "Jarayonda",
     });
 
     useEffect(() => {
@@ -74,10 +112,13 @@ export default function HRAdminDashboard() {
         try {
             const user = JSON.parse(userStr);
             setCompanyName(user.companyName || user.employee?.companyName || "");
+            const perms = Array.isArray(user.permissions) ? user.permissions : [];
             if (
                 user.role !== "HR_ADMIN" &&
                 user.role !== "SUPER_ADMIN" &&
-                user.role !== "DIRECTOR"
+                user.role !== "DIRECTOR" &&
+                !perms.includes("hr_dashboard") &&
+                !perms.includes("hr")
             ) {
                 router.push(`/${locale}/profile`);
             }
@@ -88,6 +129,18 @@ export default function HRAdminDashboard() {
 
     useEffect(() => {
         const loadDashboardData = async () => {
+            const hasCache = getQueryData("hr:activities") && getQueryData("hr:dashboardStats");
+            const isStale = isQueryStale("hr:activities") || isQueryStale("hr:dashboardStats");
+
+            if (!hasCache) {
+                setIsLoadingActivities(true);
+            }
+
+            if (hasCache && !isStale) {
+                setIsLoadingActivities(false);
+                return;
+            }
+
             try {
                 const [statsData, activitiesData, usersData, deptsData] = await Promise.all([
                     fetchHRDashboardStats().catch(() => null),
@@ -96,13 +149,14 @@ export default function HRAdminDashboard() {
                     fetchDepartments().catch(() => []),
                 ]);
 
+                let nextStats = stats;
                 if (statsData) {
-                    setStats(statsData);
+                    nextStats = statsData;
                 } else {
                     const validUsers = (usersData || []).filter(
-                        (u: any) => u.role !== "SUPER_ADMIN" && u.role !== "DIRECTOR"
+                        (u: any) => u.role !== "DIRECTOR"
                     );
-                    setStats({
+                    nextStats = {
                         totalEmployees: validUsers.length,
                         totalDepartments: (deptsData || []).length,
                         onboardingPercentage: 0,
@@ -110,10 +164,16 @@ export default function HRAdminDashboard() {
                         attendancePercentage: 0,
                         attendanceStatusText: "Qayd etilmadi",
                         todayCheckedInCount: 0,
-                    });
+                        regulationsPercentage: 0,
+                        regulationsStatusText: "Jarayonda",
+                    };
                 }
+                setStats(nextStats);
+                setQueryData("hr:dashboardStats", nextStats);
 
-                setActivities(activitiesData || []);
+                const nextActivities = activitiesData || [];
+                setActivities(nextActivities);
+                setQueryData("hr:activities", nextActivities);
             } catch (e) {
             } finally {
                 setIsLoadingActivities(false);
@@ -126,6 +186,28 @@ export default function HRAdminDashboard() {
         if (activeCategory === "all") return true;
         return item.category === activeCategory;
     });
+
+    const onboardingActivities = activities.filter(
+        (act) => act.category === "onboarding" && act.progress !== undefined,
+    );
+    const dynamicOnboardingPercentage =
+        stats.onboardingPercentage !== undefined && stats.onboardingPercentage > 0
+            ? stats.onboardingPercentage
+            : onboardingActivities.length > 0
+              ? Math.round(
+                    onboardingActivities.reduce(
+                        (acc, curr) => acc + (curr.progress || 0),
+                        0,
+                    ) / onboardingActivities.length,
+                )
+              : stats.onboardingPercentage || 0;
+
+    const dynamicOnboardingStatusText =
+        dynamicOnboardingPercentage >= 100
+            ? "Yakunlandi"
+            : dynamicOnboardingPercentage > 0
+              ? "Jarayonda"
+              : "Rejalar yo'q";
 
     return (
         <div className="min-h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans">
@@ -184,9 +266,13 @@ export default function HRAdminDashboard() {
                                 </svg>
                                 <span>{t("employees")}</span>
                             </div>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
-                                {stats.totalEmployees}
-                            </span>
+                            {isLoadingActivities && !stats.totalEmployees ? (
+                                <Skeleton className="w-6 h-4 rounded-full" />
+                            ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                                    {stats.totalEmployees}
+                                </span>
+                            )}
                         </Link>
 
                         <Link
@@ -396,40 +482,38 @@ export default function HRAdminDashboard() {
                         </div>
                     </Link>
 
-                    <Link
-                        href={`/${locale}/hr/org-chart`}
-                        className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
-                    >
-                        <div className="flex flex-col gap-1">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                Bo'limlar & Tuzilma
-                            </span>
-                            <span className="text-3xl font-extrabold text-slate-900 group-hover:text-[#9327FF] transition-colors">
-                                {stats.totalDepartments}
-                            </span>
-                            <span className="text-[11px] font-medium text-blue-600 flex items-center gap-1 mt-0.5">
-                                <span>🏛️</span> Ierarxik shoxlar
-                            </span>
-                        </div>
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
-                            🏛️
-                        </div>
-                    </Link>
-
                     <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex items-center justify-between">
                         <div className="flex flex-col gap-1">
                             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                                 Onboarding Rejasi
                             </span>
                             <span className="text-xl font-extrabold text-slate-900">
-                                {stats.onboardingStatusText}
+                                {dynamicOnboardingStatusText}
                             </span>
                             <span className="text-[11px] font-medium text-purple-600 mt-0.5">
                                 Adaptatsiya indeksi
                             </span>
                         </div>
-                        <CircularProgress value={stats.onboardingPercentage || 0} size={56} strokeWidth={5} color="#9327FF" />
+                        <CircularProgress value={dynamicOnboardingPercentage} size={56} strokeWidth={5} color="#9327FF" />
                     </div>
+
+                    <Link
+                        href={`/${locale}/hr/regulations`}
+                        className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex items-center justify-between group cursor-pointer"
+                    >
+                        <div className="flex flex-col gap-1">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Ichki Nizomlar
+                            </span>
+                            <span className="text-xl font-extrabold text-slate-900 group-hover:text-[#9327FF] transition-colors">
+                                {stats.regulationsStatusText || (stats.regulationsPercentage && stats.regulationsPercentage >= 100 ? "To'liq tanishildi" : "Jarayonda")}
+                            </span>
+                            <span className="text-[11px] font-medium text-purple-600 mt-0.5">
+                                Tanishuv indeksi
+                            </span>
+                        </div>
+                        <CircularProgress value={stats.regulationsPercentage || 0} size={56} strokeWidth={5} color="#9327FF" />
+                    </Link>
 
                     <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex items-center justify-between">
                         <div className="flex flex-col gap-1">
@@ -541,11 +625,7 @@ export default function HRAdminDashboard() {
                                     className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
                                 >
                                     <div className="flex items-start md:items-center gap-4 min-w-0">
-                                        <div
-                                            className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${act.avatarBg} text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs`}
-                                        >
-                                            {act.avatarInitials}
-                                        </div>
+                                        <ActivityAvatar act={act} />
 
                                         <div className="flex flex-col min-w-0">
                                             <div className="flex flex-wrap items-center gap-2">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getPublicCandidateTask, submitCandidateTask } from "@/src/services/recruiting-service";
+import Skeleton from "@/src/components/ui/Skeleton";
 
 export default function CandidateTaskSubmitPage() {
     const params = useParams();
@@ -67,10 +68,25 @@ export default function CandidateTaskSubmitPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#f9f9f9] flex items-center justify-center p-4">
-                <div className="text-xs font-bold uppercase tracking-widest text-gray-500 animate-pulse">
-                    Yuklanmoqda...
-                </div>
+            <div className="min-h-screen bg-[#fbfbfb] text-black flex flex-col justify-between">
+                <header className="border-b border-gray-200 bg-white py-6 px-8 flex justify-between items-center">
+                    <Skeleton className="w-32 h-6 rounded" />
+                    <Skeleton className="w-28 h-4 rounded" />
+                </header>
+                <main className="max-w-2xl w-full mx-auto p-6 md:p-12 flex-1 flex flex-col justify-center">
+                    <div className="bg-white border border-gray-200 p-8 md:p-12 shadow-sm rounded-sm space-y-6">
+                        <div className="border-b border-gray-200 pb-6 space-y-3">
+                            <Skeleton className="w-40 h-4 rounded" />
+                            <Skeleton className="w-64 h-7 rounded-lg" />
+                            <Skeleton className="w-full h-4 rounded" />
+                        </div>
+                        <div className="space-y-4">
+                            <Skeleton className="w-full h-12 rounded" />
+                            <Skeleton className="w-full h-24 rounded" />
+                            <Skeleton className="w-full h-12 rounded" />
+                        </div>
+                    </div>
+                </main>
             </div>
         );
     }

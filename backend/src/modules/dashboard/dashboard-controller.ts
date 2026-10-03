@@ -46,18 +46,12 @@ export class DashboardController {
                     .json({ message: "Avtorizatsiyadan o'tilmagan" });
             }
 
-            if (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN") {
-                return res.status(200).json({
-                    status: "success",
-                    message: "Admin uchun progress yozilmaydi",
-                });
-            }
-
-            await dashboardService.updateVideoProgress(userId, req.body);
+            const data = await dashboardService.updateVideoProgress(userId, req.body);
 
             res.status(200).json({
                 status: "success",
                 message: "Progress muvaffaqiyatli saqlandi",
+                data,
             });
         } catch (error) {
             next(error);

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getPublicVacancy, applyForJob } from "@/src/services/recruiting-service";
+import Skeleton from "@/src/components/ui/Skeleton";
 
 export default function JobApplyPage() {
     const params = useParams();
@@ -106,8 +107,33 @@ export default function JobApplyPage() {
     };
 
     if (loading) return (
-        <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-8">
-            <div className="text-sm font-semibold text-gray-500 uppercase tracking-widest animate-pulse">Yuklanmoqda...</div>
+        <div className="min-h-screen bg-[#fafafa] p-6 md:p-12">
+            <div className="max-w-4xl mx-auto space-y-8">
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-4">
+                    <Skeleton className="w-32 h-5 rounded" />
+                    <Skeleton className="w-2/3 h-8 rounded-lg" />
+                    <div className="flex gap-4">
+                        <Skeleton className="w-24 h-4 rounded" />
+                        <Skeleton className="w-28 h-4 rounded" />
+                        <Skeleton className="w-32 h-4 rounded" />
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="md:col-span-2 bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-4">
+                        <Skeleton className="w-40 h-6 rounded" />
+                        <div className="space-y-2">
+                            <Skeleton className="w-full h-4 rounded" />
+                            <Skeleton className="w-full h-4 rounded" />
+                            <Skeleton className="w-4/5 h-4 rounded" />
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-4">
+                        <Skeleton className="w-32 h-6 rounded" />
+                        <Skeleton className="w-full h-10 rounded-xl" />
+                        <Skeleton className="w-full h-10 rounded-xl" />
+                    </div>
+                </div>
+            </div>
         </div>
     );
 

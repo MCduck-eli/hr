@@ -95,7 +95,16 @@ export default function OffboardingManagerModal({
     const [newTaskCategory, setNewTaskCategory] = useState<string>("IT_ACCESS");
 
     const [loading, setLoading] = useState(false);
+    const [isEmployeesLoading, setIsEmployeesLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+    const showToast = (message: string, type: "success" | "error" = "success") => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast(null);
+        }, 3000);
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -130,10 +139,16 @@ export default function OffboardingManagerModal({
             }
 
             if (!initialOffboarding) {
+                setIsEmployeesLoading(true);
                 fetchAllUsers()
                     .then((usersList: any[]) => {
                         const empList = (usersList || [])
-                            .filter((u: any) => u.employee || u.role !== "SUPER_ADMIN")
+                            .filter(
+                                (u: any) =>
+                                    u.role !== "DIRECTOR" &&
+                                    u.role !== "SUPER_ADMIN" &&
+                                    (u.employee || u.role === "EMPLOYEE")
+                            )
                             .map((u: any) => ({
                                 id: u.employee?.id || u.id,
                                 firstName: u.firstName || u.employee?.firstName || "Employee",
@@ -146,7 +161,10 @@ export default function OffboardingManagerModal({
                             setSelectedEmployeeId(empList[0].id);
                         }
                     })
-                    .catch(() => {});
+                    .catch(() => {})
+                    .finally(() => {
+                        setIsEmployeesLoading(false);
+                    });
             } else {
                 setCurrentOffboarding(initialOffboarding);
                 setSelectedEmployeeId(initialOffboarding.employeeId);
@@ -168,13 +186,15 @@ export default function OffboardingManagerModal({
     const handleSaveTemplateForCompany = () => {
         const storageKey = `offboarding_template_${companyKey}`;
         localStorage.setItem(storageKey, JSON.stringify(initialTasks));
-        alert(t("templateSavedAlert", { company: companyKey }));
+        showToast(t("templateSavedAlert", { company: companyKey }), "success");
     };
 
     const handleStart = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedEmployeeId) {
-            setErrorMsg("Please select an employee");
+            const err = "Iltimos, xodimni tanlang";
+            setErrorMsg(err);
+            showToast(err, "error");
             return;
         }
 
@@ -191,9 +211,12 @@ export default function OffboardingManagerModal({
                 })),
             });
             setCurrentOffboarding(res);
+            showToast("Offboarding jarayoni muvaffaqiyatli boshlandi!", "success");
             if (onSuccess) onSuccess();
         } catch (err: any) {
-            setErrorMsg(err.message || "Error");
+            const msg = err.message || "Xatolik yuz berdi";
+            setErrorMsg(msg);
+            showToast(msg, "error");
         } finally {
             setLoading(false);
         }
@@ -216,9 +239,10 @@ export default function OffboardingManagerModal({
                     isAssetsReturned: allDone,
                 });
             }
+            showToast("Vazifa holati yangilandi", "success");
             if (onSuccess) onSuccess();
         } catch (err: any) {
-            alert(err.message || "Error");
+            showToast(err.message || "Xatolik yuz berdi", "error");
         }
     };
 
@@ -242,9 +266,10 @@ export default function OffboardingManagerModal({
                     tasks: currentOffboarding.tasks.map((t) => (t.id === taskId ? { ...t, ...updated } : t)),
                 });
                 setEditingTaskId(null);
+                showToast("Vazifa muvaffaqiyatli yangilandi", "success");
                 if (onSuccess) onSuccess();
             } catch (err: any) {
-                alert(err.message || "Error");
+                showToast(err.message || "Xatolik yuz berdi", "error");
             }
         } else {
             setInitialTasks(
@@ -255,6 +280,7 @@ export default function OffboardingManagerModal({
                 ),
             );
             setEditingTaskId(null);
+            showToast("Vazifa o'zgartirildi", "success");
         }
     };
 
@@ -273,9 +299,10 @@ export default function OffboardingManagerModal({
                     tasks: [...currentOffboarding.tasks, newTask],
                 });
                 setNewTaskTitle("");
+                showToast("Yangi vazifa qo'shildi", "success");
                 if (onSuccess) onSuccess();
             } catch (err: any) {
-                alert(err.message || "Error");
+                showToast(err.message || "Xatolik yuz berdi", "error");
             }
         } else {
             const newItem: TemplateTaskItem = {
@@ -285,12 +312,11 @@ export default function OffboardingManagerModal({
             };
             setInitialTasks([...initialTasks, newItem]);
             setNewTaskTitle("");
+            showToast("Yangi vazifa qo'shildi", "success");
         }
     };
 
     const handleDeleteTask = async (taskId: string) => {
-        if (!confirm("Delete?")) return;
-
         if (currentOffboarding) {
             try {
                 await deleteOffboardingTask(taskId);
@@ -298,12 +324,14 @@ export default function OffboardingManagerModal({
                     ...currentOffboarding,
                     tasks: currentOffboarding.tasks.filter((t) => t.id !== taskId),
                 });
+                showToast("Vazifa o'chirildi", "success");
                 if (onSuccess) onSuccess();
             } catch (err: any) {
-                alert(err.message || "Error");
+                showToast(err.message || "Xatolik yuz berdi", "error");
             }
         } else {
             setInitialTasks(initialTasks.filter((t) => t.id !== taskId));
+            showToast("Vazifa o'chirildi", "success");
         }
     };
 
@@ -316,17 +344,18 @@ export default function OffboardingManagerModal({
                 status: updated.status,
                 isAssetsReturned: updated.isAssetsReturned,
             });
+            showToast("Status muvaffaqiyatli yangilandi", "success");
             if (onSuccess) onSuccess();
         } catch (err: any) {
-            alert(err.message || "Error");
+            showToast(err.message || "Xatolik yuz berdi", "error");
         }
     };
 
     const categoryLabels: Record<string, { label: string; icon: string; color: string }> = {
-        IT_ACCESS: { label: t("categories.IT_ACCESS"), icon: "🔒", color: "text-blue-700 bg-blue-50 border-blue-200" },
-        ASSET_RETURN: { label: t("categories.ASSET_RETURN"), icon: "💻", color: "text-amber-700 bg-amber-50 border-amber-200" },
-        FINANCE: { label: t("categories.FINANCE"), icon: "💰", color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-        HR_DOCUMENTS: { label: t("categories.HR_DOCUMENTS"), icon: "📝", color: "text-purple-700 bg-purple-50 border-purple-200" },
+        IT_ACCESS: { label: t("categories.IT_ACCESS"), icon: "🔒", color: "text-blue-700 bg-blue-50 border-blue-200/80" },
+        ASSET_RETURN: { label: t("categories.ASSET_RETURN"), icon: "💻", color: "text-amber-700 bg-amber-50 border-amber-200/80" },
+        FINANCE: { label: t("categories.FINANCE"), icon: "💰", color: "text-emerald-700 bg-emerald-50 border-emerald-200/80" },
+        HR_DOCUMENTS: { label: t("categories.HR_DOCUMENTS"), icon: "📝", color: "text-purple-700 bg-purple-50 border-purple-200/80" },
     };
 
     const completedTasksCount = currentOffboarding?.tasks?.filter((t) => t.isCompleted).length || 0;
@@ -334,458 +363,494 @@ export default function OffboardingManagerModal({
     const progressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white border-2 border-black w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between border-b border-black pb-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xl">🏁</span>
-                        <div>
-                            <h3 className="text-base font-black uppercase tracking-tight text-black flex items-center gap-2">
-                                <span>{currentOffboarding ? t("editTitle") : t("createTitle")}</span>
-                                <span className="px-2 py-0.5 text-[9px] font-mono font-bold uppercase bg-gray-100 border border-gray-300 text-gray-700">
-                                    🏢 {companyKey}
-                                </span>
-                            </h3>
-                            <p className="text-[11px] font-medium text-gray-500">
-                                {t("subtitle")}
-                            </p>
-                        </div>
+        <>
+            {toast && (
+                <div className="fixed top-5 right-5 z-[9999] flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
+                        toast.type === "error" ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"
+                    }`}>
+                        {toast.type === "error" ? "✕" : "✓"}
                     </div>
+                    <span className="text-xs font-bold text-slate-900 pr-2">
+                        {toast.message}
+                    </span>
                     <button
-                        onClick={onClose}
-                        className="text-sm font-bold text-gray-500 hover:text-black transition-colors"
+                        onClick={() => setToast(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs font-bold p-1 cursor-pointer"
                     >
                         ✕
                     </button>
                 </div>
+            )}
 
-                {errorMsg && (
-                    <div className="p-3 bg-red-50 border border-red-300 text-red-700 text-xs font-bold">
-                        {errorMsg}
-                    </div>
-                )}
-
-                {!currentOffboarding ? (
-                    <form onSubmit={handleStart} className="flex flex-col gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                {t("selectEmployee")}
-                            </label>
-                            <select
-                                value={selectedEmployeeId}
-                                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                                required
-                                className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
-                            >
-                                <option value="">{t("selectEmployeePlaceholder")}</option>
-                                {employees.map((emp) => (
-                                    <option key={emp.id} value={emp.id}>
-                                        {emp.firstName} {emp.lastName} ({emp.department?.name || "-"} - {emp.position?.title || "-"})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    {t("reason")}
-                                </label>
-                                <select
-                                    value={reason}
-                                    onChange={(e) => setReason(e.target.value)}
-                                    className="p-2.5 bg-gray-50 border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
-                                >
-                                    <option value="O'z xohishiga ko'ra">{t("reasons.ownWill")}</option>
-                                    <option value="Boshqa kompaniyaga o'tish">{t("reasons.anotherCompany")}</option>
-                                    <option value="Shartnoma muddati tugashi">{t("reasons.contractEnd")}</option>
-                                    <option value="Karyera o'zgarishi / O'qish">{t("reasons.careerChange")}</option>
-                                    <option value="Kompaniya tashabbusi bilan">{t("reasons.companyInitiative")}</option>
-                                    <option value="Boshqa sabab">{t("reasons.other")}</option>
-                                </select>
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 overflow-y-auto">
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.12)] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 text-[#9327FF] flex items-center justify-center text-lg font-bold shadow-2xs">
+                                🏁
                             </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                    {t("lastWorkingDay")}
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={lastWorkingDay}
-                                    onChange={(e) => setLastWorkingDay(e.target.value)}
-                                    className="p-2 bg-white border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2 pt-2 border-t border-gray-200">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold uppercase tracking-wider text-black flex items-center gap-1.5">
-                                    <span>📋</span> {t("companyChecklist", { count: initialTasks.length })}
-                                </label>
-                                <button
-                                    type="button"
-                                    onClick={handleSaveTemplateForCompany}
-                                    className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
-                                >
-                                    {t("saveAsTemplate", { company: companyKey })}
-                                </button>
-                            </div>
-
-                            <div className="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1">
-                                {initialTasks.map((task) => {
-                                    const isEditing = editingTaskId === task.id;
-                                    const catMeta = categoryLabels[task.category] || categoryLabels.HR_DOCUMENTS;
-
-                                    return (
-                                        <div
-                                            key={task.id}
-                                            className="p-2.5 bg-gray-50 border border-gray-200 flex items-center justify-between gap-2"
-                                        >
-                                            {isEditing ? (
-                                                <div className="flex items-center gap-2 flex-1">
-                                                    <input
-                                                        type="text"
-                                                        value={editingTaskTitle}
-                                                        onChange={(e) => setEditingTaskTitle(e.target.value)}
-                                                        className="flex-1 p-1 bg-white border border-black text-xs font-bold"
-                                                    />
-                                                    <select
-                                                        value={editingTaskCategory}
-                                                        onChange={(e) => setEditingTaskCategory(e.target.value)}
-                                                        className="p-1 bg-white border border-gray-300 text-xs font-bold"
-                                                    >
-                                                        <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
-                                                        <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
-                                                        <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
-                                                        <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
-                                                    </select>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleSaveEditedTask(task.id)}
-                                                        className="px-2 py-1 bg-emerald-600 text-white text-xs font-bold"
-                                                    >
-                                                        ✓
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditingTaskId(null)}
-                                                        className="px-2 py-1 bg-gray-300 text-black text-xs font-bold"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <div className="flex items-center gap-2 flex-1">
-                                                        <span className="text-xs font-bold text-black">{task.title}</span>
-                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-xs ${catMeta.color}`}>
-                                                            {catMeta.icon} {catMeta.label}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleStartEditTask(task)}
-                                                            className="p-1 text-gray-500 hover:text-black text-xs font-bold"
-                                                        >
-                                                            ✏️
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleDeleteTask(task.id)}
-                                                            className="p-1 text-gray-400 hover:text-red-600 text-xs font-bold"
-                                                        >
-                                                            🗑️
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-                                <input
-                                    type="text"
-                                    placeholder={t("newTaskPlaceholder")}
-                                    value={newTaskTitle}
-                                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                                    className="flex-1 p-2 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
-                                />
-                                <select
-                                    value={newTaskCategory}
-                                    onChange={(e) => setNewTaskCategory(e.target.value)}
-                                    className="p-2 bg-white border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
-                                >
-                                    <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
-                                    <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
-                                    <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
-                                    <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
-                                </select>
-                                <button
-                                    type="button"
-                                    onClick={handleAddTask}
-                                    className="px-3 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors shrink-0"
-                                >
-                                    {t("addBtn")}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold uppercase tracking-wider text-black">
-                                {t("hrNotes")}
-                            </label>
-                            <textarea
-                                rows={2}
-                                placeholder={t("hrNotesPlaceholder")}
-                                value={exitNotes}
-                                onChange={(e) => setExitNotes(e.target.value)}
-                                className="p-2.5 bg-white border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black resize-none"
-                            />
-                        </div>
-
-                        <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100 transition-colors"
-                            >
-                                {t("cancel")}
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
-                            >
-                                {loading ? t("starting") : t("startBtn")}
-                            </button>
-                        </div>
-                    </form>
-                ) : (
-                    <div className="flex flex-col gap-5">
-                        <div className="p-4 bg-gray-50 border border-gray-200 flex flex-col gap-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div>
-                                    <h4 className="text-sm font-black text-black">
-                                        {currentOffboarding.employee?.firstName} {currentOffboarding.employee?.lastName}
-                                    </h4>
-                                    <p className="text-[11px] font-medium text-gray-600">
-                                        {currentOffboarding.employee?.department?.name || "-"} • {currentOffboarding.employee?.position?.title || "-"}
-                                    </p>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <span
-                                        className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-xs border ${
-                                            currentOffboarding.status === "COMPLETED"
-                                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                                : currentOffboarding.status === "CANCELLED"
-                                                ? "bg-gray-100 text-gray-600 border-gray-300"
-                                                : "bg-amber-50 text-amber-800 border-amber-200"
-                                        }`}
-                                    >
-                                        {currentOffboarding.status === "COMPLETED"
-                                            ? "✓"
-                                            : currentOffboarding.status === "CANCELLED"
-                                            ? "✕"
-                                            : "⚡"} {currentOffboarding.status}
+                            <div>
+                                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <span>{currentOffboarding ? t("editTitle") : t("createTitle")}</span>
+                                    <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-purple-50 text-[#9327FF] border border-purple-100">
+                                        🏢 {companyKey}
                                     </span>
-
-                                    <select
-                                        value={currentOffboarding.status}
-                                        onChange={(e) => handleStatusChange(e.target.value as any)}
-                                        className="p-1 bg-white border border-gray-300 text-[10px] font-bold uppercase"
-                                    >
-                                        <option value="IN_PROGRESS">{t("selectStatus.inProgress")}</option>
-                                        <option value="COMPLETED">{t("selectStatus.completed")}</option>
-                                        <option value="CANCELLED">{t("selectStatus.cancelled")}</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs border-t border-gray-200 pt-2">
-                                <div>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">{t("reasonHeader")}</span>
-                                    <span className="font-bold text-gray-800">{currentOffboarding.reason}</span>
-                                </div>
-                                <div>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">{t("lastWorkingDayHeader")}</span>
-                                    <span className="font-bold text-gray-800">
-                                        {currentOffboarding.lastWorkingDay
-                                            ? new Date(currentOffboarding.lastWorkingDay).toISOString().split("T")[0]
-                                            : "-"}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase block">{t("assetsReturnedHeader")}</span>
-                                    <span className={`font-bold ${currentOffboarding.status === "CANCELLED" ? "text-gray-500" : currentOffboarding.isAssetsReturned ? "text-emerald-700" : "text-amber-700"}`}>
-                                        {currentOffboarding.status === "CANCELLED" ? (t("selectStatus.cancelled") || "Bekor qilingan") : currentOffboarding.isAssetsReturned ? t("yes") : t("pending")}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-1 pt-1">
-                                <div className="flex items-center justify-between text-[10px] font-bold text-gray-600">
-                                    <span>{t("checklistCompletion", { completed: completedTasksCount, total: totalTasksCount })}</span>
-                                    <span>{progressPercent}%</span>
-                                </div>
-                                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-black transition-all duration-300"
-                                        style={{ width: `${progressPercent}%` }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-3">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-black flex items-center justify-between">
-                                <span>{t("checklistTitle")}</span>
-                                <span className="text-[10px] font-bold text-gray-500">{t("tasksCount", { count: totalTasksCount })}</span>
-                            </h4>
-
-                            <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
-                                {currentOffboarding.tasks?.map((task) => {
-                                    const isEditing = editingTaskId === task.id;
-                                    const catMeta = categoryLabels[task.category] || categoryLabels.HR_DOCUMENTS;
-
-                                    return (
-                                        <div
-                                            key={task.id}
-                                            className={`p-2.5 border flex items-center justify-between gap-2 transition-colors ${
-                                                task.isCompleted ? "bg-emerald-50/40 border-emerald-200" : "bg-white border-gray-200"
-                                            }`}
-                                        >
-                                            {isEditing ? (
-                                                <div className="flex items-center gap-2 flex-1">
-                                                    <input
-                                                        type="text"
-                                                        value={editingTaskTitle}
-                                                        onChange={(e) => setEditingTaskTitle(e.target.value)}
-                                                        className="flex-1 p-1 bg-white border border-black text-xs font-bold"
-                                                    />
-                                                    <select
-                                                        value={editingTaskCategory}
-                                                        onChange={(e) => setEditingTaskCategory(e.target.value)}
-                                                        className="p-1 bg-white border border-gray-300 text-xs font-bold"
-                                                    >
-                                                        <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
-                                                        <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
-                                                        <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
-                                                        <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
-                                                    </select>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleSaveEditedTask(task.id)}
-                                                        className="px-2 py-1 bg-emerald-600 text-white text-xs font-bold"
-                                                    >
-                                                        ✓
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditingTaskId(null)}
-                                                        className="px-2 py-1 bg-gray-300 text-black text-xs font-bold"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <div className="flex items-center gap-2.5 flex-1">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={task.isCompleted}
-                                                            onChange={() => handleToggleTask(task.id, task.isCompleted)}
-                                                            className="w-4 h-4 accent-black cursor-pointer"
-                                                        />
-                                                        <div className="flex flex-col">
-                                                            <span className={`text-xs font-bold ${task.isCompleted ? "line-through text-gray-500" : "text-black"}`}>
-                                                                {task.title}
-                                                            </span>
-                                                            <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-xs w-fit ${catMeta.color}`}>
-                                                                {catMeta.icon} {catMeta.label}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleStartEditTask(task)}
-                                                            className="p-1 text-gray-500 hover:text-black transition-colors font-bold text-xs"
-                                                        >
-                                                            ✏️
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleDeleteTask(task.id)}
-                                                            className="p-1 text-gray-400 hover:text-red-600 transition-colors font-bold text-xs"
-                                                        >
-                                                            🗑️
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            <form onSubmit={handleAddTask} className="flex items-center gap-2 pt-2 border-t border-gray-200">
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder={t("newTaskPlaceholder")}
-                                    value={newTaskTitle}
-                                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                                    className="flex-1 p-2 bg-gray-50 border border-gray-300 text-xs font-medium text-black focus:outline-none focus:border-black"
-                                />
-                                <select
-                                    value={newTaskCategory}
-                                    onChange={(e) => setNewTaskCategory(e.target.value)}
-                                    className="p-2 bg-gray-50 border border-gray-300 text-xs font-bold text-black focus:outline-none focus:border-black"
-                                >
-                                    <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
-                                    <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
-                                    <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
-                                    <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
-                                </select>
-                                <button
-                                    type="submit"
-                                    className="px-3 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors shrink-0"
-                                >
-                                    {t("addBtn")}
-                                </button>
-                            </form>
-                        </div>
-
-                        {currentOffboarding.exitInterviewNotes && (
-                            <div className="p-3.5 bg-purple-50/70 border border-purple-200 flex flex-col gap-1.5">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                                    <span>📝</span> {t("exitInterviewResultTitle")}
-                                </span>
-                                <p className="text-xs font-medium text-gray-800 whitespace-pre-wrap">
-                                    {currentOffboarding.exitInterviewNotes}
+                                </h3>
+                                <p className="text-xs text-slate-500 font-medium">
+                                    {t("subtitle")}
                                 </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <div className="p-6 overflow-y-auto flex flex-col gap-5">
+                        {errorMsg && (
+                            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-600 text-xs font-semibold flex items-center gap-2">
+                                <span className="font-bold">✕</span>
+                                <span>{errorMsg}</span>
                             </div>
                         )}
 
-                        <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
-                            >
-                                {t("close")}
-                            </button>
-                        </div>
+                        {!currentOffboarding ? (
+                            <form onSubmit={handleStart} className="flex flex-col gap-5">
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                        {t("selectEmployee")}
+                                    </label>
+                                    <select
+                                        value={selectedEmployeeId}
+                                        onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                                        required
+                                        disabled={isEmployeesLoading}
+                                        className={`w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all cursor-pointer ${
+                                            isEmployeesLoading ? "opacity-60 cursor-not-allowed" : ""
+                                        }`}
+                                    >
+                                        <option value="">
+                                            {isEmployeesLoading ? "Yuklanmoqda..." : t("selectEmployeePlaceholder")}
+                                        </option>
+                                        {!isEmployeesLoading &&
+                                            employees.map((emp) => (
+                                                <option key={emp.id} value={emp.id}>
+                                                    {emp.firstName} {emp.lastName} ({emp.department?.name || "-"} • {emp.position?.title || "-"})
+                                                </option>
+                                            ))}
+                                    </select>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                            {t("reason")}
+                                        </label>
+                                        <select
+                                            value={reason}
+                                            onChange={(e) => setReason(e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all cursor-pointer"
+                                        >
+                                            <option value="O'z xohishiga ko'ra">{t("reasons.ownWill")}</option>
+                                            <option value="Boshqa kompaniyaga o'tish">{t("reasons.anotherCompany")}</option>
+                                            <option value="Shartnoma muddati tugashi">{t("reasons.contractEnd")}</option>
+                                            <option value="Karyera o'zgarishi / O'qish">{t("reasons.careerChange")}</option>
+                                            <option value="Kompaniya tashabbusi bilan">{t("reasons.companyInitiative")}</option>
+                                            <option value="Boshqa sabab">{t("reasons.other")}</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                            {t("lastWorkingDay")}
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={lastWorkingDay}
+                                            onChange={(e) => setLastWorkingDay(e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3 pt-2">
+                                    <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                                        <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                                            <span>📋</span> {t("companyChecklist", { count: initialTasks.length })}
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveTemplateForCompany}
+                                            className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-purple-50 text-[#9327FF] border border-purple-200/80 hover:bg-purple-100 transition-all cursor-pointer flex items-center gap-1"
+                                        >
+                                            <span>💾</span> {t("saveAsTemplate", { company: companyKey })}
+                                        </button>
+                                    </div>
+
+                                    <div className="flex flex-col gap-2.5 max-h-60 overflow-y-auto pr-1">
+                                        {initialTasks.map((task) => {
+                                            const isEditing = editingTaskId === task.id;
+                                            const catMeta = categoryLabels[task.category] || categoryLabels.HR_DOCUMENTS;
+
+                                            return (
+                                                <div
+                                                    key={task.id}
+                                                    className="p-3.5 bg-slate-50/70 hover:bg-slate-50 border border-slate-200/70 rounded-2xl flex items-center justify-between gap-3 transition-all"
+                                                >
+                                                    {isEditing ? (
+                                                        <div className="flex flex-wrap items-center gap-2 flex-1">
+                                                            <input
+                                                                type="text"
+                                                                value={editingTaskTitle}
+                                                                onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                                                className="flex-1 min-w-[200px] px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                                            />
+                                                            <select
+                                                                value={editingTaskCategory}
+                                                                onChange={(e) => setEditingTaskCategory(e.target.value)}
+                                                                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                                            >
+                                                                <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
+                                                                <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
+                                                                <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
+                                                                <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
+                                                            </select>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSaveEditedTask(task.id)}
+                                                                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                                                            >
+                                                                ✓
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setEditingTaskId(null)}
+                                                                className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                                                <span className="text-xs font-semibold text-slate-900 truncate">
+                                                                    {task.title}
+                                                                </span>
+                                                                <span className={`text-[10px] font-bold rounded-lg px-2 py-0.5 shrink-0 border ${catMeta.color}`}>
+                                                                    {catMeta.icon} {catMeta.label}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStartEditTask(task)}
+                                                                    className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center text-xs transition-colors cursor-pointer"
+                                                                >
+                                                                    ✏️
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteTask(task.id)}
+                                                                    className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center text-xs transition-colors cursor-pointer"
+                                                                >
+                                                                    🗑️
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+                                        <input
+                                            type="text"
+                                            placeholder={t("newTaskPlaceholder")}
+                                            value={newTaskTitle}
+                                            onChange={(e) => setNewTaskTitle(e.target.value)}
+                                            className="w-full flex-1 px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all"
+                                        />
+                                        <select
+                                            value={newTaskCategory}
+                                            onChange={(e) => setNewTaskCategory(e.target.value)}
+                                            className="w-full sm:w-auto px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all cursor-pointer"
+                                        >
+                                            <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
+                                            <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
+                                            <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
+                                            <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={handleAddTask}
+                                            className="w-full sm:w-auto px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer shrink-0 shadow-2xs"
+                                        >
+                                            {t("addBtn")}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                        {t("hrNotes")}
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        placeholder={t("hrNotesPlaceholder")}
+                                        value={exitNotes}
+                                        onChange={(e) => setExitNotes(e.target.value)}
+                                        className="w-full p-3.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all resize-none"
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-2xs"
+                                    >
+                                        {t("cancel")}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="px-6 py-2.5 bg-[#9327FF] hover:bg-[#7e22ce] text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-all shadow-sm hover:shadow disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {loading ? t("starting") : t("startBtn")}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <div className="flex flex-col gap-5">
+                                <div className="p-4 bg-gradient-to-br from-slate-50 to-purple-50/40 border border-slate-200/80 rounded-2xl flex flex-col gap-3.5">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-900">
+                                                {currentOffboarding.employee?.firstName} {currentOffboarding.employee?.lastName}
+                                            </h4>
+                                            <p className="text-xs font-medium text-slate-500">
+                                                {currentOffboarding.employee?.department?.name || "-"} • {currentOffboarding.employee?.position?.title || "-"}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className={`px-3 py-1 text-xs font-bold rounded-full border ${
+                                                    currentOffboarding.status === "COMPLETED"
+                                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                        : currentOffboarding.status === "CANCELLED"
+                                                        ? "bg-slate-100 text-slate-600 border-slate-200"
+                                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                                }`}
+                                            >
+                                                {currentOffboarding.status === "COMPLETED"
+                                                    ? "✓"
+                                                    : currentOffboarding.status === "CANCELLED"
+                                                    ? "✕"
+                                                    : "⚡"} {currentOffboarding.status}
+                                            </span>
+
+                                            <select
+                                                value={currentOffboarding.status}
+                                                onChange={(e) => handleStatusChange(e.target.value as any)}
+                                                className="px-3 py-1 bg-white border border-slate-200 rounded-xl text-xs font-semibold uppercase text-slate-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20"
+                                            >
+                                                <option value="IN_PROGRESS">{t("selectStatus.inProgress")}</option>
+                                                <option value="COMPLETED">{t("selectStatus.completed")}</option>
+                                                <option value="CANCELLED">{t("selectStatus.cancelled")}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs border-t border-slate-200/60 pt-3">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t("reasonHeader")}</span>
+                                            <span className="font-semibold text-slate-800">{currentOffboarding.reason}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t("lastWorkingDayHeader")}</span>
+                                            <span className="font-semibold text-slate-800">
+                                                {currentOffboarding.lastWorkingDay
+                                                    ? new Date(currentOffboarding.lastWorkingDay).toISOString().split("T")[0]
+                                                    : "-"}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t("assetsReturnedHeader")}</span>
+                                            <span className={`font-semibold ${currentOffboarding.status === "CANCELLED" ? "text-slate-500" : currentOffboarding.isAssetsReturned ? "text-emerald-600" : "text-amber-600"}`}>
+                                                {currentOffboarding.status === "CANCELLED" ? (t("selectStatus.cancelled") || "Bekor qilingan") : currentOffboarding.isAssetsReturned ? t("yes") : t("pending")}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-1.5 pt-1">
+                                        <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+                                            <span>{t("checklistCompletion", { completed: completedTasksCount, total: totalTasksCount })}</span>
+                                            <span className="font-mono text-[#9327FF]">{progressPercent}%</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-[#9327FF] transition-all duration-300 rounded-full"
+                                                style={{ width: `${progressPercent}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                            {t("checklistTitle")}
+                                        </h4>
+                                        <span className="text-xs font-semibold text-slate-400">{t("tasksCount", { count: totalTasksCount })}</span>
+                                    </div>
+
+                                    <div className="flex flex-col gap-2.5 max-h-60 overflow-y-auto pr-1">
+                                        {currentOffboarding.tasks?.map((task) => {
+                                            const isEditing = editingTaskId === task.id;
+                                            const catMeta = categoryLabels[task.category] || categoryLabels.HR_DOCUMENTS;
+
+                                            return (
+                                                <div
+                                                    key={task.id}
+                                                    className={`p-3.5 border rounded-2xl flex items-center justify-between gap-3 transition-colors ${
+                                                        task.isCompleted ? "bg-emerald-50/30 border-emerald-200/80" : "bg-slate-50/60 border-slate-200/70"
+                                                    }`}
+                                                >
+                                                    {isEditing ? (
+                                                        <div className="flex flex-wrap items-center gap-2 flex-1">
+                                                            <input
+                                                                type="text"
+                                                                value={editingTaskTitle}
+                                                                onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                                                className="flex-1 min-w-[200px] px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                                            />
+                                                            <select
+                                                                value={editingTaskCategory}
+                                                                onChange={(e) => setEditingTaskCategory(e.target.value)}
+                                                                className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
+                                                            >
+                                                                <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
+                                                                <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
+                                                                <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
+                                                                <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
+                                                            </select>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSaveEditedTask(task.id)}
+                                                                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                                                            >
+                                                                ✓
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setEditingTaskId(null)}
+                                                                className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={task.isCompleted}
+                                                                    onChange={() => handleToggleTask(task.id, task.isCompleted)}
+                                                                    className="w-4 h-4 accent-[#9327FF] rounded-md cursor-pointer shrink-0"
+                                                                />
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className={`text-xs font-semibold truncate ${task.isCompleted ? "line-through text-slate-400" : "text-slate-900"}`}>
+                                                                        {task.title}
+                                                                    </span>
+                                                                    <span className={`text-[10px] font-bold rounded-lg px-2 py-0.5 border w-fit mt-0.5 ${catMeta.color}`}>
+                                                                        {catMeta.icon} {catMeta.label}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStartEditTask(task)}
+                                                                    className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center text-xs transition-colors cursor-pointer"
+                                                                >
+                                                                    ✏️
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteTask(task.id)}
+                                                                    className="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center text-xs transition-colors cursor-pointer"
+                                                                >
+                                                                    🗑️
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <form onSubmit={handleAddTask} className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder={t("newTaskPlaceholder")}
+                                            value={newTaskTitle}
+                                            onChange={(e) => setNewTaskTitle(e.target.value)}
+                                            className="w-full flex-1 px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all"
+                                        />
+                                        <select
+                                            value={newTaskCategory}
+                                            onChange={(e) => setNewTaskCategory(e.target.value)}
+                                            className="w-full sm:w-auto px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all cursor-pointer"
+                                        >
+                                            <option value="IT_ACCESS">🔒 {t("categories.IT_ACCESS")}</option>
+                                            <option value="ASSET_RETURN">💻 {t("categories.ASSET_RETURN")}</option>
+                                            <option value="FINANCE">💰 {t("categories.FINANCE")}</option>
+                                            <option value="HR_DOCUMENTS">📝 {t("categories.HR_DOCUMENTS")}</option>
+                                        </select>
+                                        <button
+                                            type="submit"
+                                            className="w-full sm:w-auto px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer shrink-0 shadow-2xs"
+                                        >
+                                            {t("addBtn")}
+                                        </button>
+                                    </form>
+                                </div>
+
+                                {currentOffboarding.exitInterviewNotes && (
+                                    <div className="p-4 bg-purple-50/60 border border-purple-100 rounded-2xl flex flex-col gap-1.5">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+                                            <span>📝</span> {t("exitInterviewResultTitle")}
+                                        </span>
+                                        <p className="text-xs font-medium text-slate-700 whitespace-pre-wrap">
+                                            {currentOffboarding.exitInterviewNotes}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="px-6 py-2.5 bg-[#9327FF] hover:bg-[#7e22ce] text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-all shadow-sm hover:shadow cursor-pointer"
+                                    >
+                                        {t("close")}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
-        </div>
+        </>
     );
 }

@@ -34,6 +34,7 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
     const containerRef = useRef<HTMLDivElement>(null);
     const [progress, setProgress] = useState(0);
 
+
     useEffect(() => {
         const handleScroll = () => {
             if (!containerRef.current) return;

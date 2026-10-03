@@ -54,7 +54,8 @@ export default function HRAcademyManagementPage() {
                     allUsers.filter(
                         (u: any) =>
                             u.employee?.id &&
-                            u.role !== "SUPER_ADMIN"
+                            u.role !== "SUPER_ADMIN" &&
+                            u.role !== "DIRECTOR"
                     )
                 );
             }

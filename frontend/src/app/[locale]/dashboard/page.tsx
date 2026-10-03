@@ -3,7 +3,47 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import Skeleton from "@/src/components/ui/Skeleton";
+import { createUser, updateUser } from "@/src/services/user-service";
 
+function DirectorAvatar({ user }: { user: any }) {
+    const [imageError, setImageError] = useState(false);
+    const rawAvatar = user.avatar || user.employee?.avatar || user.image || user.employee?.image || "";
+    let avatarSrc: string | null = null;
+    if (rawAvatar && !imageError) {
+        if (rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://") || rawAvatar.startsWith("data:")) {
+            avatarSrc = rawAvatar;
+        } else {
+            const rawApi = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+            const baseOrigin = rawApi.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/+$/, "");
+            const cleanPath = rawAvatar.startsWith("/") ? rawAvatar : `/${rawAvatar}`;
+            avatarSrc = `${baseOrigin}${cleanPath}`;
+        }
+    }
+
+    const first = user.employee?.firstName?.[0] || user.firstName?.[0] || "D";
+    const last = user.employee?.lastName?.[0] || user.lastName?.[0] || "";
+
+    if (avatarSrc) {
+        return (
+            <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-900 shrink-0 shadow-xs border border-slate-100">
+                <img
+                    src={avatarSrc}
+                    alt={user.employee?.firstName || user.firstName || "Director"}
+                    onError={() => setImageError(true)}
+                    className="w-full h-full object-cover"
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-xs">
+            {first}
+            {last}
+        </div>
+    );
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -76,8 +116,9 @@ export default function SuperAdminDashboard() {
     const locale = params.locale as string;
 
     const [directors, setDirectors] = useState<any[]>([]);
+    const [isTableLoading, setIsTableLoading] = useState(true);
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
-    const [form, setForm] = useState({
+    const [form, setForm] = useState<any>({
         companyName: "",
         firstName: "",
         lastName: "",
@@ -85,7 +126,10 @@ export default function SuperAdminDashboard() {
         phone: "",
         password: "",
         role: "DIRECTOR",
+        avatar: null,
+        avatarPreview: "",
     });
+    const [avatarError, setAvatarError] = useState(false);
     const [formErrors, setFormErrors] = useState<FormErrors>({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -101,7 +145,30 @@ export default function SuperAdminDashboard() {
         }, 3000);
     };
 
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setAvatarError(false);
+            const previewUrl = URL.createObjectURL(file);
+            setForm((prev: any) => ({
+                ...prev,
+                avatar: file,
+                avatarPreview: previewUrl,
+            }));
+        }
+    };
+
+    const handleRemoveAvatar = () => {
+        setAvatarError(false);
+        setForm((prev: any) => ({
+            ...prev,
+            avatar: null,
+            avatarPreview: "",
+        }));
+    };
+
     const fetchDirectors = async () => {
+        setIsTableLoading(true);
         try {
             const token = localStorage.getItem("token");
             const res = await fetch(`${API_URL}/users`, {
@@ -115,6 +182,8 @@ export default function SuperAdminDashboard() {
             }
         } catch (err) {
             console.error(err);
+        } finally {
+            setIsTableLoading(false);
         }
     };
 
@@ -198,7 +267,6 @@ export default function SuperAdminDashboard() {
 
         if (editingUserId) {
             try {
-                const token = localStorage.getItem("token");
                 const payload: any = {
                     ...form,
                     role: "DIRECTOR",
@@ -206,18 +274,16 @@ export default function SuperAdminDashboard() {
                 if (!payload.password) {
                     delete payload.password;
                 }
+                if (form.avatar instanceof File) {
+                    payload.avatar = form.avatar;
+                } else if (!form.avatarPreview) {
+                    payload.avatar = null;
+                } else {
+                    delete payload.avatar;
+                }
+                delete payload.avatarPreview;
 
-                const res = await fetch(`${API_URL}/users/${editingUserId}`, {
-                    method: "PATCH",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(payload),
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message || "Error");
+                await updateUser(editingUserId, payload);
 
                 resetForm();
                 fetchDirectors();
@@ -232,24 +298,18 @@ export default function SuperAdminDashboard() {
         }
 
         try {
-            const token = localStorage.getItem("token");
-
             const payload: any = {
                 ...form,
                 role: "DIRECTOR",
             };
+            if (form.avatar instanceof File) {
+                payload.avatar = form.avatar;
+            } else {
+                delete payload.avatar;
+            }
+            delete payload.avatarPreview;
 
-            const res = await fetch(`${API_URL}/users`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Error");
+            await createUser(payload);
 
             resetForm();
             fetchDirectors();
@@ -264,6 +324,19 @@ export default function SuperAdminDashboard() {
 
     const handleEditDirector = (user: any) => {
         setEditingUserId(user.id);
+        const rawAvatar = user.avatar || user.employee?.avatar || user.image || user.employee?.image || "";
+        let preview = "";
+        if (rawAvatar) {
+            if (rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://") || rawAvatar.startsWith("data:")) {
+                preview = rawAvatar;
+            } else {
+                const rawApi = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+                const baseOrigin = rawApi.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/+$/, "");
+                const cleanPath = rawAvatar.startsWith("/") ? rawAvatar : `/${rawAvatar}`;
+                preview = `${baseOrigin}${cleanPath}`;
+            }
+        }
+        setAvatarError(false);
         setFormErrors({});
         setForm({
             companyName: user.companyName || user.employee?.companyName || "",
@@ -273,12 +346,15 @@ export default function SuperAdminDashboard() {
             phone: user.phone || "",
             password: "",
             role: "DIRECTOR",
+            avatar: null,
+            avatarPreview: preview,
         });
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     const resetForm = () => {
         setEditingUserId(null);
+        setAvatarError(false);
         setFormErrors({});
         setForm({
             companyName: "",
@@ -288,6 +364,8 @@ export default function SuperAdminDashboard() {
             phone: "",
             password: "",
             role: "DIRECTOR",
+            avatar: null,
+            avatarPreview: "",
         });
         setError("");
     };
@@ -383,6 +461,64 @@ export default function SuperAdminDashboard() {
                         )}
 
                         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+                            <div className="flex items-center gap-4 p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                                <div className="relative">
+                                    {form.avatarPreview && !avatarError ? (
+                                        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 shadow-xs relative group">
+                                            <img
+                                                src={form.avatarPreview}
+                                                alt="Preview"
+                                                className="w-full h-full object-cover"
+                                                onError={() => setAvatarError(true)}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-2xl bg-purple-50 border border-dashed border-purple-200 flex items-center justify-center">
+                                            {form.firstName ? (
+                                                <span className="text-base font-bold text-[#9327FF] uppercase">
+                                                    {form.firstName[0]}
+                                                </span>
+                                            ) : (
+                                                <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-xs font-bold text-slate-800 block">
+                                        Rasm yuklash
+                                    </label>
+                                    <p className="text-[11px] text-slate-500 mb-1.5">
+                                        PNG, JPG yoki WEBP formatda (ixtiyoriy)
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <label className="px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[#9327FF] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1.5">
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                            </svg>
+                                            <span>{form.avatarPreview ? "O'zgartirish" : "Fayl tanlash"}</span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleAvatarChange}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                        {form.avatarPreview && (
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveAvatar}
+                                                className="px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                            >
+                                                O'chirish
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
                                     {t("companyName")} *
@@ -610,7 +746,39 @@ export default function SuperAdminDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {directors.length === 0 ? (
+                                    {isTableLoading ? (
+                                        Array.from({ length: 5 }).map((_, index) => (
+                                            <tr key={index} className="border-b border-slate-100">
+                                                <td className="p-4 pl-6">
+                                                    <div className="flex flex-col gap-2">
+                                                        <Skeleton className="h-4 w-32 rounded-lg" />
+                                                        <Skeleton className="h-4 w-16 rounded-full" />
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <Skeleton className="w-9 h-9 rounded-xl shrink-0" />
+                                                        <div className="flex flex-col gap-1.5 flex-1">
+                                                            <Skeleton className="h-3.5 w-28 rounded-md" />
+                                                            <Skeleton className="h-2.5 w-16 rounded-md" />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <Skeleton className="h-3.5 w-36 rounded-md" />
+                                                        <Skeleton className="h-2.5 w-24 rounded-md" />
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 pr-6 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <Skeleton className="w-8 h-8 rounded-lg" />
+                                                        <Skeleton className="w-8 h-8 rounded-lg" />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : directors.length === 0 ? (
                                         <tr>
                                             <td
                                                 colSpan={4}
@@ -637,10 +805,7 @@ export default function SuperAdminDashboard() {
                                                 </td>
                                                 <td className="p-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-xs">
-                                                            {(u.employee?.firstName?.[0] || u.firstName?.[0] || "D")}
-                                                            {(u.employee?.lastName?.[0] || u.lastName?.[0] || "")}
-                                                        </div>
+                                                        <DirectorAvatar user={u} />
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-slate-900 text-xs">
                                                                 {u.employee?.firstName || u.firstName || ""}{" "}

@@ -37,6 +37,9 @@ export interface PolicySignatureItem {
     id: string;
     employeeId: string;
     employeeName: string;
+    firstName?: string;
+    lastName?: string;
+    avatar?: string | null;
     email: string;
     department: string | null;
     signedVersion: number;

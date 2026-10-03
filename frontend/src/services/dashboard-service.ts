@@ -13,6 +13,7 @@ export interface HRActivityItem {
     employeeName: string;
     avatarInitials: string;
     avatarBg: string;
+    avatarUrl?: string | null;
     department: string;
     eventText: string;
     timeAgo: string;
@@ -33,6 +34,8 @@ export interface HRDashboardStats {
     attendancePercentage: number;
     attendanceStatusText: string;
     todayCheckedInCount: number;
+    regulationsPercentage?: number;
+    regulationsStatusText?: string;
 }
 
 export const fetchHRDashboardActivities = async (): Promise<HRActivityItem[]> => {

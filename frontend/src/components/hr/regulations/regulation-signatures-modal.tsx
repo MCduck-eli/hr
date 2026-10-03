@@ -1,11 +1,54 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { PolicyItem } from "@/src/services/policy-service";
+import { PolicyItem, PolicySignatureItem } from "@/src/services/policy-service";
 
 interface RegulationSignaturesModalProps {
     policy: PolicyItem | null;
     onClose: () => void;
+}
+
+function SignerAvatar({ sig }: { sig: PolicySignatureItem }) {
+    const [imageError, setImageError] = useState(false);
+    const rawAvatar = sig.avatar || "";
+
+    let avatarSrc: string | null = null;
+    if (rawAvatar && !imageError) {
+        if (
+            rawAvatar.startsWith("http://") ||
+            rawAvatar.startsWith("https://") ||
+            rawAvatar.startsWith("data:")
+        ) {
+            avatarSrc = rawAvatar;
+        } else {
+            const rawApi = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+            const baseOrigin = rawApi.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/+$/, "");
+            const cleanPath = rawAvatar.startsWith("/") ? rawAvatar : `/${rawAvatar}`;
+            avatarSrc = `${baseOrigin}${cleanPath}`;
+        }
+    }
+
+    const name = sig.employeeName || `${sig.firstName || ""} ${sig.lastName || ""}`.trim() || "Xodim";
+    const parts = name.trim().split(/\s+/);
+    const initials = parts.length >= 2
+        ? (parts[0][0] + parts[1][0]).toUpperCase()
+        : name.slice(0, 2).toUpperCase() || "X";
+
+    return (
+        <div className="w-8 h-8 rounded-full bg-violet-100 text-[#9327FF] flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-violet-200">
+            {avatarSrc ? (
+                <img
+                    src={avatarSrc}
+                    alt={name}
+                    onError={() => setImageError(true)}
+                    className="w-full h-full object-cover"
+                />
+            ) : (
+                <span>{initials}</span>
+            )}
+        </div>
+    );
 }
 
 export default function RegulationSignaturesModal({
@@ -59,8 +102,13 @@ export default function RegulationSignaturesModal({
                                 <tbody className="divide-y divide-gray-100 font-medium text-gray-800">
                                     {signatures.map((sig) => (
                                         <tr key={sig.id} className="hover:bg-gray-50/50">
-                                            <td className="p-3.5 font-bold text-gray-900">
-                                                {sig.employeeName}
+                                            <td className="p-3.5">
+                                                <div className="flex items-center gap-2.5">
+                                                    <SignerAvatar sig={sig} />
+                                                    <span className="font-bold text-gray-900">
+                                                        {sig.employeeName || `${sig.firstName || ""} ${sig.lastName || ""}`.trim()}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-3.5 text-gray-500">{sig.email}</td>
                                             <td className="p-3.5 text-gray-600">

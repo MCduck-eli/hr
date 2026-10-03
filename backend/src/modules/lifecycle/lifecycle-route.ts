@@ -104,7 +104,7 @@ lifecycleRouter.get(
 
 lifecycleRouter.patch(
     "/offboarding/tasks/:taskId",
-    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN", "EMPLOYEE", "DEPARTMENT_HEAD"),
     lifecycleController.updateOffboardingTask,
 );
 

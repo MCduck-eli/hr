@@ -8,6 +8,7 @@ export default function MobileMenu({
     isLoggedIn,
     userName,
     userInitials,
+    userAvatar,
     locale = "uz",
     onLogout,
     dashboardLink = `/${locale}/profile`,
@@ -16,11 +17,13 @@ export default function MobileMenu({
     isLoggedIn?: boolean;
     userName?: string;
     userInitials?: string;
+    userAvatar?: string | null;
     locale?: string;
     onLogout?: () => void;
     dashboardLink?: string;
 }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [avatarError, setAvatarError] = useState(false);
 
     return (
         <div className="md:hidden">
@@ -91,8 +94,17 @@ export default function MobileMenu({
                         <div className="flex flex-col gap-3 pt-2 border-t border-gray-200">
                             {userName && (
                                 <div className="flex items-center gap-2.5 px-1 py-1">
-                                    <div className="w-8 h-8 rounded-full bg-[#f3e8ff] text-[#9327FF] flex items-center justify-center text-xs font-bold shrink-0">
-                                        {userInitials}
+                                    <div className="w-8 h-8 rounded-full bg-[#f3e8ff] text-[#9327FF] flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden shadow-xs">
+                                        {userAvatar && !avatarError ? (
+                                            <img
+                                                src={userAvatar}
+                                                alt={userName}
+                                                onError={() => setAvatarError(true)}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            userInitials
+                                        )}
                                     </div>
                                     <span className="text-sm font-medium text-gray-700 truncate">
                                         {userName}

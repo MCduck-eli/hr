@@ -118,10 +118,14 @@ export default function HRAttendancePage() {
         }
         try {
             const user = JSON.parse(userStr);
+            const perms = Array.isArray(user.permissions) ? user.permissions : [];
             if (
                 user.role !== "HR_ADMIN" &&
                 user.role !== "SUPER_ADMIN" &&
-                user.role !== "DIRECTOR"
+                user.role !== "DIRECTOR" &&
+                !perms.includes("attendance") &&
+                !perms.includes("hr_dashboard") &&
+                !perms.includes("hr")
             ) {
                 router.push(`/${locale}/profile`);
                 return;
@@ -160,21 +164,27 @@ export default function HRAttendancePage() {
     });
 
     const departmentStats = (() => {
-        const map = new Map<string, { total: number; present: number; late: number; onTime: number }>();
+        const map = new Map<string, { total: number; present: number; late: number; onTime: number; early: number; checkedOut: number; unmarked: number }>();
         records.forEach((r) => {
             const dept = r.employee.department?.name || "Bo'limsiz";
             if (!map.has(dept)) {
-                map.set(dept, { total: 0, present: 0, late: 0, onTime: 0 });
+                map.set(dept, { total: 0, present: 0, late: 0, onTime: 0, early: 0, checkedOut: 0, unmarked: 0 });
             }
             const st = map.get(dept)!;
             st.total += 1;
+            const isLate = r.checkIn && (r.status === "LATE" || (r.lateMinutes && r.lateMinutes > 0));
+            const isOnTime = r.checkIn && r.status !== "LATE" && (!r.lateMinutes || r.lateMinutes <= 0);
+            const isEarly = Boolean(r.earlyMinutes && r.earlyMinutes > 0);
+            const isCheckedOut = Boolean(r.checkOut);
+            const isUnmarked = !r.checkIn;
+
+            if (isOnTime) st.onTime += 1;
+            if (isLate) st.late += 1;
+            if (isEarly) st.early += 1;
+            if (isCheckedOut) st.checkedOut += 1;
+            if (isUnmarked) st.unmarked += 1;
             if (r.checkIn || r.status === "PRESENT" || r.status === "LATE") {
                 st.present += 1;
-                if (r.lateMinutes > 0 || r.status === "LATE") {
-                    st.late += 1;
-                } else {
-                    st.onTime += 1;
-                }
             }
         });
         return Array.from(map.entries()).map(([department, data]) => {
@@ -185,6 +195,9 @@ export default function HRAttendancePage() {
                 present: data.present,
                 late: data.late,
                 onTime: data.onTime,
+                early: data.early,
+                checkedOut: data.checkedOut,
+                unmarked: data.unmarked,
                 percentage,
             };
         });
@@ -215,6 +228,14 @@ export default function HRAttendancePage() {
     const earlyPercent = totalEmp > 0 ? Math.round((todayEarlyCount / totalEmp) * 100) : 0;
     const checkedOutPercent = totalEmp > 0 ? Math.round((todayCheckedOutCount / totalEmp) * 100) : 0;
     const unmarkedPercent = totalEmp > 0 ? Math.round((todayUnmarkedCount / totalEmp) * 100) : 0;
+
+    const attendanceSegments = [
+        { label: "Vaqtida kelgan", count: todayPresentCount, percent: onTimePercent, color: "#10b981", dotClass: "bg-emerald-500", textClass: "text-emerald-600" },
+        { label: "Kechikkan", count: todayLateCount, percent: latePercent, color: "#f59e0b", dotClass: "bg-amber-500", textClass: "text-amber-600" },
+        { label: "Erta ketgan", count: todayEarlyCount, percent: earlyPercent, color: "#8b5cf6", dotClass: "bg-purple-500", textClass: "text-purple-600" },
+        { label: "Chiqib ketgan", count: todayCheckedOutCount, percent: checkedOutPercent, color: "#64748b", dotClass: "bg-slate-500", textClass: "text-slate-600" },
+        { label: "Belgilanmagan", count: todayUnmarkedCount, percent: unmarkedPercent, color: "#ef4444", dotClass: "bg-rose-500", textClass: "text-rose-600" },
+    ];
 
     const formatMinutes = (minutes: number) => {
         if (!minutes || minutes <= 0) return `0 ${t("minutes")}`;
@@ -329,104 +350,115 @@ export default function HRAttendancePage() {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-gray-400 truncate">
                             {t("totalEmployees")}
                         </span>
-                        <span className="text-2xl md:text-3xl font-extrabold text-slate-900">
+                        <div className="w-11 h-11 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center text-xl shrink-0">
+                            👥
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-0.5 my-2">
+                        <span className="text-3xl font-extrabold text-slate-900">
                             {totalEmp}
                         </span>
-                        <span className="text-[11px] font-medium text-slate-500 mt-0.5">
+                        <span className="text-xs font-medium text-slate-500">
                             Faol tarkib
                         </span>
                     </div>
-                    <div className="w-11 h-11 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center text-xl shrink-0">
-                        👥
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span>Belgilangan xodimlar</span>
+                        <span className="font-bold text-slate-900">
+                            {todayPresentCount + todayLateCount + todayCheckedOutCount}
+                        </span>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 truncate">
-                            {t("onTime")}
-                        </span>
-                        <span className="text-2xl md:text-3xl font-extrabold text-emerald-700">
-                            {todayPresentCount}
-                        </span>
-                        <span className="text-[11px] font-medium text-emerald-600 mt-0.5">
-                            O'z vaqtida
-                        </span>
-                    </div>
-                    <CircularProgress value={onTimePercent} size={46} strokeWidth={4} color="#10b981" />
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-amber-600 truncate">
-                            {t("late")}
-                        </span>
-                        <span className="text-2xl md:text-3xl font-extrabold text-amber-700">
-                            {todayLateCount}
-                        </span>
-                        <span className="text-[11px] font-medium text-amber-600 mt-0.5">
-                            Kechikkanlar
-                        </span>
-                    </div>
-                    <CircularProgress value={latePercent} size={46} strokeWidth={4} color="#f59e0b" />
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-rose-600 truncate">
-                            {t("earlyDepartures")}
-                        </span>
-                        <span className="text-2xl md:text-3xl font-extrabold text-rose-700">
-                            {todayEarlyCount}
-                        </span>
-                        <span className="text-[11px] font-medium text-rose-600 mt-0.5">
-                            Erta ketganlar
-                        </span>
-                    </div>
-                    <CircularProgress value={earlyPercent} size={46} strokeWidth={4} color="#f43f5e" />
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-blue-600 truncate">
-                            {t("checkedOut")}
-                        </span>
-                        <span className="text-2xl md:text-3xl font-extrabold text-blue-700">
-                            {todayCheckedOutCount}
-                        </span>
-                        <span className="text-[11px] font-medium text-blue-600 mt-0.5">
-                            Chiqib ketgan
-                        </span>
-                    </div>
-                    <CircularProgress value={checkedOutPercent} size={46} strokeWidth={4} color="#3b82f6" />
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-red-600 truncate">
-                            {t("unmarked")}
-                        </span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl md:text-3xl font-extrabold text-red-700">
-                                {todayUnmarkedCount}
-                            </span>
-                            {todayReasonGivenCount > 0 && (
-                                <span className="text-[10px] text-slate-500 font-bold">
-                                    ({todayReasonGivenCount})
-                                </span>
-                            )}
+                <div className="lg:col-span-2 xl:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-4 hover:shadow-md transition-all">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                                Bugungi Davomat Holati
+                            </h3>
                         </div>
-                        <span className="text-[11px] font-medium text-red-600 mt-0.5">
-                            Kelmaganlar
-                        </span>
+                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+                            <span>Jami qatnashuv:</span>
+                            <span className="text-slate-900 font-bold">
+                                {totalEmp > 0 ? Math.round(((todayPresentCount + todayLateCount + todayCheckedOutCount) / totalEmp) * 100) : 0}%
+                            </span>
+                        </div>
                     </div>
-                    <CircularProgress value={unmarkedPercent} size={46} strokeWidth={4} color="#ef4444" />
+
+                    <div className="flex flex-col md:flex-row items-center gap-6 py-1">
+                        <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
+                            <svg viewBox="0 0 160 160" className="w-full h-full -rotate-90">
+                                <circle
+                                    cx="80"
+                                    cy="80"
+                                    r={56}
+                                    fill="none"
+                                    stroke="#f1f5f9"
+                                    strokeWidth="18"
+                                />
+                                {(() => {
+                                    const circumference = 2 * Math.PI * 56;
+                                    let accumulated = 0;
+                                    return attendanceSegments.map((seg, idx) => {
+                                        if (seg.count <= 0 || totalEmp <= 0) return null;
+                                        const dashArray = `${(seg.count / totalEmp) * circumference} ${circumference}`;
+                                        const dashOffset = -((accumulated / totalEmp) * circumference);
+                                        accumulated += seg.count;
+                                        return (
+                                            <circle
+                                                key={idx}
+                                                cx="80"
+                                                cy="80"
+                                                r={56}
+                                                fill="none"
+                                                stroke={seg.color}
+                                                strokeWidth="18"
+                                                strokeDasharray={dashArray}
+                                                strokeDashoffset={dashOffset}
+                                                className="transition-all duration-500"
+                                            />
+                                        );
+                                    });
+                                })()}
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span className="text-xl font-extrabold text-slate-900 leading-none">
+                                    {totalEmp > 0 ? Math.round(((todayPresentCount + todayLateCount + todayCheckedOutCount) / totalEmp) * 100) : 0}%
+                                </span>
+                                <span className="text-[10px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                                    Davomat
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
+                            {attendanceSegments.map((seg, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className={`w-2.5 h-2.5 rounded-full ${seg.dotClass} shrink-0`}></span>
+                                        <span className="text-xs font-medium text-slate-600 truncate">
+                                            {seg.label}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0 pl-2">
+                                        <span className="text-xs font-bold text-slate-900">
+                                            {seg.count}
+                                        </span>
+                                        <span className={`text-[10px] font-semibold ${seg.textClass}`}>
+                                            ({seg.percent}%)
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -445,31 +477,93 @@ export default function HRAttendancePage() {
                     </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {departmentStats.map((dept) => (
-                        <div
-                            key={dept.department}
-                            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center justify-between hover:shadow-md transition-all"
-                        >
-                            <div className="flex flex-col gap-1 min-w-0">
-                                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 truncate">
-                                    {dept.department}
-                                </span>
-                                <span className="text-xl font-extrabold text-slate-900">
-                                    {dept.present} / {dept.total}
-                                </span>
-                                <span className="text-[11px] font-medium text-slate-500">
-                                    {dept.late > 0 ? `${dept.late} kechikkan` : "Hammasi o'z vaqtida"}
-                                </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                    {departmentStats.map((dept) => {
+                        const deptSegments = [
+                            { label: "Vaqtida keldi", count: dept.onTime, color: "#10b981", dotClass: "bg-emerald-500" },
+                            { label: "Kechikkan", count: dept.late, color: "#f59e0b", dotClass: "bg-amber-500" },
+                            { label: "Erta ketgan", count: dept.early, color: "#8b5cf6", dotClass: "bg-purple-500" },
+                            { label: "Chiqib ketgan", count: dept.checkedOut, color: "#64748b", dotClass: "bg-slate-500" },
+                            { label: "Belgilanmagan", count: dept.unmarked, color: "#ef4444", dotClass: "bg-rose-500" },
+                        ];
+                        const radius = 38;
+                        const circumference = 2 * Math.PI * radius;
+                        let accumulated = 0;
+
+                        return (
+                            <div
+                                key={dept.department}
+                                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col justify-between gap-3 hover:shadow-md transition-all"
+                            >
+                                <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="w-2 h-2 rounded-full bg-[#9327FF] shrink-0" />
+                                        <h3 className="text-sm font-bold text-slate-900 truncate">
+                                            {dept.department}
+                                        </h3>
+                                    </div>
+                                    <span className="text-[11px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg shrink-0">
+                                        {dept.total} xodim
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
+                                        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                                            <circle
+                                                cx="50"
+                                                cy="50"
+                                                r={radius}
+                                                fill="none"
+                                                stroke="#f1f5f9"
+                                                strokeWidth="10"
+                                            />
+                                            {deptSegments.map((seg, sIdx) => {
+                                                if (seg.count <= 0 || dept.total <= 0) return null;
+                                                const dashArray = `${(seg.count / dept.total) * circumference} ${circumference}`;
+                                                const dashOffset = -((accumulated / dept.total) * circumference);
+                                                accumulated += seg.count;
+                                                return (
+                                                    <circle
+                                                        key={sIdx}
+                                                        cx="50"
+                                                        cy="50"
+                                                        r={radius}
+                                                        fill="none"
+                                                        stroke={seg.color}
+                                                        strokeWidth="10"
+                                                        strokeDasharray={dashArray}
+                                                        strokeDashoffset={dashOffset}
+                                                        className="transition-all duration-300"
+                                                    />
+                                                );
+                                            })}
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                            <span className="text-sm font-extrabold text-slate-900 leading-none">
+                                                {dept.percentage}%
+                                            </span>
+                                            <span className="text-[8px] font-bold text-emerald-600 mt-0.5 uppercase tracking-wider">
+                                                Vaqtida
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col justify-center gap-1 w-full min-w-0">
+                                        {deptSegments.map((seg, sIdx) => (
+                                            <div key={sIdx} className="flex items-center justify-between text-xs py-0.5 px-2 rounded-lg bg-slate-50/60 border border-slate-100/70">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${seg.dotClass} shrink-0`} />
+                                                    <span className="text-slate-600 text-[10px] font-medium truncate">{seg.label}</span>
+                                                </div>
+                                                <span className="font-bold text-slate-900 text-[11px] pl-1.5 shrink-0">{seg.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                            <CircularProgress
-                                value={dept.percentage}
-                                size={52}
-                                strokeWidth={4.5}
-                                color={dept.percentage >= 80 ? "#10b981" : dept.percentage >= 50 ? "#9327FF" : "#f59e0b"}
-                            />
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {departmentStats.length === 0 && (
                         <div className="col-span-full bg-white rounded-2xl border border-gray-100 p-8 text-center text-xs text-slate-400 font-medium">

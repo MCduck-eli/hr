@@ -48,6 +48,11 @@ academyRouter.post(
     academyController.registerEvent,
 );
 academyRouter.get("/certificates/my", academyController.getMyCertificates);
+academyRouter.patch(
+    "/courses/:courseId/progress",
+    academyController.updateProgress,
+);
+academyRouter.patch("/progress", academyController.updateProgress);
 
 
 

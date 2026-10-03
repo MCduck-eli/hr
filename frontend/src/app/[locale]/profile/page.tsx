@@ -3,19 +3,57 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
-import QuickActions from "@/src/components/dashboard/quick-actions";
 import CareerPathRequirements from "@/src/components/profile/CareerPathRequirements";
 import EmployeeJourneyTimeline from "@/src/components/lifecycle/EmployeeJourneyTimeline";
 import EmployeePayslipsSection from "@/src/components/payroll/EmployeePayslipsSection";
 import PayrollManager from "@/src/components/payroll/PayrollManager";
 import EmployeeTestModal from "@/src/components/profile/EmployeeTestModal";
 import EmployeeEnpsModal from "@/src/components/profile/EmployeeEnpsModal";
+import AbsenceReasonModal from "@/src/components/hr/attendance/absence-reason-modal";
 import { fetchMyPendingTasks, fetchTargetReport, fetchCycles } from "@/src/services/feedback360-service";
 import { fetchMyLatestEnps } from "@/src/services/enps-service";
 import { checkInKeyResult } from "@/src/services/okr-service";
-import { fetchOffboardingDetails } from "@/src/services/offboarding-service";
+import { fetchOffboardingDetails, toggleOffboardingTask } from "@/src/services/offboarding-service";
 import ExitInterviewModal from "@/src/components/offboarding/ExitInterviewModal";
 import EmployeeResignationModal from "@/src/components/offboarding/EmployeeResignationModal";
+import Skeleton from "@/src/components/ui/Skeleton";
+
+type ProfileTab = "overview" | "career" | "okr" | "assessments" | "offboarding" | "payroll";
+
+function CircularProgress({ value, size = 48, strokeWidth = 4, color = "#9327FF" }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (Math.min(100, Math.max(0, value)) / 100) * circumference;
+
+    return (
+        <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+            <svg className="w-full h-full transform -rotate-90" viewBox={`0 0 ${size} ${size}`}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    className="text-slate-100"
+                    fill="transparent"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    className="transition-all duration-700 ease-out"
+                    fill="transparent"
+                />
+            </svg>
+            <span className="absolute text-[11px] font-black text-slate-800">{Math.round(value)}%</span>
+        </div>
+    );
+}
 
 export default function EmployeeProfilePage() {
     const t = useTranslations("DashboardProfile");
@@ -27,7 +65,7 @@ export default function EmployeeProfilePage() {
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    const [activeTab, setActiveTab] = useState<"profile" | "payroll">("profile");
+    const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
 
     const [checkInKr, setCheckInKr] = useState<any>(null);
     const [checkInComment, setCheckInComment] = useState("");
@@ -47,13 +85,14 @@ export default function EmployeeProfilePage() {
     const [localDiscAssessment, setLocalDiscAssessment] = useState<any>(null);
     const [isEnpsModalOpen, setIsEnpsModalOpen] = useState(false);
     const [latestEnps, setLatestEnps] = useState<any>(null);
+    const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
             const searchParams = new URLSearchParams(window.location.search);
-            const tabParam = searchParams.get("tab");
-            if (tabParam === "payroll") {
-                setActiveTab("payroll");
+            const tabParam = searchParams.get("tab") as ProfileTab | null;
+            if (tabParam && ["overview", "career", "okr", "assessments", "offboarding", "payroll"].includes(tabParam)) {
+                setActiveTab(tabParam);
             }
         }
     }, []);
@@ -62,15 +101,15 @@ export default function EmployeeProfilePage() {
         const userStr = localStorage.getItem("user");
         const token = localStorage.getItem("token");
         if (!userStr || !token) {
-            const locale = window.location.pathname.split("/")[1] || "uz";
-            router.push(`/${locale}/login`);
+            const loc = window.location.pathname.split("/")[1] || "uz";
+            router.push(`/${loc}/login`);
             return;
         }
         try {
             setCurrentUser(JSON.parse(userStr));
         } catch (e) {
-            const locale = window.location.pathname.split("/")[1] || "uz";
-            router.push(`/${locale}/login`);
+            const loc = window.location.pathname.split("/")[1] || "uz";
+            router.push(`/${loc}/login`);
         }
     }, [router]);
 
@@ -84,9 +123,7 @@ export default function EmployeeProfilePage() {
                     params?.id || params?.userId || params?.employeeId;
 
                 if (!targetUserId && typeof window !== "undefined") {
-                    const searchParams = new URLSearchParams(
-                        window.location.search,
-                    );
+                    const searchParams = new URLSearchParams(window.location.search);
                     targetUserId =
                         searchParams.get("id") ||
                         searchParams.get("userId") ||
@@ -100,8 +137,7 @@ export default function EmployeeProfilePage() {
                         if (empIndex !== -1 && pathSegments[empIndex + 1]) {
                             targetUserId = pathSegments[empIndex + 1];
                         } else {
-                            const lastSegment =
-                                pathSegments[pathSegments.length - 1];
+                            const lastSegment = pathSegments[pathSegments.length - 1];
                             const ignoredWords = [
                                 "profile",
                                 "dashboard",
@@ -112,10 +148,7 @@ export default function EmployeeProfilePage() {
                                 "academy",
                                 "onboarding",
                             ];
-                            if (
-                                lastSegment &&
-                                !ignoredWords.includes(lastSegment)
-                            ) {
+                            if (lastSegment && !ignoredWords.includes(lastSegment)) {
                                 targetUserId = lastSegment;
                             }
                         }
@@ -128,7 +161,7 @@ export default function EmployeeProfilePage() {
                         try {
                             const u = JSON.parse(userStr);
                             targetUserId = u.id;
-                        } catch (e) { }
+                        } catch (e) {}
                     }
                 }
 
@@ -197,7 +230,7 @@ export default function EmployeeProfilePage() {
                     } catch (e) {}
                 }
 
-                const empId = targetEmployeeId || targetUserId;
+                const empId = targetEmployeeId || targetUserId || currentUser?.id || "my";
                 if (empId) {
                     try {
                         const off = await fetchOffboardingDetails(empId);
@@ -213,111 +246,47 @@ export default function EmployeeProfilePage() {
         if (!loading && (dashboardData || currentUser)) {
             loadFeedbackData();
         }
-    }, [loading, currentUser, dashboardData, selectedCycleId]);
+    }, [loading, currentUser, dashboardData, selectedCycleId, refreshKey]);
 
-    if (!currentUser || loading)
-        return <div className="p-8">{t("loading")}</div>;
-
-    const firstName =
-        dashboardData?.user?.firstName ||
-        currentUser.employee?.firstName ||
-        currentUser.email.split("@")[0];
-
-    const roleData = dashboardData?.user?.role || currentUser.role;
-    const isAccountant =
-        roleData === "ACCOUNTANT" ||
-        currentUser?.role === "ACCOUNTANT" ||
-        currentUser?.customRole?.baseRole === "ACCOUNTANT" ||
-        dashboardData?.user?.customRole?.baseRole === "ACCOUNTANT";
-    const isDirector =
-        roleData === "DIRECTOR" ||
-        currentUser?.role === "DIRECTOR" ||
-        roleData === "SUPER_ADMIN" ||
-        currentUser?.role === "SUPER_ADMIN" ||
-        currentUser?.customRole?.baseRole === "DIRECTOR";
-    const isHrAdmin =
-        roleData === "HR_ADMIN" ||
-        currentUser?.role === "HR_ADMIN" ||
-        currentUser?.customRole?.baseRole === "HR_ADMIN";
-    const canManagePayroll = isAccountant || isDirector;
-    const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData === "ACCOUNTANT" ? "Bugalter / Hisobchi" : roleData === "HR_ADMIN" ? "HR Admin" : roleData;
-
-    const grade = dashboardData?.grade || dashboardData?.user?.employee?.grade || null;
-    const positionTitle = dashboardData?.position || dashboardData?.user?.employee?.position || null;
-    const departmentName = dashboardData?.user?.employee?.department || null;
-    const salary = dashboardData?.salary || dashboardData?.user?.employee?.salary || null;
-    const discAssessment = localDiscAssessment || dashboardData?.discAssessment || null;
-
-    const overallScore = feedbackReport?.competencies?.length > 0 
-        ? (feedbackReport.competencies.reduce((acc: any, curr: any) => acc + curr.averageScore, 0) / feedbackReport.competencies.length).toFixed(1)
-        : null;
-
-    const stats = [
-        {
-            label: t("okrProgress"),
-            value: dashboardData?.okrProgress
-                ? `${dashboardData.okrProgress}%`
-                : "0%",
-            trend: dashboardData?.minExpectedProgress !== undefined 
-                ? `Kamida ${dashboardData.minExpectedProgress}% kutilmoqda` 
-                : "Belgilanmagan",
-        },
-        {
-            label: "360 BAHOLASH BALLI",
-            value: (overallScore !== null && overallScore !== undefined)
-                ? `${overallScore} / 5.0`
-                : (dashboardData?.feedback360Score !== null && dashboardData?.feedback360Score !== undefined
-                    ? `${dashboardData.feedback360Score} / 5.0`
-                    : "0.0 / 5.0"),
-            trend: (overallScore || dashboardData?.feedback360Score) ? "Hamkasblar bahosi" : "Hali baholanmagan",
-        },
-        {
-            label: t("attendance"),
-            value: dashboardData?.attendanceHours
-                ? `${dashboardData.attendanceHours}h`
-                : "0h",
-            trend: t("thisWeek"),
-        },
-        {
-            label: t("currentGradeSalary"),
-            value: grade ? `Level ${grade.level} • ${grade.code}` : t("unassigned"),
-            trend: salary ? `${Number(salary).toLocaleString()} UZS` : (grade ? `${grade.minSalary.toLocaleString()} - ${grade.maxSalary.toLocaleString()} UZS` : t("notSpecified")),
-        },
-        {
-            label: t("leaveBalance"),
-            value:
-                (dashboardData?.leaveBalance ??
-                    currentUser?.employee?.leaveBalance) !== undefined
-                    ? `${dashboardData?.leaveBalance ?? currentUser?.employee?.leaveBalance} Days`
-                    : "0 Days",
-            trend: t("annual"),
-        },
-    ];
-
-    const activeCourses = dashboardData?.activeCourses || [];
-    const recentActivities = dashboardData?.recentActivities || [];
-    const okrs = dashboardData?.okrs || [];
-
-    const getActivityTitle = (title: string) => {
-        if (title === "Offboarding muvaffaqiyatli yakunlandi") return t("activityOffboardingCompleted");
-        if (title === "Exit Interview topshirildi") return t("activityExitInterview");
-        if (title === "Ishga qabul qilindi") return t("activityHired");
-        if (title === "Onboarding boshlandi") return t("activityOnboardingStarted");
-        if (title === "Sinov muddati o'tdi") return t("activityProbationPassed");
-        if (title === "Greyd oshirildi") return t("activityPromoted");
-        return title;
+    const getCategoryBadge = (cat: string) => {
+        switch (cat) {
+            case "IT_ACCESS":
+                return { label: "IT & Tizimlar", color: "bg-blue-50 text-blue-700 border-blue-200" };
+            case "ASSET_RETURN":
+                return { label: "Jihozlar & Aktivlar", color: "bg-amber-50 text-amber-700 border-amber-200" };
+            case "FINANCE":
+                return { label: "Moliya & Hisob-kitob", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+            case "HR_DOCUMENTS":
+            default:
+                return { label: "HR & Hujjatlar", color: "bg-purple-50 text-purple-700 border-purple-200" };
+        }
     };
 
-    const getActivityDescription = (description: string) => {
-        if (!description) return "";
-        if (description === "Barcha aylanma varaqasi (Checklist) topshiriqlari va aktivlar to'liq topshirildi.") {
-            return t("activityOffboardingCompletedDesc");
+    const handleToggleOffboardingTask = async (taskId: string, currentStatus: boolean) => {
+        if (!offboardingData) return;
+
+        const previousData = offboardingData;
+        const newStatus = !currentStatus;
+
+        const updatedTasks = (offboardingData.tasks || []).map((t: any) =>
+            t.id === taskId
+                ? { ...t, isCompleted: newStatus, completedAt: newStatus ? new Date().toISOString() : null }
+                : t
+        );
+        const allDone = updatedTasks.length > 0 && updatedTasks.every((t: any) => t.isCompleted);
+
+        setOffboardingData({
+            ...offboardingData,
+            status: allDone ? "COMPLETED" : "IN_PROGRESS",
+            isAssetsReturned: allDone,
+            tasks: updatedTasks,
+        });
+
+        try {
+            await toggleOffboardingTask(taskId, newStatus);
+        } catch (e) {
+            setOffboardingData(previousData);
         }
-        if (description.startsWith("【Ketish Sababi】: ")) {
-            const val = description.replace("【Ketish Sababi】: ", "");
-            return `【${t("exitReasonPrefix")}】: ${val}`;
-        }
-        return description;
     };
 
     const handleCheckIn = async (e: React.FormEvent) => {
@@ -343,353 +312,719 @@ export default function EmployeeProfilePage() {
         }
     };
 
-    return (
-        <div className="flex flex-col gap-10 py-10 px-4 md:px-8 max-w-[1400px] mx-auto">
-            <div className="flex flex-col gap-4">
-                <button
-                    onClick={() => router.back()}
-                    className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black w-fit mb-2"
-                >
-                    &larr; {t("goBack") || "Orqaga"}
-                </button>
-                <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight text-black">
-                    {t("welcomeBack")} <br className="md:hidden" /> {firstName}
-                </h1>
-                <div className="flex flex-wrap items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-500">
-                    <span>{roleName}</span>
-                    {departmentName && (
-                        <>
-                            <span>•</span>
-                            <span className="text-gray-700">{departmentName}</span>
-                        </>
-                    )}
-                    {positionTitle && (
-                        <>
-                            <span>•</span>
-                            <span className="text-black font-extrabold">{positionTitle}</span>
-                        </>
-                    )}
-                    <span>•</span>
-                    <span className={`px-2.5 py-0.5 text-xs font-black uppercase tracking-wider border ${
-                        grade
-                            ? "bg-black text-white border-black"
-                            : "bg-gray-100 text-gray-600 border-gray-300"
-                    }`}>
-                        {grade ? `${grade.title} (Level ${grade.level})` : t("noGradeAssigned")}
-                    </span>
-                </div>
+    const getActivityTitle = (title: string) => {
+        if (title === "Offboarding muvaffaqiyatli yakunlandi") return t("activityOffboardingCompleted");
+        if (title === "Exit Interview topshirildi") return t("activityExitInterview");
+        if (title === "Ishga qabul qilindi") return t("activityHired");
+        if (title === "Onboarding boshlandi") return t("activityOnboardingStarted");
+        if (title === "Sinov muddati o'tdi") return t("activityProbationPassed");
+        if (title === "Greyd oshirildi") return t("activityPromoted");
+        return title;
+    };
 
-                {canManagePayroll && (
-                    <div className="flex border-b border-gray-200 gap-2 mt-4">
-                        <button
-                            onClick={() => setActiveTab("profile")}
-                            className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 ${
-                                activeTab === "profile"
-                                    ? "border-black text-black"
-                                    : "border-transparent text-gray-400 hover:text-black"
-                            }`}
-                        >
-                            <span>👤</span>
-                            <span>{t("employeeProfile") || "Xodim Profili"}</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("payroll")}
-                            className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 ${
-                                activeTab === "payroll"
-                                    ? "border-black text-black"
-                                    : "border-transparent text-gray-400 hover:text-black"
-                            }`}
-                        >
-                            <span>💵</span>
-                            <span>Moliya & Ish Haqi Boshqaruvi</span>
-                        </button>
+    const getActivityDescription = (description: string) => {
+        if (!description) return "";
+        if (description === "Barcha aylanma varaqasi (Checklist) topshiriqlari va aktivlar to'liq topshirildi.") {
+            return t("activityOffboardingCompletedDesc");
+        }
+        if (description.startsWith("【Ketish Sababi】: ")) {
+            const val = description.replace("【Ketish Sababi】: ", "");
+            return `【${t("exitReasonPrefix")}】: ${val}`;
+        }
+        return description;
+    };
+
+    if (!currentUser || loading) {
+        return (
+            <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)] bg-slate-50/60">
+                <div className="w-full lg:w-72 bg-white border-r border-slate-200/80 p-6 space-y-6 shrink-0">
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="w-14 h-14 rounded-2xl shrink-0" />
+                        <div className="space-y-2 flex-1">
+                            <Skeleton className="w-3/4 h-5 rounded-lg" />
+                            <Skeleton className="w-1/2 h-3 rounded-md" />
+                        </div>
                     </div>
-                )}
-            </div>
-
-            {canManagePayroll && activeTab === "payroll" ? (
-                <div className="flex flex-col gap-6">
-                    <PayrollManager />
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <Skeleton key={i} className="w-full h-10 rounded-xl" />
+                        ))}
+                    </div>
                 </div>
-            ) : (
-                <>
-                    {canManagePayroll && (
-                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl">💼</span>
-                                <div>
-                                    <div className="text-xs font-black uppercase tracking-wider text-emerald-900">
-                                        Bugalteriya va Moliya Boshqaruvi
-                                    </div>
-                                    <div className="text-[11px] font-semibold text-emerald-700">
-                                        Kompaniya xodimlari oylik maoshlari, avanslar va to'lovlarni to'liq nazorat qilish uchun moliya bo'limiga o'ting.
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setActiveTab("payroll")}
-                                className="px-4 py-2 bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-900 transition-colors shrink-0 rounded-sm shadow-xs"
-                            >
-                                Moliya & Oyliklarni Boshqarish &rarr;
-                            </button>
+                <div className="flex-1 p-6 md:p-10 space-y-8">
+                    <div className="flex justify-between items-center pb-6 border-b border-slate-200">
+                        <div className="space-y-2">
+                            <Skeleton className="w-64 h-8 rounded-xl" />
+                            <Skeleton className="w-40 h-4 rounded-md" />
                         </div>
-                    )}
-
-                    {isHrAdmin && (
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl">🛡️</span>
-                                <div>
-                                    <div className="text-xs font-black uppercase tracking-wider text-blue-950">
-                                        HR Admin Boshqaruv Paneli
-                                    </div>
-                                    <div className="text-[11px] font-semibold text-blue-800">
-                                        Kompaniya xodimlari, rekruting, onboarding, lavozimlar va tizim sozlamalarini boshqarish uchun HR paneliga o'ting.
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => router.push(`/${locale}/hr/dashboard`)}
-                                className="px-4 py-2 bg-blue-800 text-white text-xs font-bold uppercase tracking-wider hover:bg-blue-900 transition-colors shrink-0 rounded-sm shadow-xs"
-                            >
-                                HR Dashboard &rarr;
-                            </button>
-                        </div>
-                    )}
-
+                        <Skeleton className="w-32 h-10 rounded-xl" />
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-                        {stats.map((stat, idx) => (
-                            <div
-                                key={idx}
-                                className="border border-gray-200 bg-white p-6 flex flex-col gap-4 hover:border-black transition-colors"
-                            >
-                                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                                    {stat.label}
-                                </span>
-                        <span className="text-3xl font-black tracking-tighter">
-                            {stat.value}
-                        </span>
-                        <span className="text-xs font-medium text-gray-500">
-                            {stat.trend}
-                        </span>
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="p-6 bg-white rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                                <Skeleton className="w-24 h-4 rounded" />
+                                <Skeleton className="w-16 h-8 rounded-lg" />
+                                <Skeleton className="w-28 h-3 rounded" />
+                            </div>
+                        ))}
                     </div>
-                ))}
+                </div>
             </div>
+        );
+    }
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                <div className="lg:col-span-2 flex flex-col gap-12">
-                    <CareerPathRequirements
-                        careerPath={dashboardData?.careerPath || null}
-                        employeeId={dashboardData?.user?.employee?.id || currentUser?.employee?.id}
-                        employeeName={`${firstName} ${dashboardData?.user?.lastName || ""}`}
-                        onRefresh={() => setRefreshKey((k) => k + 1)}
-                    />
+    const firstName =
+        dashboardData?.user?.firstName ||
+        currentUser.employee?.firstName ||
+        currentUser.email.split("@")[0];
 
-                    <div className="flex flex-col gap-6">
-                        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-                            <h2 className="text-lg font-bold uppercase tracking-wider">
-                                {t("myFeedbackResults") || "360 Baho natijalari"}
-                            </h2>
-                            {cycles.length > 0 && (
-                                <select
-                                    value={selectedCycleId}
-                                    onChange={(e) => setSelectedCycleId(e.target.value)}
-                                    className="p-2 border border-gray-200 bg-gray-50 text-xs font-bold uppercase tracking-widest"
-                                >
-                                    {cycles.map(c => (
-                                        <option key={c.id} value={c.id}>{c.title}</option>
-                                    ))}
-                                </select>
+    const lastName =
+        dashboardData?.user?.lastName ||
+        currentUser.employee?.lastName ||
+        "";
+
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    const roleData = dashboardData?.user?.role || currentUser.role;
+    const userPermissions: string[] =
+        dashboardData?.user?.permissions ||
+        currentUser?.permissions ||
+        [];
+
+    const isAccountant =
+        roleData === "ACCOUNTANT" ||
+        currentUser?.role === "ACCOUNTANT" ||
+        currentUser?.customRole?.baseRole === "ACCOUNTANT" ||
+        dashboardData?.user?.customRole?.baseRole === "ACCOUNTANT" ||
+        userPermissions.includes("payroll") ||
+        userPermissions.includes("accounting");
+
+    const isDirector =
+        roleData === "DIRECTOR" ||
+        currentUser?.role === "DIRECTOR" ||
+        roleData === "SUPER_ADMIN" ||
+        currentUser?.role === "SUPER_ADMIN" ||
+        currentUser?.customRole?.baseRole === "DIRECTOR";
+
+    const isHrAdmin =
+        roleData === "HR_ADMIN" ||
+        currentUser?.role === "HR_ADMIN" ||
+        currentUser?.customRole?.baseRole === "HR_ADMIN" ||
+        userPermissions.includes("hr_dashboard") ||
+        userPermissions.includes("hr");
+
+    const canManagePayroll = isAccountant || isDirector;
+    const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData === "ACCOUNTANT" ? "Bugalter / Hisobchi" : roleData === "HR_ADMIN" ? "HR Admin" : roleData;
+
+    const grade = dashboardData?.grade || dashboardData?.user?.employee?.grade || null;
+    const positionTitle = dashboardData?.position || dashboardData?.user?.employee?.position || null;
+    const departmentName = dashboardData?.user?.employee?.department || null;
+    const salary = dashboardData?.salary || dashboardData?.user?.employee?.salary || null;
+    const discAssessment = localDiscAssessment || dashboardData?.discAssessment || null;
+
+    const overallScore = feedbackReport?.competencies?.length > 0 
+        ? (feedbackReport.competencies.reduce((acc: any, curr: any) => acc + curr.averageScore, 0) / feedbackReport.competencies.length).toFixed(1)
+        : null;
+
+    const activeCourses = dashboardData?.activeCourses || [];
+    const recentActivities = dashboardData?.recentActivities || [];
+    const okrs = dashboardData?.okrs || [];
+
+    const statsCards = [
+        {
+            title: "OKR IJROSI",
+            value: dashboardData?.okrProgress ? `${Math.round(dashboardData.okrProgress)}%` : "0%",
+            subtext: dashboardData?.minExpectedProgress !== undefined ? `Kamida ${dashboardData.minExpectedProgress}% kutilmoqda` : "Kvartallik maqsadlar",
+            icon: "🎯",
+            color: "#9327FF",
+            progressValue: dashboardData?.okrProgress ? Math.round(dashboardData.okrProgress) : 0,
+            hasCircular: true,
+        },
+        {
+            title: "360° BAHOLASH",
+            value: (overallScore !== null && overallScore !== undefined)
+                ? `${overallScore} / 5.0`
+                : (dashboardData?.feedback360Score !== null && dashboardData?.feedback360Score !== undefined
+                    ? `${dashboardData.feedback360Score} / 5.0`
+                    : "0.0 / 5.0"),
+            subtext: (overallScore || dashboardData?.feedback360Score) ? "Hamkasblar bahosi" : "Hali baholanmagan",
+            icon: "⭐",
+            color: "#F59E0B",
+            hasCircular: false,
+        },
+        {
+            title: "DAVOMAT SOATLARI",
+            value: dashboardData?.attendanceHours ? `${dashboardData.attendanceHours}h` : "0h",
+            subtext: "Joriy haftalik davomat",
+            icon: "⏱️",
+            color: "#2563EB",
+            hasCircular: false,
+        },
+        {
+            title: "GREYD & DARAJASI",
+            value: grade ? `Level ${grade.level}` : "Belgilanmagan",
+            subtext: salary ? `${Number(salary).toLocaleString()} UZS` : (grade ? `${grade.minSalary.toLocaleString()} - ${grade.maxSalary.toLocaleString()} UZS` : "Maosh ko'rsatilmagan"),
+            icon: "📈",
+            color: "#059669",
+            hasCircular: false,
+        },
+        {
+            title: "TA'TIL QOLDIG'I",
+            value: (dashboardData?.leaveBalance ?? currentUser?.employee?.leaveBalance) !== undefined
+                ? `${dashboardData?.leaveBalance ?? currentUser?.employee?.leaveBalance} Kun`
+                : "0 Kun",
+            subtext: "Yillik mehnat ta'tili",
+            icon: "🏖️",
+            color: "#E11D48",
+            hasCircular: false,
+        },
+    ];
+
+    const menuItems = [
+        {
+            id: "overview" as ProfileTab,
+            label: "Umumiy ko'rinish",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+            ),
+        },
+        {
+            id: "career" as ProfileTab,
+            label: "Karyera va Greyd",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+            ),
+            badge: grade ? `L${grade.level}` : undefined,
+        },
+        {
+            id: "okr" as ProfileTab,
+            label: "Maqsadlar (OKR)",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            ),
+            badge: okrs.length > 0 ? `${okrs.length}` : undefined,
+        },
+        {
+            id: "assessments" as ProfileTab,
+            label: "Baholash & Testlar",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+                </svg>
+            ),
+            badge: pendingTasks.length > 0 ? `${pendingTasks.length} ta vazifa` : undefined,
+            badgeColor: "bg-amber-100 text-amber-800",
+        },
+        {
+            id: "offboarding" as ProfileTab,
+            label: "Offboarding",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+            ),
+            badge: offboardingData && offboardingData.status !== "CANCELLED" ? "Faol" : undefined,
+            badgeColor: offboardingData?.status === "COMPLETED" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800",
+        },
+    ];
+
+    if (canManagePayroll) {
+        menuItems.push({
+            id: "payroll" as ProfileTab,
+            label: "Moliya & Ish Haqi",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            ),
+            badge: undefined,
+            badgeColor: undefined,
+        });
+    }
+
+    const quickSidebarActions = [
+        {
+            label: "Kelolmaslik sababini bildirish",
+            icon: "📝",
+            action: () => setIsReasonModalOpen(true),
+        },
+        {
+            label: "Ichki nizomlar",
+            icon: "⚖️",
+            action: () => router.push(`/${locale}/regulations`),
+        },
+        {
+            label: "Ta'til so'rovi",
+            icon: "🏖️",
+            action: () => router.push(`/${locale}/hr/attendance`),
+        },
+        {
+            label: "OKR progressini yangilash",
+            icon: "🎯",
+            action: () => setActiveTab("okr"),
+        },
+        {
+            label: "eNPS bahosini berish",
+            icon: "💬",
+            action: () => setIsEnpsModalOpen(true),
+        },
+    ];
+
+    return (
+        <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)] bg-slate-50/60 font-sans">
+            <aside className="w-full lg:w-72 bg-white border-r border-slate-200/80 flex flex-col justify-between shrink-0 shadow-xs">
+                <div className="p-5 flex flex-col gap-6">
+                    <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/80 border border-slate-200/60 shadow-2xs">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#9327FF] to-indigo-600 text-white flex items-center justify-center font-black text-base shadow-sm shrink-0 uppercase">
+                            {firstName?.[0] || "U"}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-extrabold text-slate-900 truncate leading-tight">
+                                {fullName || firstName}
+                            </span>
+                            <span className="text-[11px] font-semibold text-slate-500 truncate mt-0.5">
+                                {positionTitle || roleName}
+                            </span>
+                            {departmentName && (
+                                <span className="text-[10px] font-bold text-[#9327FF] truncate mt-0.5">
+                                    {departmentName}
+                                </span>
                             )}
                         </div>
+                    </div>
 
-                        {!feedbackReport || !feedbackReport.competencies || feedbackReport.competencies.length === 0 ? (
-                            <p className="text-sm text-gray-500 font-medium">{t("noFeedbackResults") || "Hali baholanmagansiz yoki natijalar tayyor emas."}</p>
-                        ) : (
-                            <div className="flex flex-col gap-6">
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 p-6 border border-gray-200 gap-4">
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-sm font-bold uppercase tracking-widest text-gray-500">{t("totalRespondents") || "Jami baholovchilar soni"}</span>
-                                        <span className="text-2xl font-black">{feedbackReport.totalRespondents}</span>
+                    <div className="flex flex-col gap-1">
+                        <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                            Shaxsiy Kabinet
+                        </span>
+                        {menuItems.map((item) => {
+                            const isActive = activeTab === item.id;
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                                        isActive
+                                            ? "bg-[#9327FF] text-white shadow-xs"
+                                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <span className={isActive ? "text-white" : "text-slate-400"}>
+                                            {item.icon}
+                                        </span>
+                                        <span>{item.label}</span>
                                     </div>
-                                    {feedbackReport.lastEvaluatedAt && (
-                                        <div className="flex flex-col gap-1.5 sm:items-end">
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Oxirgi baholangan sana</span>
-                                            <span className="text-xs font-bold text-gray-600 bg-white border border-gray-200 px-3 py-1.5 w-fit rounded-sm shadow-sm">
-                                                {new Date(feedbackReport.lastEvaluatedAt).toLocaleDateString("uz-UZ", { day: 'numeric', month: 'long', year: 'numeric' })}
-                                            </span>
+                                    {item.badge && (
+                                        <span
+                                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                isActive
+                                                    ? "bg-white/20 text-white"
+                                                    : item.badgeColor || "bg-slate-100 text-slate-600"
+                                            }`}
+                                        >
+                                            {item.badge}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex flex-col gap-1 pt-3 border-t border-slate-100">
+                        <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                            Tezkor Amallar
+                        </span>
+                        {quickSidebarActions.map((qa, idx) => (
+                            <button
+                                key={idx}
+                                onClick={qa.action}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition-all text-left cursor-pointer"
+                            >
+                                <span className="text-sm">{qa.icon}</span>
+                                <span className="truncate">{qa.label}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {isHrAdmin && (
+                        <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                            <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                Ma'muriyat
+                            </span>
+                            <button
+                                onClick={() => router.push(`/${locale}/hr/dashboard`)}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 transition-colors text-left cursor-pointer"
+                            >
+                                <span>🛡️</span>
+                                <span>HR Admin Dashboard &rarr;</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-4 m-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-100 text-[#9327FF] flex items-center justify-center font-bold text-sm shrink-0">
+                        👤
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-800">Xodim Profili</span>
+                        <span className="text-[10px] text-slate-500 truncate">
+                            {currentUser?.companyName || "Kompaniya xodimi"}
+                        </span>
+                    </div>
+                </div>
+            </aside>
+
+            <main className="flex-1 min-w-0 p-6 md:p-10 flex flex-col gap-8 bg-slate-50/60 overflow-y-auto">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200/80">
+                    <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2.5">
+                            <span className="px-2.5 py-1 bg-purple-50 text-[#9327FF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#9327FF]"></span>
+                                {roleName}
+                            </span>
+                            {grade && (
+                                <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg">
+                                    {grade.title} (Level {grade.level})
+                                </span>
+                            )}
+                            {currentUser?.companyName && (
+                                <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
+                                    • {currentUser.companyName}
+                                </span>
+                            )}
+                        </div>
+                        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                            {t("welcomeBack")} {firstName}!
+                        </h1>
+                        <p className="text-slate-500 text-xs md:text-sm font-medium">
+                            {positionTitle ? `${positionTitle} • ` : ""}{departmentName ? `${departmentName} • ` : ""}Shaxsiy ko'rsatkichlaringiz va faoliyat monitoringi
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            onClick={() => router.push(`/${locale}/academy`)}
+                            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold rounded-xl px-4 py-2.5 transition-all duration-200 shadow-2xs flex items-center gap-2 text-xs md:text-sm cursor-pointer"
+                        >
+                            <span>📚</span>
+                            <span>Akademiya</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("okr")}
+                            className="bg-[#9327FF] hover:bg-purple-700 text-white font-bold rounded-xl px-4 py-2.5 transition-all duration-200 shadow-sm flex items-center gap-2 text-xs md:text-sm cursor-pointer"
+                        >
+                            <span>🎯</span>
+                            <span>Mening OKRlarim</span>
+                        </button>
+                    </div>
+                </div>
+
+                {activeTab === "overview" && (
+                    <div className="flex flex-col gap-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                            {statsCards.map((st, idx) => (
+                                <div
+                                    key={idx}
+                                    className="p-5 bg-white rounded-2xl shadow-2xs border border-slate-100 hover:shadow-md transition-all duration-200 flex items-center justify-between group"
+                                >
+                                    <div className="flex flex-col gap-1 min-w-0">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">
+                                            {st.title}
+                                        </span>
+                                        <span className="text-2xl font-black text-slate-900 group-hover:text-[#9327FF] transition-colors truncate">
+                                            {st.value}
+                                        </span>
+                                        <span className="text-[11px] font-semibold text-slate-500 truncate mt-0.5">
+                                            {st.subtext}
+                                        </span>
+                                    </div>
+                                    {st.hasCircular ? (
+                                        <CircularProgress value={st.progressValue || 0} size={50} strokeWidth={4.5} color={st.color} />
+                                    ) : (
+                                        <div
+                                            className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0"
+                                            style={{ backgroundColor: `${st.color}15`, color: st.color }}
+                                        >
+                                            {st.icon}
                                         </div>
                                     )}
                                 </div>
-                                <div className="overflow-x-auto border border-gray-200">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead className="bg-gray-50">
-                                            <tr className="border-b border-gray-200">
-                                                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-gray-500">{t("competency") || "Kompetensiya"}</th>
-                                                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-gray-500 text-right">{t("averageScore") || "O'rtacha ball"}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {feedbackReport.competencies.map((comp: any, idx: number) => (
-                                                <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                                                    <td className="px-4 py-4 text-sm font-bold text-black">{comp.competency}</td>
-                                                    <td className="px-4 py-4 text-sm font-black text-black text-right">{comp.averageScore} / 5</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                {feedbackReport.anonymousComments?.length > 0 && (
-                                    <div className="mt-4 flex flex-col gap-3">
-                                        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 border-b border-gray-200 pb-2">{t("anonymousComments") || "Anonim izohlar"}</h3>
-                                        <div className="flex flex-col gap-2 mt-2">
-                                            {feedbackReport.anonymousComments.map((comment: string, idx: number) => (
-                                                <div key={idx} className="p-4 bg-gray-50 border border-gray-200 text-sm italic text-gray-700 font-medium relative">
-                                                    <span className="absolute -left-2 -top-2 text-3xl text-gray-300 font-serif">"</span>
-                                                    {comment}
-                                                </div>
-                                            ))}
+                            ))}
+                        </div>
+
+                        {offboardingData && offboardingData.status !== "CANCELLED" && (
+                            <div className="p-6 bg-gradient-to-r from-rose-50 via-white to-amber-50/60 rounded-2xl border border-rose-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-5">
+                                <div className="flex items-start gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center text-2xl shrink-0">
+                                        🏁
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2.5">
+                                            <h3 className="text-base font-black text-rose-950">
+                                                Faol Offboarding Jarayoni
+                                            </h3>
+                                            <span
+                                                className={`px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-lg ${
+                                                    offboardingData.status === "COMPLETED"
+                                                        ? "bg-emerald-100 text-emerald-800"
+                                                        : "bg-amber-100 text-amber-800"
+                                                }`}
+                                            >
+                                                {offboardingData.status === "COMPLETED" ? "Yakunlangan" : "Jarayonda"}
+                                            </span>
                                         </div>
+                                        <p className="text-xs text-rose-700 font-medium">
+                                            HR biriktirgan aylanma varaqasi: {(offboardingData.tasks || []).filter((t: any) => t.isCompleted).length} / {(offboardingData.tasks || []).length} topshiriq bajarilgan.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setActiveTab("offboarding")}
+                                    className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-colors shrink-0 shadow-xs cursor-pointer"
+                                >
+                                    Aylanma Varaqasini Ochish &rarr;
+                                </button>
+                            </div>
+                        )}
+
+                        {pendingTasks.length > 0 && (
+                            <div className="p-5 bg-gradient-to-r from-amber-50 via-white to-amber-50/40 rounded-2xl border border-amber-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl shrink-0">
+                                        📝
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                                            360° Baholash Vazifalari ({pendingTasks.length})
+                                        </h4>
+                                        <p className="text-xs text-amber-800 font-medium">
+                                            Sizga biriktirilgan hamkasblaringizni baholash uchun kutilayotgan vazifalar mavjud.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setActiveTab("assessments")}
+                                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shrink-0 shadow-xs cursor-pointer"
+                                >
+                                    Baholash &rarr;
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-2xs flex flex-col gap-5">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="text-xl">📢</span>
+                                        <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                                            So'nggi faollik va yangiliklar lentasi
+                                        </h2>
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-400">
+                                        Timeline Feed
+                                    </span>
+                                </div>
+
+                                <div className="flex flex-col gap-4">
+                                    {recentActivities.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-400 text-xs font-medium">
+                                            Hozircha yangi bildirishnomalar mavjud emas.
+                                        </div>
+                                    ) : (
+                                        recentActivities.map((act: any, idx: number) => (
+                                            <div
+                                                key={idx}
+                                                className="flex items-start gap-4 p-3.5 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+                                            >
+                                                <div className="w-9 h-9 rounded-xl bg-purple-50 text-[#9327FF] flex items-center justify-center font-bold text-sm shrink-0">
+                                                    ✨
+                                                </div>
+                                                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                                    <span className="text-xs font-bold text-slate-900">
+                                                        {getActivityTitle(act.title)}
+                                                    </span>
+                                                    <span className="text-xs text-slate-500 font-medium leading-relaxed">
+                                                        {getActivityDescription(act.description)}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+                                                    {act.timeAgo === "Yaqinda" ? t("recently") : act.timeAgo}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-2xs flex flex-col gap-5">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="text-xl">📚</span>
+                                        <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                                            {t("activeCourses") || "Faol Darsliklar & Kurslar"}
+                                        </h2>
+                                    </div>
+                                    <button
+                                        onClick={() => router.push(`/${locale}/academy`)}
+                                        className="text-xs font-bold text-[#9327FF] hover:underline cursor-pointer"
+                                    >
+                                        Barchasi &rarr;
+                                    </button>
+                                </div>
+
+                                <div className="flex flex-col gap-3">
+                                    {activeCourses.length === 0 ? (
+                                        <p className="text-xs text-slate-400 font-medium py-8 text-center">
+                                            {t("noActiveCourses") || "Biriktirilgan darsliklar mavjud emas."}
+                                        </p>
+                                    ) : (
+                                        activeCourses.map((course: any, idx: number) => (
+                                            <div
+                                                key={idx}
+                                                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50/70 rounded-xl border border-slate-100 gap-3"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${course.isCompleted ? "bg-emerald-500" : "bg-[#9327FF]"}`} />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-bold text-slate-900 line-clamp-1">
+                                                            {course.title}
+                                                        </span>
+                                                        <span className="text-[10px] font-semibold text-slate-500">
+                                                            {course.type === "ONBOARDING" || course.type === "ONBOARDING_TASK" ? "Onboarding Dasturi" : "Akademiya"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0 w-fit ${
+                                                    course.isCompleted ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                                                }`}>
+                                                    {course.isCompleted ? "Yakunlangan" : "O'qilmoqda"}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "career" && (
+                    <div className="flex flex-col gap-8">
+                        {grade && (
+                            <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center text-2xl font-black shrink-0">
+                                        L{grade.level}
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2.5">
+                                            <h3 className="text-lg font-black text-slate-900">
+                                                {grade.title}
+                                            </h3>
+                                            <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-xs font-mono font-bold rounded-md">
+                                                {grade.code}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 font-medium">
+                                            Maosh oralig'i: {grade.minSalary?.toLocaleString()} - {grade.maxSalary?.toLocaleString()} UZS
+                                            {salary && ` • Belgilangan maosh: ${Number(salary).toLocaleString()} UZS`}
+                                        </p>
+                                    </div>
+                                </div>
+                                {grade.requirements && (
+                                    <div className="max-w-md p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-600">
+                                        <span className="font-bold text-slate-800 uppercase text-[10px] block mb-1">Talablar:</span>
+                                        <p className="line-clamp-2">{grade.requirements}</p>
                                     </div>
                                 )}
                             </div>
                         )}
-                    </div>
 
-                    {(dashboardData?.user?.employee?.id || currentUser?.employee?.id) && (
-                        <EmployeeJourneyTimeline
+                        <CareerPathRequirements
+                            careerPath={dashboardData?.careerPath || null}
                             employeeId={dashboardData?.user?.employee?.id || currentUser?.employee?.id}
-                            employeeName={`${firstName} ${dashboardData?.user?.lastName || ""}`}
+                            employeeName={fullName}
+                            onRefresh={() => setRefreshKey((k) => k + 1)}
                         />
-                    )}
 
-                    <div className="flex flex-col gap-6">
-                        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-                            <h2 className="text-lg font-bold uppercase tracking-wider text-black">
-                                {t("activeCourses") || "FAOL KURSLAR"}
-                            </h2>
-                            <button
-                                onClick={() => {
-                                    const locale =
-                                        window.location.pathname.split(
-                                            "/",
-                                        )[1] || "uz";
-                                    const searchParams = new URLSearchParams(window.location.search);
-                                    const currentUserId = searchParams.get("userId") || searchParams.get("id");
-                                    let url = `/${locale}/academy`;
-                                    if (currentUserId) {
-                                        url += `?userId=${currentUserId}`;
-                                    }
-                                    router.push(url);
-                                }}
-                                className="text-xs font-bold text-black uppercase tracking-widest hover:underline"
-                            >
-                                {t("goToAcademy") || "AKADEMIYAGA O'TISH →"}
-                            </button>
-                        </div>
-
-                        <div className="flex flex-col gap-3">
-                            {activeCourses.length === 0 ? (
-                                <p className="text-sm text-gray-500">
-                                    {t("noActiveCourses")}
-                                </p>
-                            ) : (
-                                activeCourses.map(
-                                    (course: any, idx: number) => (
-                                        <div
-                                            key={idx}
-                                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 border border-gray-200 gap-4"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div
-                                                    className={`w-2 h-2 rounded-full shrink-0 ${course.isCompleted ? "bg-gray-300" : "bg-black"}`}
-                                                />
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-bold text-black line-clamp-1">
-                                                        {course.title}
-                                                    </span>
-                                                    <span
-                                                        className={`mt-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full w-fit ${course.type === "ONBOARDING" || course.type === "ONBOARDING_TASK" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}
-                                                    >
-                                                        {course.type ===
-                                                            "ONBOARDING" ||
-                                                            course.type ===
-                                                            "ONBOARDING_TASK"
-                                                            ? t(
-                                                                "onboardingBadge",
-                                                            )
-                                                            : t("academyBadge")}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-3 shrink-0">
-                                                <span
-                                                    className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${course.isCompleted ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}
-                                                >
-                                                    {course.isCompleted
-                                                        ? "O'qilgan"
-                                                        : "Yangi"}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ),
-                                )
-                            )}
-                        </div>
+                        {(dashboardData?.user?.employee?.id || currentUser?.employee?.id) && (
+                            <EmployeeJourneyTimeline
+                                employeeId={dashboardData?.user?.employee?.id || currentUser?.employee?.id}
+                                employeeName={fullName}
+                            />
+                        )}
                     </div>
+                )}
 
+                {activeTab === "okr" && (
                     <div className="flex flex-col gap-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 pb-4 gap-2">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xl">🎯</span>
-                                <h2 className="text-lg font-bold uppercase tracking-wider text-black">
-                                    {t("myGoalsOkr") || "MAQSADLAR VA OKR"}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200/80 pb-4 gap-3">
+                            <div>
+                                <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                                    Mening OKR Maqsadlarim
                                 </h2>
+                                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                    Kvartallik maqsadlar va asosiy natijalar (Key Results) ijrosi
+                                </p>
                             </div>
-                            <span className="text-xs font-bold text-gray-500">
+                            <span className="px-3 py-1 bg-purple-50 text-[#9327FF] text-xs font-bold rounded-lg w-fit">
                                 {okrs.length} ta maqsad biriktirilgan
                             </span>
                         </div>
-                        
-                        <div className="flex flex-col gap-4">
+
+                        <div className="flex flex-col gap-5">
                             {okrs.length === 0 ? (
-                                <div className="p-8 border border-dashed border-gray-300 bg-gray-50 text-center flex flex-col items-center justify-center gap-2">
-                                    <span className="text-3xl">📋</span>
-                                    <p className="text-sm text-gray-500 font-medium">{t("noOkrsInCycle") || "Hozircha biriktirilgan OKR maqsadlar mavjud emas."}</p>
+                                <div className="p-12 border border-dashed border-slate-300 bg-white rounded-2xl text-center flex flex-col items-center justify-center gap-3">
+                                    <span className="text-4xl">🎯</span>
+                                    <p className="text-sm text-slate-500 font-semibold">
+                                        Hozircha biriktirilgan OKR maqsadlar mavjud emas.
+                                    </p>
                                 </div>
                             ) : (
                                 okrs.map((okr: any) => (
-                                    <div key={okr.id} className="border-2 border-black bg-white p-5 md:p-6 flex flex-col gap-4 shadow-xs">
+                                    <div key={okr.id} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-2xs flex flex-col gap-5">
                                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                             <div className="flex flex-col gap-1.5 flex-1">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                                                    <span className={`px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md ${
                                                         okr.level === "INDIVIDUAL"
-                                                            ? "bg-purple-100 text-purple-800 border border-purple-300"
+                                                            ? "bg-purple-100 text-purple-800"
                                                             : okr.level === "DEPARTMENT"
-                                                            ? "bg-blue-100 text-blue-800 border border-blue-300"
-                                                            : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                                            ? "bg-blue-100 text-blue-800"
+                                                            : "bg-emerald-100 text-emerald-800"
                                                     }`}>
                                                         {okr.level === "INDIVIDUAL" ? "👤 Shaxsiy OKR" : okr.level === "DEPARTMENT" ? `🏢 Bo'lim OKR${okr.department?.name ? ` (${okr.department.name})` : ""}` : "🌐 Kompaniya OKR"}
                                                     </span>
                                                     {okr.cycle?.title && (
-                                                        <span className="text-[10px] font-bold text-gray-500">
-                                                            • Sikl: {okr.cycle.title}
+                                                        <span className="text-[11px] font-bold text-slate-400">
+                                                            • {okr.cycle.title}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <h3 className="text-lg font-black text-black">{okr.title}</h3>
-                                                {okr.description && <p className="text-xs text-gray-600 font-medium">{okr.description}</p>}
+                                                <h3 className="text-base font-black text-slate-900">{okr.title}</h3>
+                                                {okr.description && <p className="text-xs text-slate-500 font-medium leading-relaxed">{okr.description}</p>}
                                             </div>
-                                            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 gap-1 shrink-0">
-                                                <span className="text-2xl font-black font-mono tracking-tighter text-black">{Math.round(okr.progress)}%</span>
-                                                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500">{t("overall") || "UMUMIY IJRO"}</span>
+                                            <div className="flex items-center gap-3 shrink-0">
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-2xl font-black text-slate-900">{Math.round(okr.progress)}%</span>
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Umumiy ijro</span>
+                                                </div>
+                                                <CircularProgress value={okr.progress} size={48} strokeWidth={4.5} color="#9327FF" />
                                             </div>
                                         </div>
 
                                         {okr.keyResults?.length > 0 && (
-                                            <div className="flex flex-col gap-3 pt-3 border-t border-gray-100">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                            <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
+                                                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
                                                     Asosiy Natijalar (Key Results)
                                                 </span>
                                                 {okr.keyResults.map((kr: any) => {
@@ -699,35 +1034,35 @@ export default function EmployeeProfilePage() {
                                                     const isApproved = kr.progress >= 100 || latestCheckIn?.status === "APPROVED";
 
                                                     return (
-                                                        <div key={kr.id} className="p-3.5 bg-gray-50 border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-gray-400 transition-colors">
-                                                            <div className="flex flex-col gap-1 flex-1">
-                                                                <span className="text-sm font-bold text-black">{kr.title}</span>
+                                                        <div key={kr.id} className="p-4 bg-slate-50/70 rounded-xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                            <div className="flex flex-col gap-1.5 flex-1">
+                                                                <span className="text-xs font-bold text-slate-900">{kr.title}</span>
                                                                 <div className="flex items-center gap-3 w-full max-w-md">
-                                                                    <div className="flex-1 h-2 bg-gray-200 overflow-hidden">
+                                                                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
                                                                         <div 
-                                                                            className={`h-full transition-all ${isApproved ? "bg-emerald-600" : isPending ? "bg-amber-500" : isRejected ? "bg-rose-500" : "bg-black"}`} 
+                                                                            className={`h-full transition-all duration-300 rounded-full ${isApproved ? "bg-emerald-500" : isPending ? "bg-amber-500" : isRejected ? "bg-rose-500" : "bg-[#9327FF]"}`} 
                                                                             style={{ width: `${Math.min(100, Math.max(0, kr.progress))}%` }} 
                                                                         />
                                                                     </div>
-                                                                    <span className="text-xs font-mono font-bold text-gray-700 whitespace-nowrap">
+                                                                    <span className="text-xs font-mono font-bold text-slate-700 whitespace-nowrap">
                                                                         {kr.currentValue} / {kr.targetValue} {kr.unit || ""} ({Math.round(kr.progress)}%)
                                                                     </span>
                                                                 </div>
                                                                 {latestCheckIn?.comment && (
-                                                                    <div className="text-[11px] text-gray-500 italic mt-0.5">
+                                                                    <div className="text-[11px] text-slate-500 italic mt-0.5">
                                                                         Topshirilgan hisobot: "{latestCheckIn.comment}"
                                                                     </div>
                                                                 )}
                                                             </div>
 
-                                                            <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                                                            <div className="flex items-center gap-2 shrink-0">
                                                                 {isPending ? (
-                                                                    <span className="px-2.5 py-1 bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-                                                                        <span>⏳</span> Tekshiruvda (Kutilmoqda)
+                                                                    <span className="px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-1.5">
+                                                                        <span>⏳</span> Kutilmoqda
                                                                     </span>
                                                                 ) : isApproved ? (
-                                                                    <span className="px-2.5 py-1 bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-                                                                        <span>✓</span> Bajarildi (Tasdiqlangan)
+                                                                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-1.5">
+                                                                        <span>✓</span> Tasdiqlangan
                                                                     </span>
                                                                 ) : isRejected ? (
                                                                     <button
@@ -736,9 +1071,9 @@ export default function EmployeeProfilePage() {
                                                                             setCheckInComment("");
                                                                             setCheckInFile(null);
                                                                         }}
-                                                                        className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                                                        className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer"
                                                                     >
-                                                                        <span>🔄</span> Qayta topshirish
+                                                                        🔄 Qayta topshirish
                                                                     </button>
                                                                 ) : (
                                                                     <button
@@ -747,9 +1082,9 @@ export default function EmployeeProfilePage() {
                                                                             setCheckInComment("");
                                                                             setCheckInFile(null);
                                                                         }}
-                                                                        className="px-3.5 py-1.5 bg-black hover:bg-gray-800 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                                                        className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer shadow-xs"
                                                                     >
-                                                                        <span>🚀</span> Natijani topshirish
+                                                                        🚀 Topshirish
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -763,343 +1098,353 @@ export default function EmployeeProfilePage() {
                             )}
                         </div>
                     </div>
+                )}
 
-                    <div className="flex flex-col gap-6">
-                        <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
-                            {t("recentActivities")}
-                        </h2>
-                        <div className="flex flex-col gap-4">
-                            {recentActivities.length === 0 ? (
-                                <p className="text-sm text-gray-500">
-                                    {t("noRecentActivities")}
-                                </p>
-                            ) : (
-                                recentActivities.map(
-                                    (activity: any, i: number) => (
-                                        <div
-                                            key={i}
-                                            className="flex gap-4 items-start pb-4 border-b border-gray-100 last:border-0"
-                                        >
-                                            <div className="w-2 h-2 rounded-full bg-black mt-2 shrink-0" />
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-sm font-bold">
-                                                    {getActivityTitle(activity.title)}
-                                                </span>
-                                                <span className="text-xs text-gray-500">
-                                                    {getActivityDescription(activity.description)}
-                                                </span>
-                                            </div>
-                                            <span className="ml-auto text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                                {activity.timeAgo === "Yaqinda" ? t("recently") : activity.timeAgo}
-                                            </span>
-                                        </div>
-                                    ),
-                                )
-                            )}
-                        </div>
-                    </div>
-
-                    <EmployeePayslipsSection />
-                    {pendingTasks.length > 0 && (
-                        <div className="flex flex-col gap-6 mt-8">
-                            <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
-                                {t("pendingEvaluations") || "Baholashim kerak bo'lgan xodimlar"}
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {pendingTasks.map((task) => (
-                                    <div key={task.id} className="border border-gray-200 bg-white p-4 flex flex-col gap-3 hover:border-black transition-colors">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-sm font-bold text-black">{task.target?.firstName} {task.target?.lastName}</span>
-                                                <span className="text-xs text-gray-500 font-medium uppercase tracking-widest">{task.target?.department?.name || "-"} • {task.target?.position?.title || "-"}</span>
-                                            </div>
-                                            <span className="text-[10px] font-bold uppercase tracking-widest bg-gray-100 px-2 py-1 shrink-0">
-                                                {task.type === "PEER" ? t("rolePeer") || "Hamkasb" :
-                                                    task.type === "MANAGER" ? t("roleManager") || "Rahbar" :
-                                                        task.type === "SUBORDINATE" ? t("roleSubordinate") || "Qo'l ostidagi" :
-                                                            task.type === "SELF" ? t("roleSelf") || "O'zini-o'zi" : task.type}
-                                            </span>
-                                        </div>
-                                        <div className="mt-2 text-xs font-bold uppercase tracking-widest text-black flex items-center justify-between border-t border-gray-100 pt-3">
-                                            <span className="line-clamp-1 truncate w-1/2">{task.cycle?.title}</span>
-                                            <button
-                                                className="bg-black text-white px-4 py-2 hover:bg-gray-800 transition-colors shrink-0"
-                                                onClick={() => {
-                                                    const locale = window.location.pathname.split("/")[1] || "uz";
-                                                    router.push(`/${locale}/evaluate/${task.id}`);
-                                                }}
-                                            >
-                                                {t("evaluateButton") || "Baholash"}
-                                            </button>
-                                        </div>
+                {activeTab === "assessments" && (
+                    <div className="flex flex-col gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-2xs flex flex-col gap-4">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xl">🧠</span>
+                                        <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                                            DISC Shaxsiyat Modeli
+                                        </h3>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex flex-col gap-6">
-                    {grade && (
-                        <div className="border border-black bg-white p-5 flex flex-col gap-3 shadow-xs">
-                            <div className="flex items-center justify-between border-b border-black pb-2.5">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
-                                    {t("gradeAndLevel")}
-                                </span>
-                                <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-black text-white">
-                                    Level {grade.level}
-                                </span>
-                            </div>
-                            <div className="space-y-1">
-                                <div className="text-base font-black text-black">
-                                    {grade.title}
-                                </div>
-                                <div className="text-xs font-mono text-gray-500 font-semibold">
-                                    {t("code")}: {grade.code}
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 border border-gray-200 p-3 space-y-1 text-xs">
-                                <div className="text-gray-500 font-bold uppercase text-[10px]">
-                                    {t("salaryRange")}:
-                                </div>
-                                <div className="font-bold text-black text-sm">
-                                    {grade.minSalary.toLocaleString()} - {grade.maxSalary.toLocaleString()} UZS
-                                </div>
-                                {salary && (
-                                    <div className="text-emerald-700 font-bold pt-1 border-t border-gray-200 text-xs">
-                                        {t("assignedSalary")}: {salary.toLocaleString()} UZS
-                                    </div>
-                                )}
-                            </div>
-                            {grade.requirements && (
-                                <div className="text-xs text-gray-600">
-                                    <span className="font-bold text-black uppercase text-[10px] block mb-0.5">
-                                        {t("requirements")}:
-                                    </span>
-                                    <p className="line-clamp-3 text-gray-600 bg-gray-50 p-2 border border-gray-100">
-                                        {grade.requirements}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {discAssessment ? (
-                        <div className="border border-black bg-white p-5 flex flex-col gap-3 shadow-xs">
-                            <div className="flex items-center justify-between border-b border-black pb-2.5">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
-                                    {t("discPersonalityType")}
-                                </span>
-                                <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
-                                    discAssessment.primaryType === "D" ? "bg-red-600 text-white" :
-                                    discAssessment.primaryType === "I" ? "bg-amber-500 text-white" :
-                                    discAssessment.primaryType === "S" ? "bg-emerald-600 text-white" :
-                                    "bg-blue-600 text-white"
-                                }`}>
-                                    {t("type")}: {discAssessment.primaryType} {discAssessment.secondaryType ? `+ ${discAssessment.secondaryType}` : ""}
-                                </span>
-                            </div>
-                            <div className="space-y-1">
-                                <div className="text-base font-black text-black">
-                                    {discAssessment.primaryType === "D" ? "Dominance" :
-                                     discAssessment.primaryType === "I" ? "Influence" :
-                                     discAssessment.primaryType === "S" ? "Steadiness" :
-                                     "Conscientiousness"}
-                                </div>
-                                <div className="grid grid-cols-4 gap-1 text-[10px] text-center pt-2 font-bold">
-                                    <div className="bg-red-50 p-1 border border-red-100">
-                                        <span className="text-red-700 block font-black">D</span>
-                                        <span>{discAssessment.dScore}%</span>
-                                    </div>
-                                    <div className="bg-amber-50 p-1 border border-amber-100">
-                                        <span className="text-amber-700 block font-black">I</span>
-                                        <span>{discAssessment.iScore}%</span>
-                                    </div>
-                                    <div className="bg-emerald-50 p-1 border border-emerald-100">
-                                        <span className="text-emerald-700 block font-black">S</span>
-                                        <span>{discAssessment.sScore}%</span>
-                                    </div>
-                                    <div className="bg-blue-50 p-1 border border-blue-100">
-                                        <span className="text-blue-700 block font-black">C</span>
-                                        <span>{discAssessment.cScore}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 mt-1">
-                                <button
-                                    onClick={() => setIsDiscTestModalOpen(true)}
-                                    className="py-2 bg-black text-white text-[11px] font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center"
-                                >
-                                    🔄 Qayta topshirish
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        const locale = window.location.pathname.split("/")[1] || "uz";
-                                        router.push(`/${locale}/disc`);
-                                    }}
-                                    className="py-2 border border-black bg-white text-black text-[11px] font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors text-center"
-                                >
-                                    {t("fullDiscAnalysis")}
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="border border-dashed border-black bg-neutral-50 p-5 flex flex-col gap-3">
-                            <div className="flex items-center justify-between border-b border-gray-300 pb-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
-                                    {t("discTest")}
-                                </span>
-                                <span className="px-2 py-0.5 text-[9px] font-bold uppercase bg-amber-100 text-amber-800">
-                                    {t("notPassed")}
-                                </span>
-                            </div>
-                            <p className="text-xs text-gray-600 leading-relaxed">
-                                {t("discHint")}
-                            </p>
-                            <button
-                                onClick={() => setIsDiscTestModalOpen(true)}
-                                className="w-full py-2.5 bg-black text-white text-xs font-black uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center flex items-center justify-center gap-1.5"
-                            >
-                                🧠 {t("takeDiscTest")}
-                            </button>
-                        </div>
-                    )}
-
-                    <div className="border border-black bg-white p-5 flex flex-col gap-3 shadow-xs">
-                        <div className="flex items-center justify-between border-b border-black pb-2.5">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600">
-                                💬 eNPS / Kompaniya Qoniqish So'rovi
-                            </span>
-                            {latestEnps ? (
-                                <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
-                                    latestEnps.score >= 9 ? "bg-emerald-600 text-white" :
-                                    latestEnps.score >= 7 ? "bg-amber-500 text-white" : "bg-rose-600 text-white"
-                                }`}>
-                                    Baho: {latestEnps.score} / 10
-                                </span>
-                            ) : (
-                                <span className="px-2 py-0.5 text-[9px] font-bold uppercase bg-gray-100 text-gray-700">
-                                    Kutilmoqda
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-xs text-gray-600 leading-relaxed">
-                            {latestEnps 
-                                ? `Oxirgi baholangan sana: ${new Date(latestEnps.submittedAt).toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" })}`
-                                : "Kompaniyada ishlash tajribangizni baholang va o'z takliflaringizni bildiring."}
-                        </p>
-                        <button
-                            onClick={() => setIsEnpsModalOpen(true)}
-                            className="w-full py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors text-center flex items-center justify-center gap-1.5"
-                        >
-                            {latestEnps ? "🔄 Qayta baholash (eNPS)" : "💬 eNPS Bahosini Berish"}
-                        </button>
-                    </div>
-
-                    {offboardingData && offboardingData.status !== "CANCELLED" ? (
-                        <div className="border-2 border-red-300 bg-red-50/40 p-5 flex flex-col gap-3 shadow-xs">
-                            <div className="flex items-center justify-between border-b border-red-200 pb-2">
-                                <span className="text-[11px] font-black uppercase tracking-wider text-red-900 flex items-center gap-1.5">
-                                    <span>🏁</span> {t("offboardingTitle")}
-                                </span>
-                                <span
-                                    className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-xs ${
-                                        offboardingData.status === "COMPLETED"
-                                            ? "bg-emerald-100 text-emerald-800"
-                                            : "bg-amber-100 text-amber-800"
-                                    }`}
-                                >
-                                    {offboardingData.status === "COMPLETED"
-                                        ? t("statusOffboardingCompleted")
-                                        : t("statusInProgress")}
-                                </span>
-                            </div>
-
-                            <div className="flex flex-col gap-1 text-xs">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase">{t("lastWorkingDay")}:</span>
-                                    <span className="font-bold text-black">
-                                        {offboardingData.lastWorkingDay
-                                            ? new Date(offboardingData.lastWorkingDay).toISOString().split("T")[0]
-                                            : "-"}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase">{t("requirements")}:</span>
-                                    <span className="font-bold text-black">
-                                        {t("tasksCompleted", {
-                                            completed: offboardingData.tasks?.filter((t: any) => t.isCompleted).length || 0,
-                                            total: offboardingData.tasks?.length || 0,
-                                        })}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
-                                {offboardingData.tasks?.map((t: any) => (
-                                    <div
-                                        key={t.id}
-                                        className="flex items-center gap-2 text-[11px] p-1.5 bg-white border border-red-100"
-                                    >
-                                        <span className={t.isCompleted ? "text-emerald-600 font-bold" : "text-gray-400"}>
-                                            {t.isCompleted ? "✓" : "○"}
+                                    {discAssessment ? (
+                                        <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg ${
+                                            discAssessment.primaryType === "D" ? "bg-red-600 text-white" :
+                                            discAssessment.primaryType === "I" ? "bg-amber-500 text-white" :
+                                            discAssessment.primaryType === "S" ? "bg-emerald-600 text-white" : "bg-blue-600 text-white"
+                                        }`}>
+                                            {discAssessment.primaryType} {discAssessment.secondaryType ? `+ ${discAssessment.secondaryType}` : ""}
                                         </span>
-                                        <span className={t.isCompleted ? "line-through text-gray-400" : "font-medium text-gray-800"}>
-                                            {t.title}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {offboardingData.exitInterviewNotes ? (
-                                <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center gap-1.5">
-                                    <span>✓</span> {t("exitInterviewCompleted")}
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => setIsExitModalOpen(true)}
-                                    className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-colors text-center shadow-xs cursor-pointer"
-                                >
-                                    {t("exitInterviewBtn")}
-                                </button>
-                            )}
-                        </div>
-                    ) : (
-                        currentUser?.role !== "SUPER_ADMIN" &&
-                        currentUser?.role !== "DIRECTOR" &&
-                        (dashboardData?.user?.employee?.id || currentUser?.employee?.id) && (
-                            <div className="border border-gray-200 bg-gray-50/70 p-4 flex flex-col gap-2 rounded-xs">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                                        <span>🏁</span> {t("offboardingTitle") || "Ishdan ketish (Offboarding)"}
-                                    </span>
-                                    {offboardingData?.status === "CANCELLED" && (
-                                        <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-gray-200 text-gray-700">
-                                            Oldingi ariza bekor qilingan
+                                    ) : (
+                                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-amber-100 text-amber-800 rounded-md">
+                                            Topshirilmagan
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-[11px] text-gray-500 font-normal">
-                                    Ishdan ketish bo'yicha arizani to'g'ridan-to'g'ri o'z kompaniyangiz HR bo'limiga yuborishingiz mumkin.
+
+                                {discAssessment ? (
+                                    <div className="space-y-3">
+                                        <div className="text-sm font-extrabold text-slate-800">
+                                            {discAssessment.primaryType === "D" ? "Dominance (Yetakchilik)" :
+                                             discAssessment.primaryType === "I" ? "Influence (Ta'sir o'tkazish)" :
+                                             discAssessment.primaryType === "S" ? "Steadiness (Barqarorlik)" : "Conscientiousness (Aniqlik)"}
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-2 text-center text-xs font-bold">
+                                            <div className="p-2 rounded-xl bg-red-50 text-red-700">D: {discAssessment.dScore}%</div>
+                                            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">I: {discAssessment.iScore}%</div>
+                                            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">S: {discAssessment.sScore}%</div>
+                                            <div className="p-2 rounded-xl bg-blue-50 text-blue-700">C: {discAssessment.cScore}%</div>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsDiscTestModalOpen(true)}
+                                            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors text-center cursor-pointer mt-1"
+                                        >
+                                            🔄 Qayta topshirish
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                            O'z xarakteringiz va professional kuchli tomonlaringizni aniqlash uchun testdan o'ting.
+                                        </p>
+                                        <button
+                                            onClick={() => setIsDiscTestModalOpen(true)}
+                                            className="w-full py-2.5 bg-[#9327FF] hover:bg-purple-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-colors text-center cursor-pointer"
+                                        >
+                                            🧠 DISC Testini Topshirish
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-2xs flex flex-col gap-4">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xl">💬</span>
+                                        <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                                            Kompaniya Qoniqish So'rovi (eNPS)
+                                        </h3>
+                                    </div>
+                                    {latestEnps && (
+                                        <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-lg">
+                                            Baho: {latestEnps.score} / 10
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                    {latestEnps 
+                                        ? `Oxirgi baholash: ${new Date(latestEnps.submittedAt).toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" })}`
+                                        : "Kompaniyadagi muhit, jarayonlar va boshqaruv bo'yicha fikringizni bildiring."}
                                 </p>
                                 <button
-                                    onClick={() => setIsResignationModalOpen(true)}
-                                    className="w-full py-2 px-3 bg-white hover:bg-rose-50 border border-rose-300 text-rose-700 text-xs font-bold uppercase tracking-wider transition-colors text-center cursor-pointer mt-1"
+                                    onClick={() => setIsEnpsModalOpen(true)}
+                                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-colors text-center cursor-pointer mt-auto shadow-xs"
                                 >
-                                    🏁 Ishdan ketish arizasini topshirish
+                                    {latestEnps ? "🔄 Fikringizni Yangilash" : "💬 eNPS Bahosini Berish"}
                                 </button>
                             </div>
-                        )
-                    )}
+                        </div>
 
-                    <h2 className="text-lg font-bold uppercase tracking-wider border-b border-gray-200 pb-4">
-                        {t("quickActions")}
-                    </h2>
-                    <QuickActions
-                        onAttendanceUpdated={() => setRefreshKey((k) => k + 1)}
-                    />
-                </div>
-            </div>
+                        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-2xs flex flex-col gap-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
+                                <div>
+                                    <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                                        360° Baholash Natijalari
+                                    </h2>
+                                    <p className="text-xs text-slate-500 font-medium">
+                                        Rahbar va hamkasblarning kompetensiyalar bo'yicha baholari
+                                    </p>
+                                </div>
+                                {cycles.length > 0 && (
+                                    <select
+                                        value={selectedCycleId}
+                                        onChange={(e) => setSelectedCycleId(e.target.value)}
+                                        className="p-2 border border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider rounded-xl outline-none"
+                                    >
+                                        {cycles.map((c) => (
+                                            <option key={c.id} value={c.id}>{c.title}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+
+                            {!feedbackReport || !feedbackReport.competencies || feedbackReport.competencies.length === 0 ? (
+                                <p className="text-xs text-slate-400 font-medium py-6 text-center">
+                                    Hali baholash natijalari mavjud emas.
+                                </p>
+                            ) : (
+                                <div className="flex flex-col gap-5">
+                                    <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                                        <table className="w-full text-left border-collapse text-xs">
+                                            <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
+                                                <tr className="border-b border-slate-100">
+                                                    <th className="px-4 py-3">Kompetensiya</th>
+                                                    <th className="px-4 py-3 text-right">O'rtacha Ball</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {feedbackReport.competencies.map((comp: any, idx: number) => (
+                                                    <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                                                        <td className="px-4 py-3 font-bold text-slate-900">{comp.competency}</td>
+                                                        <td className="px-4 py-3 font-black text-right text-slate-900">{comp.averageScore} / 5.0</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {feedbackReport.anonymousComments?.length > 0 && (
+                                        <div className="flex flex-col gap-3 pt-2">
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                Anonim Izohlar
+                                            </h4>
+                                            <div className="flex flex-col gap-2">
+                                                {feedbackReport.anonymousComments.map((comment: string, idx: number) => (
+                                                    <div key={idx} className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xs italic text-slate-700 font-medium">
+                                                        "{comment}"
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {pendingTasks.length > 0 && (
+                            <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-2xs flex flex-col gap-5">
+                                <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">
+                                    Mening Baholash Vazifalarim ({pendingTasks.length})
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {pendingTasks.map((task) => (
+                                        <div key={task.id} className="p-4 bg-slate-50/70 rounded-xl border border-slate-100 flex flex-col justify-between gap-3">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-slate-900">{task.target?.firstName} {task.target?.lastName}</span>
+                                                    <span className="text-[11px] text-slate-500 font-medium">{task.target?.department?.name || "-"} • {task.target?.position?.title || "-"}</span>
+                                                </div>
+                                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-700">
+                                                    {task.type}
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={() => router.push(`/${locale}/evaluate/${task.id}`)}
+                                                className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors text-center cursor-pointer shadow-xs"
+                                            >
+                                                Baholash &rarr;
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === "offboarding" && (
+                    <div className="flex flex-col gap-6">
+                        {offboardingData && offboardingData.status !== "CANCELLED" ? (
+                            <div className="bg-white rounded-2xl p-6 border border-rose-200 shadow-2xs flex flex-col gap-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-rose-100 pb-4">
+                                    <div className="flex items-center gap-3.5">
+                                        <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center text-2xl shrink-0">
+                                            🏁
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2.5">
+                                                <h2 className="text-lg font-black text-rose-950">
+                                                    Offboarding & Aylanma Varaqasi
+                                                </h2>
+                                                <span
+                                                    className={`px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-lg ${
+                                                        offboardingData.status === "COMPLETED"
+                                                            ? "bg-emerald-100 text-emerald-800"
+                                                            : "bg-amber-100 text-amber-800"
+                                                    }`}
+                                                >
+                                                    {offboardingData.status === "COMPLETED" ? "Yakunlangan" : "Jarayonda"}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-rose-700 font-medium mt-0.5">
+                                                HR tomonidan biriktirilgan aylanma varaqasi (Checklist) topshiriqlarini bajaring va tasdiqlang.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {offboardingData.lastWorkingDay && (
+                                        <div className="bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl flex flex-col sm:items-end">
+                                            <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Oxirgi ish kuni</span>
+                                            <span className="text-xs font-black text-rose-950">
+                                                {new Date(offboardingData.lastWorkingDay).toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" })}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {offboardingData.reason && (
+                                    <div className="text-xs text-slate-700 bg-slate-50 border border-slate-100 p-3.5 rounded-xl">
+                                        <span className="font-bold text-slate-900 uppercase text-[10px] tracking-wider mr-2">Ketish sababi:</span>
+                                        {offboardingData.reason}
+                                    </div>
+                                )}
+
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="font-bold uppercase tracking-wider text-slate-700 text-[11px]">
+                                            Checklist topshiriqlari ({(offboardingData.tasks || []).filter((t: any) => t.isCompleted).length} / {(offboardingData.tasks || []).length})
+                                        </span>
+                                        <span className="font-black text-rose-950 text-xs">
+                                            {Math.round(
+                                                (((offboardingData.tasks || []).filter((t: any) => t.isCompleted).length) /
+                                                    Math.max((offboardingData.tasks || []).length, 1)) *
+                                                    100
+                                            )}%
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-2.5 bg-rose-100 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-rose-500 to-emerald-500 transition-all duration-300 rounded-full"
+                                            style={{
+                                                width: `${Math.round(
+                                                    (((offboardingData.tasks || []).filter((t: any) => t.isCompleted).length) /
+                                                        Math.max((offboardingData.tasks || []).length, 1)) *
+                                                        100
+                                                )}%`,
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {(offboardingData.tasks || []).map((task: any) => {
+                                        const cat = getCategoryBadge(task.category);
+                                        return (
+                                            <div
+                                                key={task.id}
+                                                onClick={() => handleToggleOffboardingTask(task.id, task.isCompleted)}
+                                                className={`p-4 border rounded-xl transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                                                    task.isCompleted
+                                                        ? "bg-emerald-50/50 border-emerald-200 text-slate-500"
+                                                        : "bg-white border-slate-200 hover:border-rose-300 hover:shadow-2xs text-slate-900"
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-3 flex-1">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={task.isCompleted}
+                                                        onChange={() => {}}
+                                                        className="mt-0.5 w-4 h-4 rounded-md border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer pointer-events-none"
+                                                    />
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className={`text-xs font-semibold ${task.isCompleted ? "line-through text-slate-400" : "text-slate-900"}`}>
+                                                            {task.title}
+                                                        </span>
+                                                        <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border rounded-md w-fit ${cat.color}`}>
+                                                            {cat.label}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 shrink-0 rounded-md ${task.isCompleted ? "text-emerald-700 bg-emerald-100" : "text-slate-500 bg-slate-100"}`}>
+                                                    {task.isCompleted ? "Bajarildi" : "Kutilmoqda"}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-rose-100">
+                                    {offboardingData.exitInterviewNotes ? (
+                                        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 rounded-xl">
+                                            <span>✓</span> Exit Interview topshirilgan
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setIsExitModalOpen(true)}
+                                            className="py-2.5 px-5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider transition-colors text-center shadow-xs cursor-pointer rounded-xl"
+                                        >
+                                            📝 Exit Interview topshirish
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-8 bg-white rounded-2xl border border-slate-100 shadow-2xs flex flex-col gap-4 max-w-xl">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl">
+                                        🏁
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-extrabold text-slate-900">
+                                            Ishdan ketish arizasi (Offboarding)
+                                        </h3>
+                                        <p className="text-xs text-slate-500 font-medium">
+                                            Hozirda sizda faol offboarding jarayoni mavjud emas.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsResignationModalOpen(true)}
+                                    className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold uppercase tracking-wider rounded-xl transition-colors text-center cursor-pointer"
+                                >
+                                    Ishdan ketish arizasini topshirish &rarr;
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === "payroll" && canManagePayroll && (
+                    <div className="flex flex-col gap-8">
+                        <PayrollManager />
+                        <EmployeePayslipsSection />
+                    </div>
+                )}
+            </main>
 
             {offboardingData && (
                 <ExitInterviewModal
@@ -1140,54 +1485,63 @@ export default function EmployeeProfilePage() {
                 }}
             />
 
+            <AbsenceReasonModal
+                isOpen={isReasonModalOpen}
+                onClose={() => setIsReasonModalOpen(false)}
+                employeeId={dashboardData?.user?.employee?.id || currentUser?.employee?.id}
+                employeeName={fullName}
+                submittedBy="EMPLOYEE"
+                onSaved={() => setRefreshKey((k) => k + 1)}
+            />
+
             {checkInKr && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex items-start justify-between pb-4 border-b border-gray-200">
-                            <div className="flex items-center gap-2">
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
                                 <span className="text-2xl">🎯</span>
                                 <div>
-                                    <h3 className="text-base font-black uppercase tracking-tight text-black">
+                                    <h3 className="text-base font-black text-slate-900">
                                         OKR Natijasini Topshirish
                                     </h3>
-                                    <p className="text-xs text-gray-500 font-medium line-clamp-1">
+                                    <p className="text-xs text-slate-500 font-medium line-clamp-1">
                                         {checkInKr.title}
                                     </p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setCheckInKr(null)}
-                                className="text-gray-400 hover:text-black text-sm font-bold p-1 cursor-pointer"
+                                className="text-slate-400 hover:text-slate-900 text-sm font-bold p-1 cursor-pointer"
                             >
                                 ✕
                             </button>
                         </div>
 
                         <form onSubmit={handleCheckIn} className="flex flex-col gap-4 mt-4">
-                            <div className="p-3 bg-gray-50 border border-gray-200 flex flex-col gap-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                                     Maqsadli ko'rsatkich
                                 </span>
-                                <span className="text-sm font-black text-black">
+                                <span className="text-sm font-black text-slate-900">
                                     {checkInKr.targetValue} {checkInKr.unit || ""} (100% bajarilgan deb topshiriladi)
                                 </span>
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-black uppercase tracking-wider text-black">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
                                     Bajarilgan ish bo'yicha hisobot / izoh
                                 </label>
                                 <textarea
                                     value={checkInComment}
                                     onChange={(e) => setCheckInComment(e.target.value)}
-                                    placeholder="Ushbu vazifani qanday bajarganingiz, erishilgan natijalar haqida qisqacha yozing..."
+                                    placeholder="Ushbu vazifani qanday bajarganingiz haqida yozing..."
                                     rows={3}
-                                    className="border-2 border-gray-200 p-3 text-sm focus:border-black outline-none w-full font-medium"
+                                    className="border border-slate-200 rounded-xl p-3 text-sm focus:border-[#9327FF] outline-none w-full font-medium"
                                 />
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-black uppercase tracking-wider text-black">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
                                     Tasdiqlovchi rasm yoki fayl (Ixtiyoriy)
                                 </label>
                                 <input
@@ -1198,25 +1552,25 @@ export default function EmployeeProfilePage() {
                                             setCheckInFile(e.target.files[0]);
                                         }
                                     }}
-                                    className="border border-gray-300 p-2 text-xs font-medium w-full bg-gray-50 file:mr-3 file:py-1 file:px-3 file:border-0 file:text-xs file:font-bold file:uppercase file:bg-black file:text-white hover:file:bg-gray-800 cursor-pointer"
+                                    className="border border-slate-200 rounded-xl p-2 text-xs font-medium w-full bg-slate-50 file:mr-3 file:py-1.5 file:px-3 file:border-0 file:rounded-lg file:text-xs file:font-bold file:uppercase file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer"
                                 />
                                 {checkInFile && (
-                                    <div className="mt-2 p-2 border border-gray-200 bg-gray-50 rounded-sm flex items-center justify-between gap-3">
+                                    <div className="mt-2 p-2 border border-slate-200 bg-slate-50 rounded-xl flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-2">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={URL.createObjectURL(checkInFile)}
                                                 alt="Preview"
-                                                className="w-12 h-12 object-cover border border-gray-300"
+                                                className="w-12 h-12 object-cover rounded-lg border border-slate-200"
                                             />
-                                            <span className="text-xs font-bold text-gray-700 truncate max-w-[200px]">
+                                            <span className="text-xs font-bold text-slate-700 truncate max-w-[200px]">
                                                 {checkInFile.name}
                                             </span>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => setCheckInFile(null)}
-                                            className="text-xs font-bold text-red-600 hover:text-red-800 uppercase tracking-wider cursor-pointer"
+                                            className="text-xs font-bold text-rose-600 hover:text-rose-800 uppercase tracking-wider cursor-pointer"
                                         >
                                             O'chirish
                                         </button>
@@ -1224,18 +1578,18 @@ export default function EmployeeProfilePage() {
                                 )}
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                                 <button
                                     type="button"
                                     onClick={() => setCheckInKr(null)}
-                                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-xs font-bold uppercase tracking-wider text-black transition-colors cursor-pointer"
+                                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-xs font-bold uppercase tracking-wider text-slate-700 rounded-xl transition-colors cursor-pointer"
                                 >
                                     Bekor qilish
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isCheckingIn}
-                                    className="px-6 py-2 bg-black hover:bg-gray-800 text-white text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                                    className="px-6 py-2 bg-[#9327FF] hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-xs"
                                 >
                                     {isCheckingIn ? "Yuborilmoqda..." : "🚀 Natijani Topshirish"}
                                 </button>
@@ -1243,8 +1597,6 @@ export default function EmployeeProfilePage() {
                         </form>
                     </div>
                 </div>
-            )}
-                </>
             )}
         </div>
     );

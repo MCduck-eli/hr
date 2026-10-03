@@ -19,10 +19,14 @@ export default function HROrgChartPage() {
         }
         try {
             const user = JSON.parse(userStr);
+            const perms = Array.isArray(user.permissions) ? user.permissions : [];
             if (
                 user.role !== "HR_ADMIN" &&
                 user.role !== "SUPER_ADMIN" &&
-                user.role !== "DIRECTOR"
+                user.role !== "DIRECTOR" &&
+                !perms.includes("org_chart") &&
+                !perms.includes("hr_dashboard") &&
+                !perms.includes("hr")
             ) {
                 router.push(`/${locale}/profile`);
             }

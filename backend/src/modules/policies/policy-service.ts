@@ -122,10 +122,12 @@ export class PolicyService {
                                 id: true,
                                 firstName: true,
                                 lastName: true,
+                                avatar: true,
                                 department: true,
                                 user: {
                                     select: {
                                         email: true,
+                                        avatar: true,
                                     },
                                 },
                             },
@@ -193,8 +195,8 @@ export class PolicyService {
                 employee = await prisma.employee.create({
                     data: {
                         userId: user.id,
-                        firstName: user.firstName || "Admin",
-                        lastName: user.lastName || "User",
+                        firstName: (user as any).firstName || user.email.split("@")[0] || "Admin",
+                        lastName: (user as any).lastName || "User",
                         status: "NEW",
                     },
                 });
@@ -215,10 +217,12 @@ export class PolicyService {
                                     id: true,
                                     firstName: true,
                                     lastName: true,
+                                    avatar: true,
                                     department: true,
                                     user: {
                                         select: {
                                             email: true,
+                                            avatar: true,
                                         },
                                     },
                                 },
@@ -279,7 +283,10 @@ export class PolicyService {
                               id: s.id,
                               employeeId: s.employeeId,
                               employeeName: `${s.employee.firstName} ${s.employee.lastName}`,
-                              email: s.employee.user.email,
+                              firstName: s.employee.firstName,
+                              lastName: s.employee.lastName,
+                              avatar: s.employee.avatar || s.employee.user?.avatar || null,
+                              email: s.employee.user?.email || "",
                               department: s.employee.department?.name || null,
                               signedVersion: s.signedVersion,
                               isCurrentVersion: s.signedVersion === policy.version,
@@ -306,8 +313,8 @@ export class PolicyService {
             employee = await prisma.employee.create({
                 data: {
                     userId: user.id,
-                    firstName: user.firstName || "Foydalanuvchi",
-                    lastName: user.lastName || "",
+                    firstName: (user as any).firstName || user.email.split("@")[0] || "Foydalanuvchi",
+                    lastName: (user as any).lastName || "",
                     status: "NEW",
                 },
             });

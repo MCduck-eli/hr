@@ -50,6 +50,46 @@ export class DepartmentController {
         }
     }
 
+    async assignEmployee(
+        req: Request<{ id: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await departmentService.assignEmployee(
+                req.params.id,
+                req.body,
+                (req as any).user,
+            );
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async unassignEmployee(
+        req: Request<{ id: string }>,
+        res: Response,
+        next: NextFunction,
+    ) {
+        try {
+            const result = await departmentService.unassignEmployee(
+                req.params.id,
+                req.body,
+                (req as any).user,
+            );
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async delete(
         req: Request<{ id: string }>,
         res: Response,

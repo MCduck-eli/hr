@@ -7,18 +7,33 @@ export class UserService {
     async getAllUsers(currentUser?: any) {
         await employeeStatusService.checkAndTransitionEmployeeStatuses();
 
-        // Auto-terminate any employee whose offboarding request is marked COMPLETED
-        await prisma.employee.updateMany({
+        const completedOffboardings = await prisma.employee.findMany({
             where: {
                 status: { not: "TERMINATED" },
                 offboarding: { status: "COMPLETED" },
             },
-            data: {
-                status: "TERMINATED",
-                statusConfigId: null,
-                statusExpiresAt: null,
-            },
-        }).catch(() => {});
+            include: { user: true },
+        });
+
+        for (const emp of completedOffboardings) {
+            await prisma.employee.update({
+                where: { id: emp.id },
+                data: {
+                    status: "TERMINATED",
+                    statusConfigId: null,
+                    statusExpiresAt: null,
+                },
+            }).catch(() => {});
+
+            if (emp.userId && emp.user && !emp.user.email.includes("-archived-")) {
+                await prisma.user.update({
+                    where: { id: emp.userId },
+                    data: {
+                        email: `${emp.user.email}-archived-${Date.now()}`,
+                    },
+                }).catch(() => {});
+            }
+        }
 
         let companyNameFilter: string | null = null;
         if (currentUser?.id) {
@@ -60,6 +75,8 @@ export class UserService {
                 customRole: true,
                 companyName: true,
                 phone: true,
+                avatar: true,
+                permissions: true,
                 createdAt: true,
                 employee: {
                     include: {
@@ -146,6 +163,8 @@ export class UserService {
                 customRole: true,
                 companyName: true,
                 phone: true,
+                avatar: true,
+                permissions: true,
                 createdAt: true,
                 employee: {
                     include: {
@@ -173,11 +192,16 @@ export class UserService {
             lastName,
             companyName,
             phone,
+            avatar,
+            image,
             departmentId,
             positionId,
             leaveBalance,
             assignedCourseIds,
+            permissions,
         } = payload;
+
+        const resolvedAvatar = avatar || image || null;
 
         let finalCompanyName = companyName || null;
         let callerRole = "";
@@ -333,6 +357,20 @@ export class UserService {
             }
         }
 
+        let initialPermissions: string[] = [];
+        if (permissions) {
+            if (Array.isArray(permissions)) {
+                initialPermissions = permissions.map(String);
+            } else if (typeof permissions === "string") {
+                try {
+                    const parsed = JSON.parse(permissions);
+                    initialPermissions = Array.isArray(parsed) ? parsed.map(String) : [permissions];
+                } catch {
+                    initialPermissions = permissions ? [permissions] : [];
+                }
+            }
+        }
+
         const newUser = await prisma.user.create({
             data: {
                 email,
@@ -341,17 +379,21 @@ export class UserService {
                 customRoleId: resolvedCustomRoleId,
                 companyName: finalCompanyName,
                 phone: phone || null,
+                avatar: resolvedAvatar,
+                permissions: initialPermissions,
                 employee: {
                     create: {
                         firstName: firstName || "",
                         lastName: lastName || "",
+                        phone: phone || null,
+                        avatar: resolvedAvatar,
                         status: enumStatus,
                         statusConfigId: statusConfigId || undefined,
                         statusStartedAt: new Date(),
                         statusExpiresAt,
                         ...(resolvedDepartmentId && { departmentId: resolvedDepartmentId }),
                         ...(resolvedPositionId && { positionId: resolvedPositionId }),
-                        ...(leaveBalance !== undefined && { leaveBalance }),
+                        ...(leaveBalance !== undefined && leaveBalance !== null && leaveBalance !== "" && { leaveBalance: Number(leaveBalance) }),
                         ...(payload.salary !== undefined && { salary: Number(payload.salary) }),
                         ...(payload.salaryType !== undefined && { salaryType: payload.salaryType }),
                         ...(payload.hourlyRate !== undefined && { hourlyRate: Number(payload.hourlyRate) }),
@@ -377,6 +419,8 @@ export class UserService {
                 customRole: true,
                 companyName: true,
                 phone: true,
+                avatar: true,
+                permissions: true,
                 createdAt: true,
                 employee: true,
             },
@@ -432,12 +476,37 @@ export class UserService {
             lastName,
             companyName,
             phone,
+            avatar,
+            image,
             departmentId,
             positionId,
             password,
             leaveBalance,
             assignedCourseIds,
+            permissions,
         } = payload;
+
+        const isDirectorOrAdmin = callerRole === "DIRECTOR" || callerRole === "SUPER_ADMIN";
+        let resolvedPermissions: string[] | undefined = undefined;
+        if (permissions !== undefined) {
+            if (!isDirectorOrAdmin) {
+                throw new AppError("Faqat direktor xodim ruxsatlarini o'zgartira oladi", 403);
+            }
+            if (Array.isArray(permissions)) {
+                resolvedPermissions = permissions.map(String);
+            } else if (typeof permissions === "string") {
+                try {
+                    const parsed = JSON.parse(permissions);
+                    resolvedPermissions = Array.isArray(parsed) ? parsed.map(String) : [permissions];
+                } catch {
+                    resolvedPermissions = permissions ? [permissions] : [];
+                }
+            } else {
+                resolvedPermissions = [];
+            }
+        }
+
+        const resolvedAvatar = avatar !== undefined ? avatar : (image !== undefined ? image : undefined);
 
         let hashedPassword;
         if (password) {
@@ -608,18 +677,22 @@ export class UserService {
                 ...(resolvedCustomRoleId !== undefined && { customRoleId: resolvedCustomRoleId }),
                 ...(callerRole === "SUPER_ADMIN" && companyName !== undefined && { companyName }),
                 ...(phone !== undefined && { phone }),
+                ...(resolvedAvatar !== undefined && { avatar: resolvedAvatar }),
                 ...(hashedPassword && { password: hashedPassword }),
+                ...(resolvedPermissions !== undefined && { permissions: resolvedPermissions }),
                 employee: {
                     update: {
                         ...(firstName !== undefined && { firstName }),
                         ...(lastName !== undefined && { lastName }),
+                        ...(phone !== undefined && { phone }),
+                        ...(resolvedAvatar !== undefined && { avatar: resolvedAvatar }),
                         ...(resolvedDepartmentId !== undefined && {
                             departmentId: resolvedDepartmentId,
                         }),
                         ...(resolvedPositionId !== undefined && {
                             positionId: resolvedPositionId,
                         }),
-                        ...(leaveBalance !== undefined && { leaveBalance }),
+                        ...(leaveBalance !== undefined && leaveBalance !== null && leaveBalance !== "" && { leaveBalance: Number(leaveBalance) }),
                         ...(enumStatus !== undefined && { status: enumStatus }),
                         ...(statusConfigId !== undefined && {
                             statusConfigId,
@@ -645,6 +718,8 @@ export class UserService {
                 customRole: true,
                 companyName: true,
                 phone: true,
+                avatar: true,
+                permissions: true,
                 employee: true,
             },
         });

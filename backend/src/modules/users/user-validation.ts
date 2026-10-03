@@ -8,6 +8,7 @@ export const updateUserSchema = z.object({
             email: z.string().email().optional(),
             companyName: z.string().optional().nullable(),
             phone: z.string().optional().nullable(),
+            avatar: z.string().optional().nullable(),
             password: z.string().optional(),
             departmentId: z.string().uuid().optional().nullable().or(z.literal("")),
             positionId: z.string().uuid().optional().nullable().or(z.literal("")),

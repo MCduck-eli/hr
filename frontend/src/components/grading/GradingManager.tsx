@@ -20,13 +20,21 @@ import CreateGradeModal from "./CreateGradeModal";
 import AssignGradeModal from "./AssignGradeModal";
 import RequestPromotionModal from "./RequestPromotionModal";
 import CareerHistoryModal from "./CareerHistoryModal";
+import Skeleton from "@/src/components/ui/Skeleton";
+import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
 
 export default function GradingManager() {
     const t = useTranslations("Grading");
-    const [grades, setGrades] = useState<JobGrade[]>([]);
-    const [employees, setEmployees] = useState<EmployeeWithGrade[]>([]);
-    const [promotions, setPromotions] = useState<PromotionRequest[]>([]);
-    const [loading, setLoading] = useState(true);
+    const cachedData = getQueryData<{
+        grades: JobGrade[];
+        employees: EmployeeWithGrade[];
+        promotions: PromotionRequest[];
+    }>("grading:all");
+
+    const [grades, setGrades] = useState<JobGrade[]>(() => cachedData?.grades || []);
+    const [employees, setEmployees] = useState<EmployeeWithGrade[]>(() => cachedData?.employees || []);
+    const [promotions, setPromotions] = useState<PromotionRequest[]>(() => cachedData?.promotions || []);
+    const [loading, setLoading] = useState(() => !cachedData);
     const [activeTab, setActiveTab] = useState<"matrix" | "employees" | "promotions">("matrix");
     const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -60,17 +68,41 @@ export default function GradingManager() {
         loadAllData();
     }, []);
 
-    const loadAllData = async () => {
-        try {
+    const loadAllData = async (isBackground = false) => {
+        const cached = getQueryData<{
+            grades: JobGrade[];
+            employees: EmployeeWithGrade[];
+            promotions: PromotionRequest[];
+        }>("grading:all");
+        const isStale = isQueryStale("grading:all");
+
+        if (cached) {
+            setGrades(cached.grades || []);
+            setEmployees(cached.employees || []);
+            setPromotions(cached.promotions || []);
+        } else if (!isBackground) {
             setLoading(true);
+        }
+
+        if (cached && !isStale && !isBackground) {
+            setLoading(false);
+            return;
+        }
+
+        try {
             const [gradesData, employeesData, promotionsData] = await Promise.all([
                 fetchGrades().catch(() => []),
                 fetchEmployeesWithGrades().catch(() => []),
                 fetchPromotionRequests().catch(() => []),
             ]);
-            setGrades(gradesData);
-            setEmployees(employeesData);
-            setPromotions(promotionsData);
+            setGrades(gradesData || []);
+            setEmployees(employeesData || []);
+            setPromotions(promotionsData || []);
+            setQueryData("grading:all", {
+                grades: gradesData || [],
+                employees: employeesData || [],
+                promotions: promotionsData || [],
+            });
         } catch (err: any) {
             showBanner("error", err.message || "Error");
         } finally {
@@ -93,6 +125,7 @@ export default function GradingManager() {
             await createGrade(gradeData);
             showBanner("success", t("createGradeTitle"));
         }
+        invalidateQuery("grading:all");
         await loadAllData();
     };
 
@@ -101,6 +134,7 @@ export default function GradingManager() {
         try {
             setActionLoading(gradeId);
             await deleteGrade(gradeId);
+            invalidateQuery("grading:all");
             await loadAllData();
         } catch (err: any) {
             showBanner("error", err.message || "Error");
@@ -111,11 +145,13 @@ export default function GradingManager() {
 
     const handleAssignGrade = async (employeeId: string, gradeId: string) => {
         await assignGradeToEmployee(employeeId, gradeId);
+        invalidateQuery("grading:all");
         await loadAllData();
     };
 
     const handleCreatePromotion = async (data: any) => {
         await createPromotionRequest(data);
+        invalidateQuery("grading:all");
         await loadAllData();
     };
 
@@ -123,6 +159,7 @@ export default function GradingManager() {
         try {
             setActionLoading(requestId);
             await processPromotionApproval(requestId, action);
+            invalidateQuery("grading:all");
             await loadAllData();
         } catch (err: any) {
             showBanner("error", err.message || "Error");
@@ -285,10 +322,19 @@ export default function GradingManager() {
                             </svg>
                         </div>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900 tracking-tight">{grades.length}</div>
-                    <div className="text-xs text-gray-500 mt-1 font-medium">
-                        {t("levelCategoriesCount", { count: Array.from(new Set(grades.map((g) => g.level))).length })}
-                    </div>
+                    {loading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="w-16 h-8 rounded-lg" />
+                            <Skeleton className="w-28 h-4 rounded-md" />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-3xl font-bold text-gray-900 tracking-tight">{grades.length}</div>
+                            <div className="text-xs text-gray-500 mt-1 font-medium">
+                                {t("levelCategoriesCount", { count: Array.from(new Set(grades.map((g) => g.level))).length })}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -300,12 +346,21 @@ export default function GradingManager() {
                             </svg>
                         </div>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900 tracking-tight">
-                        {assignedEmployeesCount} / {employees.length}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 font-medium">
-                        {t("employeeCoverage", { percent: employees.length > 0 ? Math.round((assignedEmployeesCount / employees.length) * 100) : 0 })}
-                    </div>
+                    {loading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="w-20 h-8 rounded-lg" />
+                            <Skeleton className="w-32 h-4 rounded-md" />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-3xl font-bold text-gray-900 tracking-tight">
+                                {assignedEmployeesCount} / {employees.length}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 font-medium">
+                                {t("employeeCoverage", { percent: employees.length > 0 ? Math.round((assignedEmployeesCount / employees.length) * 100) : 0 })}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -317,10 +372,19 @@ export default function GradingManager() {
                             </svg>
                         </div>
                     </div>
-                    <div className="text-base font-bold text-gray-900 tracking-tight mt-1 truncate">
-                        {avgMinSalary.toLocaleString()} - {avgMaxSalary.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 font-medium">{t("salaryRangeUnit")}</div>
+                    {loading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="w-32 h-6 rounded-lg mt-1" />
+                            <Skeleton className="w-24 h-4 rounded-md" />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-base font-bold text-gray-900 tracking-tight mt-1 truncate">
+                                {avgMinSalary.toLocaleString()} - {avgMaxSalary.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 font-medium">{t("salaryRangeUnit")}</div>
+                        </>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -332,17 +396,26 @@ export default function GradingManager() {
                             </svg>
                         </div>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                        <span>{pendingPromotionsCount}</span>
-                        {pendingPromotionsCount > 0 && (
-                            <span className="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider">
-                                {t("inReview")}
-                            </span>
-                        )}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 font-medium">
-                        {t("totalRequestsCount", { count: promotions.length })}
-                    </div>
+                    {loading ? (
+                        <div className="space-y-2">
+                            <Skeleton className="w-16 h-8 rounded-lg" />
+                            <Skeleton className="w-28 h-4 rounded-md" />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                                <span>{pendingPromotionsCount}</span>
+                                {pendingPromotionsCount > 0 && (
+                                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider">
+                                        {t("inReview")}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 font-medium">
+                                {t("totalRequestsCount", { count: promotions.length })}
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -356,7 +429,7 @@ export default function GradingManager() {
                                 : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                         }`}
                     >
-                        {t("gradesMatrix")} ({grades.length})
+                        {t("gradesMatrix")} {loading && grades.length === 0 ? "" : `(${grades.length})`}
                     </button>
                     <button
                         onClick={() => setActiveTab("employees")}
@@ -366,7 +439,7 @@ export default function GradingManager() {
                                 : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                         }`}
                     >
-                        {t("employeesBoard")} ({employees.length})
+                        {t("employeesBoard")} {loading && employees.length === 0 ? "" : `(${employees.length})`}
                     </button>
                     <button
                         onClick={() => setActiveTab("promotions")}
@@ -376,7 +449,7 @@ export default function GradingManager() {
                                 : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                         }`}
                     >
-                        {t("promotionRequests")} ({promotions.length})
+                        {t("promotionRequests")} {loading && promotions.length === 0 ? "" : `(${promotions.length})`}
                         {pendingPromotionsCount > 0 && (
                             <span className="ml-1.5 px-2 py-0.5 text-[10px] bg-red-600 text-white rounded-full">
                                 {pendingPromotionsCount}
@@ -416,10 +489,73 @@ export default function GradingManager() {
             </div>
 
             {loading ? (
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-16 flex flex-col items-center justify-center gap-3">
-                    <div className="w-8 h-8 border-3 border-[#9327FF] border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t("loading")}</span>
-                </div>
+                activeTab === "matrix" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <Skeleton className="w-20 h-6 rounded-lg" />
+                                    <Skeleton className="w-16 h-6 rounded-lg" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Skeleton className="w-3/4 h-5 rounded-md" />
+                                    <Skeleton className="w-full h-3.5 rounded-md" />
+                                </div>
+                                <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+                                    <div className="flex justify-between">
+                                        <Skeleton className="w-16 h-3.5 rounded" />
+                                        <Skeleton className="w-24 h-4 rounded" />
+                                    </div>
+                                    <Skeleton className="w-full h-2 rounded-full" />
+                                </div>
+                                <div className="pt-2 border-t border-gray-100 flex justify-between items-center">
+                                    <Skeleton className="w-24 h-4 rounded" />
+                                    <div className="flex gap-2">
+                                        <Skeleton className="w-7 h-7 rounded-lg" />
+                                        <Skeleton className="w-7 h-7 rounded-lg" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : activeTab === "employees" ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-4 space-y-3">
+                        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                            <div key={i} className="flex items-center justify-between p-3 border-b border-gray-50 last:border-0 gap-4">
+                                <div className="flex items-center gap-3 flex-1">
+                                    <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                                    <div className="space-y-1.5 flex-1 max-w-xs">
+                                        <Skeleton className="w-36 h-4 rounded" />
+                                        <Skeleton className="w-24 h-3 rounded" />
+                                    </div>
+                                </div>
+                                <Skeleton className="w-28 h-6 rounded-lg hidden sm:block" />
+                                <Skeleton className="w-20 h-6 rounded-lg" />
+                                <Skeleton className="w-20 h-8 rounded-xl" />
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-4 space-y-3">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="flex items-center justify-between p-3 border-b border-gray-50 last:border-0 gap-4">
+                                <div className="flex items-center gap-3 flex-1">
+                                    <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                                    <div className="space-y-1.5 flex-1 max-w-xs">
+                                        <Skeleton className="w-40 h-4 rounded" />
+                                        <Skeleton className="w-28 h-3 rounded" />
+                                    </div>
+                                </div>
+                                <Skeleton className="w-24 h-6 rounded-lg hidden md:block" />
+                                <Skeleton className="w-20 h-6 rounded-lg" />
+                                <div className="flex gap-2">
+                                    <Skeleton className="w-16 h-8 rounded-xl" />
+                                    <Skeleton className="w-16 h-8 rounded-xl" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
             ) : activeTab === "matrix" ? (
                 <div className="space-y-6">
                     {grades.length === 0 ? (

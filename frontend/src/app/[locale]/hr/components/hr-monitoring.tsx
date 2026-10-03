@@ -39,6 +39,39 @@ function CircularProgress({ value, size = 52, strokeWidth = 4 }: { value: number
     );
 }
 
+function EmployeeMonitoringAvatar({ employee }: { employee: any }) {
+    const [imageError, setImageError] = useState(false);
+    const rawAvatar = employee?.avatar || employee?.user?.avatar || employee?.image || employee?.user?.image || "";
+    const initial = (employee?.firstName?.[0] || employee?.user?.firstName?.[0] || "U").toUpperCase();
+
+    let avatarSrc: string | null = null;
+    if (rawAvatar && !imageError) {
+        if (rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://") || rawAvatar.startsWith("data:")) {
+            avatarSrc = rawAvatar;
+        } else {
+            const rawApi = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+            const baseOrigin = rawApi.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/+$/, "");
+            const cleanPath = rawAvatar.startsWith("/") ? rawAvatar : `/${rawAvatar}`;
+            avatarSrc = `${baseOrigin}${cleanPath}`;
+        }
+    }
+
+    return (
+        <div className="w-11 h-11 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center font-bold text-sm shrink-0 shadow-xs overflow-hidden">
+            {avatarSrc ? (
+                <img
+                    src={avatarSrc}
+                    alt={employee?.firstName || "Avatar"}
+                    onError={() => setImageError(true)}
+                    className="w-full h-full object-cover"
+                />
+            ) : (
+                <span>{initial}</span>
+            )}
+        </div>
+    );
+}
+
 export default function HRMonitoring() {
     const [monitoringData, setMonitoringData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -48,15 +81,6 @@ export default function HRMonitoring() {
             try {
                 const token = localStorage.getItem("token");
                 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-                const userStr = localStorage.getItem("user");
-
-                let currentUserEmpId = null;
-                if (userStr) {
-                    try {
-                        const user = JSON.parse(userStr);
-                        currentUserEmpId = user.employee?.id || user.employeeId;
-                    } catch (e) {}
-                }
 
                 const res = await fetch(`${API_URL}/onboarding/monitoring`, {
                     headers: {
@@ -70,10 +94,7 @@ export default function HRMonitoring() {
 
                     list = list.filter(
                         (record: any) =>
-                            record.employee?.user?.role !== "SUPER_ADMIN" &&
-                            record.employee?.user?.role !== "DIRECTOR" &&
-                            record.employee?.user?.role !== "HR_ADMIN" &&
-                            record.employeeId !== currentUserEmpId,
+                            record.employee?.user?.role !== "DIRECTOR",
                     );
 
                     setMonitoringData(list);
@@ -167,9 +188,7 @@ export default function HRMonitoring() {
                                 className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6"
                             >
                                 <div className="flex items-center gap-4 min-w-[220px]">
-                                    <div className="w-11 h-11 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
-                                        {employee?.firstName?.[0] || "U"}
-                                    </div>
+                                    <EmployeeMonitoringAvatar employee={employee} />
                                     <div className="flex flex-col gap-0.5">
                                         <span className="text-sm font-bold text-gray-900 uppercase tracking-wider">
                                             {employee?.firstName}{" "}

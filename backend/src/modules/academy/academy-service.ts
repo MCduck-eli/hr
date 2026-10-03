@@ -126,9 +126,25 @@ export class AcademyService {
             select: { role: true, companyName: true },
         });
 
-        const employee = await prisma.employee.findUnique({
+        let employee = await prisma.employee.findUnique({
             where: { userId },
         });
+
+        if (!employee && user && (user.role === "SUPER_ADMIN" || user.role === "HR_ADMIN" || user.role === "DIRECTOR")) {
+            employee = await prisma.employee.findFirst({
+                where: { userId },
+            });
+            if (!employee) {
+                employee = await prisma.employee.create({
+                    data: {
+                        userId,
+                        firstName: "Admin",
+                        lastName: "User",
+                        status: "NEW",
+                    },
+                });
+            }
+        }
 
         const where: any = {};
         if (user && user.role !== "SUPER_ADMIN" && user.companyName) {
@@ -193,11 +209,75 @@ export class AcademyService {
             orderBy: { createdAt: "desc" },
         });
 
-        return courses.map((course: any) => ({
-            ...course,
-            isCompleted: course.progress?.[0]?.isCompleted || false,
-            quizScore: course.progress?.[0]?.quizScore || null,
-        }));
+        return courses.map((course: any) => {
+            const userProgress = course.progress?.[0];
+            const pVal = userProgress?.progressPercent || 0;
+            const done = userProgress?.isCompleted || pVal >= 95;
+            return {
+                ...course,
+                isCompleted: done,
+                progress: pVal,
+                progressPercent: pVal,
+                quizScore: userProgress?.quizScore || null,
+            };
+        });
+    }
+
+    async updateCourseProgress(
+        userId: string,
+        courseId: string,
+        progressPercent: number,
+    ) {
+        let employee = await prisma.employee.findUnique({
+            where: { userId },
+        });
+
+        if (!employee) {
+            employee = await prisma.employee.findUnique({
+                where: { id: userId },
+            });
+        }
+
+        if (!employee) {
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            if (user) {
+                employee = await prisma.employee.create({
+                    data: {
+                        userId: user.id,
+                        firstName: user.email.split("@")[0] || "User",
+                        lastName: "Employee",
+                        status: "NEW",
+                    },
+                });
+            }
+        }
+
+        if (!employee) {
+            throw new AppError("Employee profile not found", 404);
+        }
+
+        const isCompleted = progressPercent >= 95;
+
+        return prisma.courseProgress.upsert({
+            where: {
+                courseId_employeeId: {
+                    courseId,
+                    employeeId: employee.id,
+                },
+            },
+            update: {
+                progressPercent,
+                isCompleted: isCompleted ? true : undefined,
+                completedAt: isCompleted ? new Date() : undefined,
+            },
+            create: {
+                courseId,
+                employeeId: employee.id,
+                progressPercent,
+                isCompleted,
+                completedAt: isCompleted ? new Date() : undefined,
+            },
+        });
     }
 
     async getCourseDetails(courseId: string) {

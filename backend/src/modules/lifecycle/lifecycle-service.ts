@@ -950,15 +950,24 @@ export class LifecycleService {
     }
 
     async getOffboardingDetails(employeeIdentifier: string, currentUser?: any) {
+        const lookupConditions: any[] = [
+            { id: employeeIdentifier },
+            { userId: employeeIdentifier },
+        ];
+
+        if (employeeIdentifier === "my" && currentUser?.id) {
+            lookupConditions.push({ userId: currentUser.id });
+        }
+
         const employee = await prisma.employee.findFirst({
             where: {
-                OR: [{ id: employeeIdentifier }, { userId: employeeIdentifier }],
+                OR: lookupConditions,
             },
             include: { user: true },
         });
 
         if (!employee) {
-            throw new AppError("Xodim topilmadi", 404);
+            return null;
         }
 
         if (
@@ -1330,7 +1339,6 @@ export class LifecycleService {
 
         if (!employee) return;
 
-        // 1. Mark employee status as TERMINATED
         await prisma.employee.update({
             where: { id: employeeId },
             data: {
@@ -1338,14 +1346,22 @@ export class LifecycleService {
             },
         }).catch(() => {});
 
-        // 2. Delete active device tokens / sessions
+        if (employee.userId && employee.user && !employee.user.email.includes("-archived-")) {
+            const archivedEmail = `${employee.user.email}-archived-${Date.now()}`;
+            await prisma.user.update({
+                where: { id: employee.userId },
+                data: {
+                    email: archivedEmail,
+                },
+            }).catch(() => {});
+        }
+
         if (employee.userId) {
             await prisma.userDeviceToken.deleteMany({
                 where: { userId: employee.userId },
             }).catch(() => {});
         }
 
-        // 3. Clean up active non-financial relations (leave requests, feedback reviews, manager links)
         await prisma.leaveRequest.updateMany({
             where: { employeeId: employee.id, status: "PENDING" },
             data: { status: "REJECTED" },
@@ -1360,7 +1376,6 @@ export class LifecycleService {
             data: { managerId: null },
         }).catch(() => {});
 
-        // 4. Record Lifecycle Event (Financial records: Payroll, PayrollAdvance, Payslip are 100% kept for 6+ months)
         const existingEvent = await prisma.employeeLifecycleEvent.findFirst({
             where: {
                 employeeId: employee.id,
@@ -1464,7 +1479,7 @@ export class LifecycleService {
         offboardingTasks.forEach((item) => {
             if (stats["OFFBOARDING"]) {
                 stats["OFFBOARDING"].total += 1;
-                if (item.status === "COMPLETED") {
+                if (item.isCompleted) {
                     stats["OFFBOARDING"].completed += 1;
                 }
             }

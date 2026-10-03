@@ -398,12 +398,13 @@ export class OnboardingService {
             where: {
                 user: {
                     role: {
-                        notIn: ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"],
+                        not: "DIRECTOR",
                     },
                     ...(companyFilter ? { companyName: companyFilter } : {}),
                 },
             },
             include: {
+                user: true,
                 department: true,
                 statusConfig: true,
                 courseProgresses: {

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { getPublicVacancies } from "@/src/services/recruiting-service";
+import Skeleton from "@/src/components/ui/Skeleton";
 
 export default function PublicCareersPage() {
     const params = useParams();
@@ -110,8 +111,24 @@ export default function PublicCareersPage() {
                 </div>
 
                 {loading ? (
-                    <div className="p-16 text-center text-xs font-bold uppercase tracking-wider text-gray-400 animate-pulse">
-                        Vakansiyalar yuklanmoqda...
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="bg-white border-2 border-black p-6 flex flex-col justify-between gap-4 shadow-sm">
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <Skeleton className="w-24 h-4 rounded" />
+                                        <Skeleton className="w-28 h-4 rounded" />
+                                    </div>
+                                    <Skeleton className="w-3/4 h-6 rounded" />
+                                    <Skeleton className="w-1/3 h-4 rounded" />
+                                    <Skeleton className="w-full h-12 rounded" />
+                                </div>
+                                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                                    <Skeleton className="w-24 h-4 rounded" />
+                                    <Skeleton className="w-24 h-8 rounded" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : filteredVacancies.length === 0 ? (
                     <div className="p-16 text-center border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-3">

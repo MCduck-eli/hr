@@ -107,6 +107,8 @@ model User {
   customRole    CompanyRole?      @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   companyName   String?
   phone         String?
+  avatar        String?
+  permissions   String[]          @default([])
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   employee      Employee?
@@ -162,6 +164,8 @@ model Employee {
   user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName           String
   lastName            String
+  phone               String?
+  avatar              String?
   status              EmployeeStatus          @default(NEW)
   statusConfigId      String?
   statusConfig        EmployeeStatusConfig?   @relation(fields: [statusConfigId], references: [id])
