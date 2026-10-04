@@ -3,47 +3,62 @@ import { AppError } from "../../utils/appError";
 
 export class DashboardService {
     async getEmployeeDashboardData(id: string) {
-        let user = await prisma.user.findUnique({
-            where: { id },
-            include: {
-                employee: {
-                    include: {
-                        department: true,
-                        position: true,
-                        grade: true,
-                        statusConfig: true,
-                        courseProgresses: {
-                            include: { course: true },
+        const userSelect = {
+            id: true,
+            email: true,
+            role: true,
+            companyName: true,
+            employee: {
+                select: {
+                    id: true,
+                    userId: true,
+                    firstName: true,
+                    lastName: true,
+                    departmentId: true,
+                    positionId: true,
+                    gradeId: true,
+                    statusConfigId: true,
+                    salary: true,
+                    leaveBalance: true,
+                    status: true,
+                    department: { select: { id: true, name: true } },
+                    position: { select: { id: true, title: true } },
+                    grade: {
+                        select: {
+                            id: true,
+                            code: true,
+                            title: true,
+                            level: true,
+                            minSalary: true,
+                            maxSalary: true,
+                            requirements: true,
+                            responsibilities: true,
                         },
-                        onboarding: {
-                            include: {
-                                courses: {
-                                    include: {
-                                        course: {
-                                            include: {
-                                                template: true,
-                                            },
-                                        },
-                                    },
-                                },
-                                tasks: {
-                                    include: {
-                                        task: {
-                                            include: {
-                                                template: true,
-                                            },
-                                        },
-                                    },
-                                },
-                            },
+                    },
+                    statusConfig: { select: { id: true, code: true } },
+                    courseProgresses: {
+                        select: {
+                            courseId: true,
+                            progressPercent: true,
+                            isCompleted: true,
                         },
-                        lifecycleEvents: {
-                            orderBy: { createdAt: "desc" },
-                            take: 3,
+                    },
+                    lifecycleEvents: {
+                        select: {
+                            title: true,
+                            description: true,
+                            createdAt: true,
                         },
+                        orderBy: { createdAt: "desc" as const },
+                        take: 3,
                     },
                 },
             },
+        };
+
+        let user = await prisma.user.findUnique({
+            where: { id },
+            select: userSelect,
         });
 
         if (!user) {
@@ -54,45 +69,7 @@ export class DashboardService {
             if (employeeRecord?.userId) {
                 user = await prisma.user.findUnique({
                     where: { id: employeeRecord.userId },
-                    include: {
-                        employee: {
-                            include: {
-                                department: true,
-                                position: true,
-                                grade: true,
-                                statusConfig: true,
-                                courseProgresses: {
-                                    include: { course: true },
-                                },
-                                onboarding: {
-                                    include: {
-                                        courses: {
-                                            include: {
-                                                course: {
-                                                    include: {
-                                                        template: true,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                        tasks: {
-                                            include: {
-                                                task: {
-                                                    include: {
-                                                        template: true,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
-                                lifecycleEvents: {
-                                    orderBy: { createdAt: "desc" },
-                                    take: 3,
-                                },
-                            },
-                        },
-                    },
+                    select: userSelect,
                 });
             }
         }
@@ -107,83 +84,336 @@ export class DashboardService {
         ) {
             let adminEmployee = await prisma.employee.findFirst({
                 where: { userId: user.id },
+                select: { id: true },
             });
             if (!adminEmployee) {
                 adminEmployee = await prisma.employee.create({
                     data: {
                         userId: user.id,
-                        firstName: user.firstName || "Admin",
-                        lastName: user.lastName || "User",
+                        firstName: user.email?.split("@")[0] || "Admin",
+                        lastName: "Admin",
                         status: "NEW",
                     },
+                    select: { id: true },
                 });
             }
             user = await prisma.user.findUnique({
                 where: { id: user.id },
-                include: {
-                    employee: {
-                        include: {
-                            department: true,
-                            position: true,
-                            grade: true,
-                            statusConfig: true,
-                            courseProgresses: {
-                                include: { course: true },
-                            },
-                            onboarding: {
-                                include: {
-                                    courses: {
-                                        include: {
-                                            course: {
-                                                include: {
-                                                    template: true,
-                                                },
-                                            },
-                                        },
-                                    },
-                                    tasks: {
-                                        include: {
-                                            task: {
-                                                include: {
-                                                    template: true,
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                            lifecycleEvents: {
-                                orderBy: { createdAt: "desc" },
-                                take: 3,
-                            },
-                        },
-                    },
-                },
+                select: userSelect,
             });
         }
 
-        const employee = user?.employee;
+        if (!user) {
+            throw new AppError("Foydalanuvchi topilmadi", 404);
+        }
+
+        const currentUser = user;
+        const employee = currentUser.employee;
 
         if (!employee) {
             throw new AppError("Xodim topilmadi", 404);
         }
 
-        const pendingFeedbacks = await prisma.feedbackAssignment.count({
+        const userCompany = currentUser.companyName || null;
+        const companyFilter = userCompany
+            ? { OR: [{ companyName: userCompany }, { companyName: null }] }
+            : {};
+
+        const employeeIdMatches = [
+            employee.id,
+            currentUser.id,
+            ...(employee.userId ? [employee.userId] : []),
+        ].filter(Boolean);
+
+        const whereOkrs: any = {
+            OR: [
+                {
+                    employeeId: { in: employeeIdMatches },
+                    ...companyFilter,
+                },
+                {
+                    level: "INDIVIDUAL" as const,
+                    employeeId: { in: employeeIdMatches },
+                    ...companyFilter,
+                },
+                ...(employee.departmentId
+                    ? [
+                          {
+                              level: "DEPARTMENT" as const,
+                              departmentId: employee.departmentId,
+                              ...companyFilter,
+                          },
+                      ]
+                    : []),
+                ...(userCompany
+                    ? [
+                          {
+                              level: "COMPANY" as const,
+                              companyName: userCompany,
+                          },
+                      ]
+                    : [{ level: "COMPANY" as const }]),
+            ],
+        };
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const feedbackAssignments = await prisma.feedbackAssignment.findMany({
             where: {
-                reviewerId: employee.id,
-                isCompleted: false,
+                OR: [
+                    { reviewerId: employee.id, isCompleted: false },
+                    {
+                        targetId: employee.id,
+                        isCompleted: true,
+                        ...(userCompany ? { cycle: { companyName: userCompany } } : {}),
+                    },
+                ],
+            },
+            select: {
+                reviewerId: true,
+                targetId: true,
+                isCompleted: true,
+                answers: {
+                    select: { score: true },
+                },
             },
         });
 
+        const pendingFeedbacks = feedbackAssignments.filter(
+            (f) => f.reviewerId === employee.id && !f.isCompleted,
+        ).length;
+
         const targetedCourses = await prisma.academyCourse.findMany({
             where: {
-                ...(user.companyName ? { companyName: user.companyName } : {}),
+                ...(currentUser.companyName ? { companyName: currentUser.companyName } : {}),
                 OR: [
                     { targetEmployeeId: employee.id },
                     { AND: [{ targetEmployeeId: null }, { targetDepartmentId: null }] },
-                    ...(employee.departmentId ? [{ targetDepartmentId: employee.departmentId }] : [])
-                ]
-            }
+                    ...(employee.departmentId ? [{ targetDepartmentId: employee.departmentId }] : []),
+                ],
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                coverUrl: true,
+                videoUrl: true,
+            },
+        });
+
+        const allTemplates = await prisma.onboardingTemplate.findMany({
+            where: {
+                ...(currentUser.companyName ? { companyName: currentUser.companyName } : {}),
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                coverUrl: true,
+                videoUrl: true,
+                departmentId: true,
+                targetStatusConfigId: true,
+                targetStatus: true,
+                tasks: {
+                    select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                    },
+                },
+                courses: {
+                    select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                        videoUrl: true,
+                    },
+                },
+            },
+        });
+
+        const employeeOnboardingRecord = await prisma.employeeOnboarding.findUnique({
+            where: { employeeId: employee.id },
+            select: {
+                courses: {
+                    select: {
+                        courseId: true,
+                        isCompleted: true,
+                        progressPercent: true,
+                        course: {
+                            select: {
+                                templateId: true,
+                            },
+                        },
+                    },
+                },
+                tasks: {
+                    select: {
+                        taskId: true,
+                        status: true,
+                    },
+                },
+            },
+        });
+
+        const employeeOkrs = await prisma.objective.findMany({
+            where: whereOkrs,
+            select: {
+                id: true,
+                title: true,
+                progress: true,
+                minExpectedProgress: true,
+                level: true,
+                departmentId: true,
+                employeeId: true,
+                cycleId: true,
+                createdAt: true,
+                keyResults: {
+                    select: {
+                        id: true,
+                        title: true,
+                        targetValue: true,
+                        currentValue: true,
+                        initialValue: true,
+                        unit: true,
+                        progress: true,
+                        checkIns: {
+                            select: {
+                                id: true,
+                                value: true,
+                                comment: true,
+                                status: true,
+                                createdAt: true,
+                            },
+                            orderBy: { createdAt: "desc" },
+                            take: 1,
+                        },
+                    },
+                },
+                cycle: {
+                    select: {
+                        id: true,
+                        title: true,
+                        startDate: true,
+                        endDate: true,
+                        isCurrent: true,
+                        minExpectedProgress: true,
+                    },
+                },
+                department: { select: { id: true, name: true } },
+                employee: { select: { firstName: true, lastName: true } },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        let currentCycle = employeeOkrs.find((o) => o.cycle?.isCurrent)?.cycle || null;
+        if (!currentCycle) {
+            currentCycle = await prisma.okrCycle.findFirst({
+                where: {
+                    ...(currentUser.companyName ? { OR: [{ companyName: currentUser.companyName }, { companyName: null }] } : {}),
+                },
+                select: {
+                    id: true,
+                    title: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                    minExpectedProgress: true,
+                },
+                orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
+            });
+        }
+
+        const attendances = await prisma.attendance.findMany({
+            where: { employeeId: employee.id },
+            select: {
+                date: true,
+                checkIn: true,
+                checkOut: true,
+                status: true,
+            },
+            orderBy: { date: "desc" },
+            take: 31,
+        });
+
+        const nextGrade = employee.grade
+            ? await prisma.jobGrade.findFirst({
+                  where: {
+                      level: { gt: employee.grade.level },
+                      ...(userCompany ? { OR: [{ companyName: userCompany }, { companyName: null }] } : {}),
+                  },
+                  select: {
+                      id: true,
+                      code: true,
+                      title: true,
+                      level: true,
+                      minSalary: true,
+                      maxSalary: true,
+                      requirements: true,
+                      responsibilities: true,
+                  },
+                  orderBy: { level: "asc" },
+              })
+            : await prisma.jobGrade.findFirst({
+                  where: {
+                      ...(userCompany ? { OR: [{ companyName: userCompany }, { companyName: null }] } : {}),
+                  },
+                  select: {
+                      id: true,
+                      code: true,
+                      title: true,
+                      level: true,
+                      minSalary: true,
+                      maxSalary: true,
+                      requirements: true,
+                      responsibilities: true,
+                  },
+                  orderBy: { level: "asc" },
+              });
+
+        const activePromotionRequest = await prisma.promotionRequest.findFirst({
+            where: {
+                employeeId: employee.id,
+                status: { in: ["PENDING", "APPROVED_BY_MANAGER"] },
+            },
+            select: {
+                id: true,
+                status: true,
+                proposedSalary: true,
+                reason: true,
+                createdAt: true,
+                targetGrade: {
+                    select: {
+                        id: true,
+                        title: true,
+                        level: true,
+                    },
+                },
+                currentGrade: {
+                    select: {
+                        id: true,
+                        title: true,
+                        level: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        const discAssessment = await prisma.discAssessment.findFirst({
+            where: { employeeId: employee.id },
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                primaryType: true,
+                secondaryType: true,
+                dScore: true,
+                iScore: true,
+                sScore: true,
+                cScore: true,
+                createdAt: true,
+            },
         });
 
         const academyCourses = targetedCourses.map((course) => {
@@ -198,17 +428,6 @@ export class DashboardService {
                 type: "ACADEMY",
                 isCompleted: cp?.isCompleted || false,
             };
-        });
-
-        const allTemplates = await prisma.onboardingTemplate.findMany({
-            where: {
-                ...(user.companyName ? { companyName: user.companyName } : {}),
-            },
-            include: {
-                tasks: true,
-                courses: true,
-                targetStatusConfig: true,
-            },
         });
 
         const matchingTemplates = allTemplates.filter((t) => {
@@ -236,45 +455,6 @@ export class DashboardService {
 
             return false;
         });
-
-        const employeeOnboardingRecord =
-            await prisma.employeeOnboarding.findUnique({
-                where: { employeeId: employee.id },
-                include: {
-                    courses: {
-                        where: {
-                            course: {
-                                template: {
-                                    ...(user.companyName ? { companyName: user.companyName } : {}),
-                                },
-                            },
-                        },
-                        include: {
-                            course: {
-                                include: {
-                                    template: true,
-                                },
-                            },
-                        },
-                    },
-                    tasks: {
-                        where: {
-                            task: {
-                                template: {
-                                    ...(user.companyName ? { companyName: user.companyName } : {}),
-                                },
-                            },
-                        },
-                        include: {
-                            task: {
-                                include: {
-                                    template: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            });
 
         const onboardingCourses = matchingTemplates.flatMap((t) => {
             const templateEnrollments = (
@@ -365,80 +545,6 @@ export class DashboardService {
         let okrs: any[] = [];
         let minExpectedProgress = 0;
 
-        let currentCycle = await prisma.okrCycle.findFirst({
-            where: {
-                isCurrent: true,
-                ...(user.companyName ? { OR: [{ companyName: user.companyName }, { companyName: null }] } : {}),
-            },
-        });
-
-        if (!currentCycle) {
-            currentCycle = await prisma.okrCycle.findFirst({
-                where: user.companyName ? { OR: [{ companyName: user.companyName }, { companyName: null }] } : {},
-                orderBy: { startDate: "desc" },
-            });
-        }
-
-        const employeeIdMatches = [
-            employee.id,
-            user.id,
-            ...(employee.userId ? [employee.userId] : []),
-        ].filter(Boolean);
-
-        const userCompany = user.companyName || (employee as any).user?.companyName || null;
-        const companyFilter = userCompany
-            ? { OR: [{ companyName: userCompany }, { companyName: null }] }
-            : {};
-
-        const whereOkrs: any = {
-            OR: [
-                {
-                    employeeId: { in: employeeIdMatches },
-                    ...companyFilter,
-                },
-                {
-                    level: "INDIVIDUAL" as const,
-                    employeeId: { in: employeeIdMatches },
-                    ...companyFilter,
-                },
-                ...(employee.departmentId
-                    ? [
-                          {
-                              level: "DEPARTMENT" as const,
-                              departmentId: employee.departmentId,
-                              ...companyFilter,
-                          },
-                      ]
-                    : []),
-                ...(userCompany
-                    ? [
-                          {
-                              level: "COMPANY" as const,
-                              companyName: userCompany,
-                          },
-                      ]
-                    : [{ level: "COMPANY" as const }]),
-            ],
-        };
-
-        let employeeOkrs = await prisma.objective.findMany({
-            where: whereOkrs,
-            include: { 
-                keyResults: {
-                    include: { 
-                        checkIns: {
-                            orderBy: { createdAt: "desc" },
-                        },
-                    },
-                },
-                cycle: true,
-                department: { select: { name: true } },
-                employee: { select: { firstName: true, lastName: true } },
-            },
-            orderBy: { createdAt: "desc" },
-        });
-
-
         if (currentCycle) {
             minExpectedProgress = currentCycle.minExpectedProgress || 0;
         }
@@ -446,23 +552,20 @@ export class DashboardService {
         if (employeeOkrs.length > 0) {
             const total = employeeOkrs.reduce((acc, okr) => acc + okr.progress, 0);
             okrProgress = Math.round(total / employeeOkrs.length);
-            
-            const okrsWithMinProgress = employeeOkrs.filter(o => o.minExpectedProgress !== null && o.minExpectedProgress !== undefined);
+
+            const okrsWithMinProgress = employeeOkrs.filter(
+                (o) => o.minExpectedProgress !== null && o.minExpectedProgress !== undefined,
+            );
             if (okrsWithMinProgress.length > 0) {
-                const totalMin = okrsWithMinProgress.reduce((acc, okr) => acc + (okr.minExpectedProgress as number), 0);
+                const totalMin = okrsWithMinProgress.reduce(
+                    (acc, okr) => acc + (okr.minExpectedProgress as number),
+                    0,
+                );
                 minExpectedProgress = Math.round(totalMin / okrsWithMinProgress.length);
             }
 
             okrs = employeeOkrs;
         }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const attendances = await prisma.attendance.findMany({
-            where: { employeeId: employee.id },
-            orderBy: { date: "desc" },
-        });
 
         let totalMs = 0;
         const now = new Date();
@@ -489,124 +592,82 @@ export class DashboardService {
             status: todayAtt?.status || null,
         };
 
-        const employeeGrade = employee.grade ? {
-            id: employee.grade.id,
-            code: employee.grade.code,
-            title: employee.grade.title,
-            level: employee.grade.level,
-            minSalary: employee.grade.minSalary,
-            maxSalary: employee.grade.maxSalary,
-            requirements: employee.grade.requirements,
-            responsibilities: employee.grade.responsibilities,
-        } : null;
+        const employeeGrade = employee.grade
+            ? {
+                  id: employee.grade.id,
+                  code: employee.grade.code,
+                  title: employee.grade.title,
+                  level: employee.grade.level,
+                  minSalary: employee.grade.minSalary,
+                  maxSalary: employee.grade.maxSalary,
+                  requirements: employee.grade.requirements,
+                  responsibilities: employee.grade.responsibilities,
+              }
+            : null;
 
         const employeePosition = employee.position?.title || employee.position || null;
         const employeeSalary = employee.salary || employee.grade?.minSalary || null;
 
-        const userCompanyName = user.companyName || null;
-
-        const feedbackAssignments = await prisma.feedbackAssignment.findMany({
-            where: {
-                targetId: employee.id,
-                isCompleted: true,
-                ...(userCompanyName ? { cycle: { companyName: userCompanyName } } : {}),
-            },
-            include: { answers: true },
-        });
+        const targetFeedbacks = feedbackAssignments.filter(
+            (f) => f.targetId === employee.id && f.isCompleted,
+        );
 
         let totalFeedbackScore = 0;
         let totalAnswers = 0;
-        feedbackAssignments.forEach((asg) => {
+        targetFeedbacks.forEach((asg) => {
             asg.answers.forEach((ans) => {
                 totalFeedbackScore += ans.score;
                 totalAnswers += 1;
             });
         });
-        const feedback360Score = totalAnswers > 0
-            ? Number((totalFeedbackScore / totalAnswers).toFixed(1))
-            : null;
-        let nextGrade = null;
-        if (employee.grade) {
-            nextGrade = await prisma.jobGrade.findFirst({
-                where: {
-                    level: { gt: employee.grade.level },
-                    ...(userCompanyName ? { OR: [{ companyName: userCompanyName }, { companyName: null }] } : {}),
-                },
-                orderBy: { level: "asc" },
-            });
-        } else {
-            nextGrade = await prisma.jobGrade.findFirst({
-                where: {
-                    ...(userCompanyName ? { OR: [{ companyName: userCompanyName }, { companyName: null }] } : {}),
-                },
-                orderBy: { level: "asc" },
-            });
-        }
-
-        const activePromotionRequest = await prisma.promotionRequest.findFirst({
-            where: {
-                employeeId: employee.id,
-                status: { in: ["PENDING", "APPROVED_BY_MANAGER"] },
-            },
-            include: {
-                targetGrade: true,
-                currentGrade: true,
-            },
-            orderBy: { createdAt: "desc" },
-        });
+        const feedback360Score =
+            totalAnswers > 0
+                ? Number((totalFeedbackScore / totalAnswers).toFixed(1))
+                : null;
 
         const careerPath = {
             currentGrade: employeeGrade,
-            nextGrade: nextGrade ? {
-                id: nextGrade.id,
-                code: nextGrade.code,
-                title: nextGrade.title,
-                level: nextGrade.level,
-                minSalary: nextGrade.minSalary,
-                maxSalary: nextGrade.maxSalary,
-                requirements: nextGrade.requirements,
-                responsibilities: nextGrade.responsibilities,
-            } : null,
-            activePromotionRequest: activePromotionRequest ? {
-                id: activePromotionRequest.id,
-                status: activePromotionRequest.status,
-                targetGradeTitle: activePromotionRequest.targetGrade?.title,
-                targetGradeLevel: activePromotionRequest.targetGrade?.level,
-                proposedSalary: activePromotionRequest.proposedSalary,
-                reason: activePromotionRequest.reason,
-                createdAt: activePromotionRequest.createdAt,
-            } : null,
+            nextGrade: nextGrade
+                ? {
+                      id: nextGrade.id,
+                      code: nextGrade.code,
+                      title: nextGrade.title,
+                      level: nextGrade.level,
+                      minSalary: nextGrade.minSalary,
+                      maxSalary: nextGrade.maxSalary,
+                      requirements: nextGrade.requirements,
+                      responsibilities: nextGrade.responsibilities,
+                  }
+                : null,
+            activePromotionRequest: activePromotionRequest
+                ? {
+                      id: activePromotionRequest.id,
+                      status: activePromotionRequest.status,
+                      targetGradeTitle: activePromotionRequest.targetGrade?.title,
+                      targetGradeLevel: activePromotionRequest.targetGrade?.level,
+                      proposedSalary: activePromotionRequest.proposedSalary,
+                      reason: activePromotionRequest.reason,
+                      createdAt: activePromotionRequest.createdAt,
+                  }
+                : null,
             okrTarget: 80,
             currentOkr: okrProgress,
             feedbackTarget: 4.0,
             currentFeedback: feedback360Score,
             isOkrMet: okrProgress >= 80,
             isFeedbackMet: feedback360Score !== null && feedback360Score >= 4.0,
-            isReadyForPromotion: okrProgress >= 80 && (feedback360Score === null || feedback360Score >= 4.0),
+            isReadyForPromotion:
+                okrProgress >= 80 &&
+                (feedback360Score === null || feedback360Score >= 4.0),
         };
-
-        const discAssessment = await prisma.discAssessment.findFirst({
-            where: { employeeId: employee.id },
-            orderBy: { createdAt: "desc" },
-            select: {
-                id: true,
-                primaryType: true,
-                secondaryType: true,
-                dScore: true,
-                iScore: true,
-                sScore: true,
-                cScore: true,
-                createdAt: true,
-            },
-        });
 
         return {
             user: {
                 firstName: employee.firstName,
                 lastName: employee.lastName,
-                role: user.role,
-                email: user.email,
-                companyName: user.companyName,
+                role: currentUser.role,
+                email: currentUser.email,
+                companyName: currentUser.companyName,
                 employee: {
                     id: employee.id,
                     department: employee.department?.name || null,
@@ -650,6 +711,7 @@ export class DashboardService {
     ) {
         const user = await prisma.user.findUnique({
             where: { id: userId },
+            select: { id: true, role: true },
         });
 
         let targetId = userId;
@@ -662,16 +724,21 @@ export class DashboardService {
 
         let employee = await prisma.employee.findUnique({
             where: { userId: targetId },
+            select: { id: true },
         });
 
         if (!employee) {
             employee = await prisma.employee.findUnique({
                 where: { id: targetId },
+                select: { id: true },
             });
         }
 
         if (!employee) {
-            const targetUser = await prisma.user.findUnique({ where: { id: targetId } });
+            const targetUser = await prisma.user.findUnique({
+                where: { id: targetId },
+                select: { id: true, email: true },
+            });
             if (targetUser) {
                 employee = await prisma.employee.create({
                     data: {
@@ -680,6 +747,7 @@ export class DashboardService {
                         lastName: "Employee",
                         status: "NEW",
                     },
+                    select: { id: true },
                 });
             }
         }
@@ -689,7 +757,7 @@ export class DashboardService {
         }
 
         const progressVal = Math.round(
-            Number(payload.progressPercent ?? payload.progress ?? payload.progressPercentage ?? 0)
+            Number(payload.progressPercent ?? payload.progress ?? payload.progressPercentage ?? 0),
         );
         const isFullyCompleted = progressVal >= 95;
 
@@ -719,6 +787,7 @@ export class DashboardService {
         if (payload.type === "ONBOARDING") {
             let onboarding = await prisma.employeeOnboarding.findUnique({
                 where: { employeeId: employee.id },
+                select: { id: true },
             });
 
             if (!onboarding) {
@@ -727,18 +796,29 @@ export class DashboardService {
                         employeeId: employee.id,
                         status: "IN_PROGRESS",
                     },
+                    select: { id: true },
                 });
             }
 
             let validCourseId = payload.courseId;
             const existingCourse = await prisma.onboardingCourse.findUnique({
                 where: { id: payload.courseId },
+                select: { id: true },
             });
 
             if (!existingCourse) {
                 const template = await prisma.onboardingTemplate.findUnique({
                     where: { id: payload.courseId },
-                    include: { courses: true },
+                    select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                        videoUrl: true,
+                        courses: {
+                            select: { id: true },
+                            take: 1,
+                        },
+                    },
                 });
 
                 if (template) {
@@ -752,6 +832,7 @@ export class DashboardService {
                                 description: template.description,
                                 videoUrl: template.videoUrl || "",
                             },
+                            select: { id: true },
                         });
                         validCourseId = newCourse.id;
                     }
@@ -784,7 +865,7 @@ export class DashboardService {
     async getHRDashboardActivities(userId: string) {
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { id: true, role: true, companyName: true },
+            select: { id: true, companyName: true },
         });
 
         if (!user) {
@@ -796,122 +877,150 @@ export class DashboardService {
             ? { user: { companyName } }
             : {};
 
-        const [
-            attendances,
-            leaveRequests,
-            onboardings,
-            promotionRequests,
-            feedbackAssignments,
-            objectives,
-            lifecycleEvents,
-            notifications,
-        ] = await Promise.all([
-            prisma.attendance.findMany({
-                where: {
-                    employee: employeeCompanyFilter,
-                },
-                include: {
-                    employee: {
-                        include: { department: true, user: true },
-                    },
-                },
-                orderBy: { createdAt: "desc" },
-                take: 15,
-            }),
-            prisma.leaveRequest.findMany({
-                where: {
-                    employee: employeeCompanyFilter,
-                },
-                include: {
-                    employee: {
-                        include: { department: true, user: true },
-                    },
-                },
-                orderBy: { createdAt: "desc" },
-                take: 10,
-            }),
-            prisma.employeeOnboarding.findMany({
-                where: {
-                    employee: employeeCompanyFilter,
-                },
-                include: {
-                    employee: {
-                        include: { department: true, user: true },
-                    },
-                    tasks: true,
-                    courses: true,
-                },
-                orderBy: { updatedAt: "desc" },
-                take: 10,
-            }),
-            prisma.promotionRequest.findMany({
-                where: {
-                    employee: employeeCompanyFilter,
-                },
-                include: {
-                    employee: {
-                        include: { department: true, user: true },
-                    },
-                    targetGrade: true,
-                },
-                orderBy: { createdAt: "desc" },
-                take: 10,
-            }),
-            prisma.feedbackAssignment.findMany({
-                where: {
-                    target: employeeCompanyFilter,
-                    isCompleted: true,
-                },
-                include: {
-                    target: {
-                        include: { department: true, user: true },
-                    },
-                },
-                orderBy: { createdAt: "desc" },
-                take: 10,
-            }),
-            prisma.objective.findMany({
-                where: {
-                    ...(companyName ? { companyName } : {}),
-                    employeeId: { not: null },
-                },
-                include: {
-                    employee: {
-                        include: { department: true, user: true },
-                    },
-                },
-                orderBy: { updatedAt: "desc" },
-                take: 10,
-            }),
-            prisma.employeeLifecycleEvent.findMany({
-                where: {
-                    employee: employeeCompanyFilter,
-                },
-                include: {
-                    employee: {
-                        include: { department: true, user: true },
-                    },
-                },
-                orderBy: { createdAt: "desc" },
-                take: 10,
-            }),
-            prisma.notification.findMany({
-                where: {
-                    ...(companyName ? { user: { companyName } } : {}),
-                },
-                include: {
-                    user: {
-                        include: {
-                            employee: {
-                                include: { department: true, user: true },
+        const empSelect = {
+            select: {
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                department: { select: { name: true } },
+            },
+        };
+
+        const attendances = await prisma.attendance.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                status: true,
+                lateMinutes: true,
+                createdAt: true,
+                date: true,
+                employee: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+
+        const leaveRequests = await prisma.leaveRequest.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                type: true,
+                reason: true,
+                status: true,
+                createdAt: true,
+                employee: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+
+        const onboardings = await prisma.employeeOnboarding.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+                tasks: { select: { status: true } },
+                courses: { select: { isCompleted: true } },
+                employee: empSelect,
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 10,
+        });
+
+        const promotionRequests = await prisma.promotionRequest.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                createdAt: true,
+                targetGrade: { select: { title: true } },
+                employee: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+
+        const feedbackAssignments = await prisma.feedbackAssignment.findMany({
+            where: {
+                target: employeeCompanyFilter,
+                isCompleted: true,
+            },
+            select: {
+                id: true,
+                createdAt: true,
+                target: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+
+        const objectives = await prisma.objective.findMany({
+            where: {
+                ...(companyName ? { companyName } : {}),
+                employeeId: { not: null },
+            },
+            select: {
+                id: true,
+                title: true,
+                progress: true,
+                createdAt: true,
+                updatedAt: true,
+                employee: empSelect,
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 10,
+        });
+
+        const lifecycleEvents = await prisma.employeeLifecycleEvent.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                createdAt: true,
+                eventDate: true,
+                employee: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+
+        const notifications = await prisma.notification.findMany({
+            where: {
+                ...(companyName ? { user: { companyName } } : {}),
+            },
+            select: {
+                id: true,
+                title: true,
+                message: true,
+                createdAt: true,
+                user: {
+                    select: {
+                        employee: {
+                            select: {
+                                firstName: true,
+                                lastName: true,
+                                avatar: true,
+                                department: { select: { name: true } },
                             },
                         },
                     },
                 },
-                orderBy: { createdAt: "desc" },
-                take: 10,
-            }),
-        ]);
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
 
         const GRADIENTS = [
             "from-purple-500 to-violet-600",
@@ -955,7 +1064,7 @@ export class DashboardService {
             return date.toLocaleDateString("uz-UZ");
         };
 
-        const getAvatarUrl = (emp: any) => emp?.avatar || emp?.user?.avatar || null;
+        const getAvatarUrl = (emp: any) => emp?.avatar || null;
 
         const items: any[] = [];
 
@@ -1158,7 +1267,7 @@ export class DashboardService {
     async getHRDashboardSummary(userId: string) {
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { id: true, role: true, companyName: true },
+            select: { id: true, companyName: true },
         });
 
         if (!user) {
@@ -1175,74 +1284,75 @@ export class DashboardService {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const [
-            totalEmployees,
-            totalDepartments,
-            nonDirectorEmployees,
-            todayCheckedInCount,
-            requiredPolicies,
-        ] = await Promise.all([
-            prisma.employee.count({
-                where: {
-                    ...(companyName ? { user: { companyName } } : {}),
-                    user: {
-                        role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
-                    },
-                },
-            }),
-            prisma.department.count({
-                where: {
-                    ...(companyName ? { companyName } : {}),
-                },
-            }),
-            prisma.employee.findMany({
-                where: {
-                    ...(companyName ? { user: { companyName } } : {}),
-                    user: {
-                        role: { not: "DIRECTOR" },
-                    },
-                },
-                include: {
-                    user: {
-                        include: {
-                            customRole: true,
-                        },
-                    },
-                    onboarding: {
-                        include: {
-                            tasks: true,
-                            courses: true,
-                        },
-                    },
-                    courseProgresses: true,
-                },
-            }),
-            prisma.attendance.count({
-                where: {
-                    employee: employeeCompanyFilter,
-                    date: { gte: today, lt: tomorrow },
-                    OR: [
-                        { checkIn: { not: null } },
-                        { status: { in: ["PRESENT", "LATE", "HALF_DAY"] } },
-                    ],
-                },
-            }),
-            prisma.companyPolicy.findMany({
-                where: {
-                    parentId: null,
-                    isRequired: true,
-                    ...(companyName ? { OR: [{ companyName }, { companyName: null }] } : {}),
-                },
-                include: {
-                    signatures: true,
-                },
-            }),
-        ]);
+        const allDepartments = await prisma.department.findMany({
+            where: companyName ? { companyName } : {},
+            select: { id: true },
+        });
 
-        const validEmployees = nonDirectorEmployees.filter((emp: any) => {
+        const allEmployees = await prisma.employee.findMany({
+            where: companyName ? { user: { companyName } } : {},
+            select: {
+                id: true,
+                status: true,
+                user: {
+                    select: {
+                        role: true,
+                        customRole: {
+                            select: {
+                                baseRole: true,
+                            },
+                        },
+                    },
+                },
+                onboarding: {
+                    select: {
+                        status: true,
+                    },
+                },
+            },
+        });
+
+        const todayAttendances = await prisma.attendance.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+                date: { gte: today, lt: tomorrow },
+                OR: [
+                    { checkIn: { not: null } },
+                    { status: { in: ["PRESENT", "LATE", "HALF_DAY"] } },
+                ],
+            },
+            select: { id: true },
+        });
+
+        const requiredPolicies = await prisma.companyPolicy.findMany({
+            where: {
+                parentId: null,
+                isRequired: true,
+                ...(companyName ? { OR: [{ companyName }, { companyName: null }] } : {}),
+            },
+            select: {
+                id: true,
+                version: true,
+                signatures: {
+                    select: {
+                        employeeId: true,
+                        signedVersion: true,
+                    },
+                },
+            },
+        });
+
+        const totalDepartments = allDepartments.length;
+        const todayCheckedInCount = todayAttendances.length;
+
+        const totalEmployees = allEmployees.filter(
+            (emp) => emp.user?.role !== "SUPER_ADMIN" && emp.user?.role !== "DIRECTOR",
+        ).length;
+
+        const validEmployees = allEmployees.filter((emp: any) => {
             const role = emp.user?.role;
             const baseRole = emp.user?.customRole?.baseRole;
-            return role !== "DIRECTOR" && baseRole !== "DIRECTOR";
+            return role !== "DIRECTOR" && baseRole !== "DIRECTOR" && role !== "SUPER_ADMIN";
         });
 
         let onboardingPercentage = 0;
@@ -1252,33 +1362,13 @@ export class DashboardService {
 
             for (const emp of validEmployees) {
                 const ob = emp.onboarding;
-                const tasks = ob?.tasks || [];
-                const courses = ob?.courses || [];
-                const academyCourses = emp.courseProgresses || [];
-
-                const totalTasks = tasks.length;
-                const completedTasks = tasks.filter((t: any) => t.status === "COMPLETED").length;
-
-                const allCourses = [...courses, ...academyCourses];
-                const totalCourses = allCourses.length;
-                const totalCourseProgress = allCourses.reduce(
-                    (acc: number, c: any) => acc + (c.isCompleted ? 100 : (c.progressPercent || 0)),
-                    0,
-                );
-
-                const maxPossibleScore = totalTasks * 100 + totalCourses * 100;
-                const currentScore = completedTasks * 100 + totalCourseProgress;
-
-                if (maxPossibleScore > 0) {
-                    const empProgress = Math.round((currentScore / maxPossibleScore) * 100);
-                    totalScoreSum += empProgress;
+                if (ob) {
                     countWithScore++;
-                } else if (ob?.status === "COMPLETED") {
-                    totalScoreSum += 100;
-                    countWithScore++;
-                } else if (ob) {
-                    totalScoreSum += 0;
-                    countWithScore++;
+                    if (ob.status === "COMPLETED") {
+                        totalScoreSum += 100;
+                    } else if (ob.status === "IN_PROGRESS") {
+                        totalScoreSum += 50;
+                    }
                 }
             }
 

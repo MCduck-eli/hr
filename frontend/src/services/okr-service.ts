@@ -113,11 +113,20 @@ export const fetchPendingCheckIns = async () => {
     return res.json().then(data => data.data);
 };
 
-export const reviewCheckIn = async (checkInId: string, status: "APPROVED" | "REJECTED") => {
+export const reviewCheckIn = async (checkInId: string, status: "APPROVED" | "REJECTED", progress?: number, rejectReason?: string) => {
     const res = await fetch(`${API_URL}/okr/check-ins/${checkInId}/review`, {
         method: "PATCH",
         headers: getHeaders(),
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+            status,
+            progress,
+            value: progress,
+            percentage: progress,
+            rejectReason,
+            reason: rejectReason,
+            comment: rejectReason,
+            feedback: rejectReason,
+        }),
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));

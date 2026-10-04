@@ -38,20 +38,48 @@ export interface HRDashboardStats {
     regulationsStatusText?: string;
 }
 
-export const fetchHRDashboardActivities = async (): Promise<HRActivityItem[]> => {
-    const res = await fetch(`${API_URL}/dashboard/hr-activities`, {
-        headers: getHeaders(),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Xatolik yuz berdi");
-    return Array.isArray(data.data) ? data.data : [];
+export const fetchHRDashboardActivities = async (signal?: AbortSignal): Promise<HRActivityItem[]> => {
+    try {
+        const res = await fetch(`${API_URL}/dashboard/hr-activities`, {
+            headers: getHeaders(),
+            signal,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Xatolik yuz berdi");
+        return Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
+    } catch (err: any) {
+        if (err.name === "AbortError") return [];
+        throw err;
+    }
 };
 
-export const fetchHRDashboardStats = async (): Promise<HRDashboardStats> => {
-    const res = await fetch(`${API_URL}/dashboard/hr-summary`, {
-        headers: getHeaders(),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Xatolik yuz berdi");
-    return data.data;
+export const fetchHRDashboardStats = async (signal?: AbortSignal): Promise<HRDashboardStats> => {
+    try {
+        const res = await fetch(`${API_URL}/dashboard/hr-summary`, {
+            headers: getHeaders(),
+            signal,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Xatolik yuz berdi");
+        return data.data || data;
+    } catch (err: any) {
+        if (err.name === "AbortError") throw err;
+        throw err;
+    }
+};
+
+export const fetchHRMonitoringData = async (signal?: AbortSignal): Promise<any[]> => {
+    try {
+        const res = await fetch(`${API_URL}/onboarding/monitoring`, {
+            headers: getHeaders(),
+            signal,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Xatolik yuz berdi");
+        const list = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
+        return list.filter((record: any) => record.employee?.user?.role !== "DIRECTOR");
+    } catch (err: any) {
+        if (err.name === "AbortError") return [];
+        throw err;
+    }
 };

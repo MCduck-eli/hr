@@ -72,45 +72,61 @@ function EmployeeMonitoringAvatar({ employee }: { employee: any }) {
     );
 }
 
-export default function HRMonitoring() {
-    const [monitoringData, setMonitoringData] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+interface HRMonitoringProps {
+    monitoringData?: any[];
+    loading?: boolean;
+}
+
+export default function HRMonitoring({ monitoringData: propData, loading: propLoading }: HRMonitoringProps = {}) {
+    const [internalData, setInternalData] = useState<any[]>([]);
+    const [internalLoading, setInternalLoading] = useState(false);
 
     useEffect(() => {
+        if (propData !== undefined) return;
+        let isMounted = true;
+        const controller = new AbortController();
+
         const fetchData = async () => {
+            setInternalLoading(true);
             try {
                 const token = localStorage.getItem("token");
-                const API_URL = process.env.NEXT_PUBLIC_API_URL;
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
 
                 const res = await fetch(`${API_URL}/onboarding/monitoring`, {
                     headers: {
-                        Authorization: `Bearer ${token}`,
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
                     },
+                    signal: controller.signal,
                 });
                 const data = await res.json();
 
-                if (res.ok) {
-                    let list = data.data || [];
-
+                if (res.ok && isMounted) {
+                    let list = Array.isArray(data.data) ? data.data : [];
                     list = list.filter(
-                        (record: any) =>
-                            record.employee?.user?.role !== "DIRECTOR",
+                        (record: any) => record.employee?.user?.role !== "DIRECTOR",
                     );
-
-                    setMonitoringData(list);
+                    setInternalData(list);
                 }
             } catch (err) {
             } finally {
-                setLoading(false);
+                if (isMounted) setInternalLoading(false);
             }
         };
 
         fetchData();
-    }, []);
+
+        return () => {
+            isMounted = false;
+            controller.abort();
+        };
+    }, [propData]);
+
+    const monitoringData = propData !== undefined ? propData : internalData;
+    const loading = propLoading !== undefined ? propLoading : (propData === undefined && internalLoading);
 
     const t = useTranslations("HRMonitoring");
 
-    if (loading) {
+    if (loading && monitoringData.length === 0) {
         return (
             <div className="p-8 text-xs font-bold uppercase tracking-wider text-gray-400">
                 {t("loading")}

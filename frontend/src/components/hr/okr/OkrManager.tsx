@@ -35,6 +35,24 @@ export default function OkrManager() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
     const [editingObjective, setEditingObjective] = useState<any>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCycleSubmitting, setIsCycleSubmitting] = useState(false);
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [reviewProgressMap, setReviewProgressMap] = useState<Record<string, number>>({});
+    const [rejectingCheckInId, setRejectingCheckInId] = useState<string | null>(null);
+    const [rejectReason, setRejectReason] = useState("");
+    const [isReviewing, setIsReviewing] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState<"ALL" | "DEPARTMENT" | "INDIVIDUAL" | "HISTORY">("ALL");
+    const [userRole, setUserRole] = useState<string>("");
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+    const showToast = (message: string, type: "success" | "error" = "success") => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast((current) => (current?.message === message ? null : current));
+        }, 4000);
+    };
     
     const [form, setForm] = useState({
         level: "INDIVIDUAL",
@@ -56,6 +74,13 @@ export default function OkrManager() {
     });
 
     useEffect(() => {
+        try {
+            const stored = localStorage.getItem("user");
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                setUserRole(parsed.role || "");
+            }
+        } catch (e) {}
         loadInitialData();
         loadEmployees();
         loadDepartments();
@@ -232,7 +257,9 @@ export default function OkrManager() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         try {
+            setIsSubmitting(true);
             const payload = {
                 cycleId: selectedCycleId,
                 ...form,
@@ -243,41 +270,63 @@ export default function OkrManager() {
 
             if (editingObjective) {
                 await updateObjective(editingObjective.id, payload);
+                showToast("OKR muvaffaqiyatli saqlandi!", "success");
             } else {
                 await createObjective(payload);
+                showToast("OKR muvaffaqiyatli yaratildi!", "success");
             }
             setIsModalOpen(false);
             invalidateQuery("okr");
             loadDashboard(selectedCycleId, true);
         } catch (e: any) {
-            alert(e.message);
+            showToast(e?.message || "Xatolik yuz berdi, qayta urinib ko'ring", "error");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm(t("confirmDeleteOkr"))) return;
+    const handleDelete = (id: string) => {
+        setDeleteTargetId(id);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteTargetId || isDeleting) return;
         try {
-            await deleteObjective(id);
+            setIsDeleting(true);
+            await deleteObjective(deleteTargetId);
+            setDeleteTargetId(null);
+            showToast("OKR muvaffaqiyatli o'chirildi!", "success");
             invalidateQuery("okr");
             loadDashboard(selectedCycleId, true);
         } catch (e: any) {
-            alert(e.message);
+            showToast(e?.message || "Xatolik yuz berdi, qayta urinib ko'ring", "error");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
-    const handleReviewCheckIn = async (checkInId: string, status: "APPROVED" | "REJECTED") => {
+    const handleReviewCheckIn = async (checkInId: string, status: "APPROVED" | "REJECTED", customProgress?: number, reason?: string) => {
         try {
-            await reviewCheckIn(checkInId, status);
+            setIsReviewing(true);
+            const progress = customProgress !== undefined ? customProgress : (reviewProgressMap[checkInId] !== undefined ? reviewProgressMap[checkInId] : undefined);
+            await reviewCheckIn(checkInId, status, progress, reason);
+            setRejectingCheckInId(null);
+            setRejectReason("");
+            showToast("Check-in holati muvaffaqiyatli yangilandi!", "success");
             invalidateQuery("okr");
             loadDashboard(selectedCycleId, true);
         } catch (e: any) {
-            alert(e.message);
+            showToast(e?.message || "Xatolik yuz berdi, qayta urinib ko'ring", "error");
+        } finally {
+            setIsReviewing(false);
         }
     };
 
     const handleCreateCycle = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isCycleSubmitting) return;
         try {
+            setIsCycleSubmitting(true);
             const payload = {
                 ...cycleForm,
                 minExpectedProgress: Number(cycleForm.minExpectedProgress) || 0,
@@ -286,10 +335,13 @@ export default function OkrManager() {
             };
             await createOkrCycle(payload);
             setIsCycleModalOpen(false);
+            showToast("Sikl muvaffaqiyatli yaratildi!", "success");
             invalidateQuery("okr");
             loadInitialData();
         } catch (e: any) {
-            alert(e.message);
+            showToast(e?.message || "Xatolik yuz berdi, qayta urinib ko'ring", "error");
+        } finally {
+            setIsCycleSubmitting(false);
         }
     };
 
@@ -405,43 +457,108 @@ export default function OkrManager() {
                                 <span>{t("pendingTasks")} ({pendingCheckIns.length})</span>
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {pendingCheckIns.map((ci: any) => (
-                                    <div key={ci.id} className="rounded-2xl border border-orange-200 bg-orange-50/40 p-5 flex flex-col gap-4 shadow-sm">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                                                    {ci.keyResult?.objective?.employee?.firstName} {ci.keyResult?.objective?.employee?.lastName}
+                                {pendingCheckIns.map((ci: any) => {
+                                    const initialVal = ci.value !== undefined && ci.value !== null ? Number(ci.value) : 100;
+                                    const currentVal = reviewProgressMap[ci.id] !== undefined ? reviewProgressMap[ci.id] : initialVal;
+
+                                    return (
+                                        <div key={ci.id} className="rounded-2xl border border-orange-200 bg-orange-50/40 p-5 flex flex-col gap-4 shadow-sm">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                                        {ci.keyResult?.objective?.employee?.firstName} {ci.keyResult?.objective?.employee?.lastName}
+                                                    </span>
+                                                    <h3 className="text-sm font-bold text-gray-900">{ci.keyResult?.title}</h3>
+                                                </div>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2.5 py-1 rounded-lg">
+                                                    {t("pending")}
                                                 </span>
-                                                <h3 className="text-sm font-bold text-gray-900">{ci.keyResult?.title}</h3>
                                             </div>
-                                            <span className="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2.5 py-1 rounded-lg">
-                                                {t("pending")}
-                                            </span>
-                                        </div>
-                                        {ci.comment && (
-                                            <p className="text-xs text-gray-700 bg-white p-3 rounded-xl border border-orange-100 italic">"{ci.comment}"</p>
-                                        )}
-                                        {ci.imageUrl && (
-                                            <div className="relative h-48 w-full bg-gray-100 rounded-xl border border-gray-200 overflow-hidden">
-                                                <img src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:5001"}${ci.imageUrl}`} alt="Proof" className="object-contain w-full h-full" />
+                                            {ci.comment && (
+                                                <p className="text-xs text-gray-700 bg-white p-3 rounded-xl border border-orange-100 italic">"{ci.comment}"</p>
+                                            )}
+                                            {ci.imageUrl && (
+                                                <div className="relative h-48 w-full bg-gray-100 rounded-xl border border-gray-200 overflow-hidden">
+                                                    <img src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:5001"}${ci.imageUrl}`} alt="Proof" className="object-contain w-full h-full" />
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                                    Tasdiqlanayotgan progress (%)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    value={currentVal}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                                                        setReviewProgressMap((prev) => ({
+                                                            ...prev,
+                                                            [ci.id]: Math.min(100, Math.max(0, val)),
+                                                        }));
+                                                    }}
+                                                    className="w-full bg-white border border-orange-200 rounded-xl p-2.5 text-sm focus:border-[#9327FF] focus:ring-2 focus:ring-purple-500/20 outline-none font-medium text-slate-800"
+                                                />
                                             </div>
-                                        )}
-                                        <div className="flex gap-3 mt-1">
-                                            <button 
-                                                onClick={() => handleReviewCheckIn(ci.id, "APPROVED")}
-                                                className="flex-1 bg-[#9327FF] hover:bg-[#7e22ce] text-white py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer"
-                                            >
-                                                {t("approve")}
-                                            </button>
-                                            <button 
-                                                onClick={() => handleReviewCheckIn(ci.id, "REJECTED")}
-                                                className="flex-1 bg-white border border-gray-200 text-gray-700 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-gray-100 transition-all cursor-pointer"
-                                            >
-                                                {t("reject")}
-                                            </button>
+                                            {rejectingCheckInId === ci.id ? (
+                                                <div className="flex flex-col gap-2 mt-1 p-3 bg-white rounded-xl border border-red-200 shadow-sm">
+                                                    <label className="text-xs font-bold uppercase tracking-wider text-red-600">
+                                                        Rad etish sababi
+                                                    </label>
+                                                    <textarea
+                                                        value={rejectReason}
+                                                        onChange={(e) => setRejectReason(e.target.value)}
+                                                        placeholder="Masalan: Hisobot to'liq emas, fayllar yetishmayapti..."
+                                                        rows={3}
+                                                        className="w-full border border-red-200 rounded-md p-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 text-slate-800"
+                                                    />
+                                                    <div className="flex gap-2 justify-end mt-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setRejectingCheckInId(null);
+                                                                setRejectReason("");
+                                                            }}
+                                                            disabled={isReviewing}
+                                                            className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all cursor-pointer"
+                                                        >
+                                                            Bekor qilish
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={!rejectReason.trim() || isReviewing}
+                                                            onClick={() => handleReviewCheckIn(ci.id, "REJECTED", undefined, rejectReason.trim())}
+                                                            className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
+                                                        >
+                                                            {isReviewing ? "Yuborilmoqda..." : "Tasdiqlashni rad etish"}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex gap-3 mt-1">
+                                                    <button 
+                                                        onClick={() => handleReviewCheckIn(ci.id, "APPROVED")}
+                                                        disabled={isReviewing}
+                                                        className="flex-1 bg-[#9327FF] hover:bg-[#7e22ce] text-white py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                                                    >
+                                                        {t("approve")}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setRejectingCheckInId(ci.id);
+                                                            setRejectReason("");
+                                                        }}
+                                                        disabled={isReviewing}
+                                                        className="flex-1 bg-white border border-gray-200 text-gray-700 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-gray-100 transition-all cursor-pointer disabled:opacity-50"
+                                                    >
+                                                        {t("reject")}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -474,77 +591,136 @@ export default function OkrManager() {
                     </div>
 
                     <div className="flex flex-col gap-6">
-                        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-gray-100">
                             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">{t("allOkrs")}</h2>
+                            <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl">
+                                {[
+                                    { id: "ALL", label: "Barcha OKR lar" },
+                                    { id: "DEPARTMENT", label: "Bo'limlar" },
+                                    { id: "INDIVIDUAL", label: "Shaxsiy" },
+                                    { id: "HISTORY", label: "Tarix" }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => setSelectedCategory(tab.id as any)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                                            selectedCategory === tab.id
+                                                ? "bg-white text-gray-900 shadow-sm"
+                                                : "text-gray-500 hover:text-gray-900"
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 gap-4">
-                            {[...(dashboard.tree?.company || []), ...(dashboard.tree?.department || []), ...(dashboard.tree?.individual || [])].map((okr: any) => (
-                                <div key={okr.id} className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col gap-6 hover:shadow-md transition-all relative group">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex items-center gap-2.5">
-                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md ${okr.level === 'COMPANY' ? 'bg-purple-50 text-purple-700 border border-purple-100' : okr.level === 'DEPARTMENT' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-gray-100 text-gray-700'}`}>
-                                                    {okr.level}
-                                                </span>
-                                                {okr.employee && (
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">
-                                                        {okr.employee.firstName} {okr.employee.lastName}
-                                                    </span>
-                                                )}
-                                                {okr.department && (
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">
-                                                        {t("departmentLabel")}: {okr.department.name}
-                                                    </span>
-                                                )}
-                                                <span className="text-[10px] font-medium text-gray-400">
-                                                    {t("statusLabel")}: {okr.status}
-                                                </span>
-                                            </div>
-                                            <h3 className="text-lg font-bold text-gray-900">{okr.title}</h3>
-                                            {okr.description && <p className="text-xs text-gray-500 font-medium">{okr.description}</p>}
-                                        </div>
-                                        <div className="flex items-center gap-6">
-                                            <div className="flex flex-col items-end gap-0.5">
-                                                <span className="text-2xl font-black font-mono tracking-tight text-gray-900">{Math.round(okr.progress)}%</span>
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("total")}</span>
-                                            </div>
-                                            <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => handleOpenModal(okr)} className="text-[10px] font-bold uppercase tracking-wider text-[#9327FF] hover:underline cursor-pointer">{t("edit")}</button>
-                                                <button onClick={() => handleDelete(okr.id)} className="text-[10px] font-bold uppercase tracking-wider text-rose-600 hover:underline cursor-pointer">{t("delete")}</button>
-                                            </div>
-                                        </div>
-                                    </div>
+                        {(() => {
+                            const allObjectives = [
+                                ...(dashboard.tree?.company || []),
+                                ...(dashboard.tree?.department || []),
+                                ...(dashboard.tree?.individual || [])
+                            ];
+                            const displayedObjectives = allObjectives.filter((okr: any) => {
+                                const isCompleted = Math.round(okr.progress || 0) >= 100;
+                                if (selectedCategory === "HISTORY") {
+                                    return isCompleted;
+                                }
+                                if (selectedCategory === "DEPARTMENT") {
+                                    return okr.level === "DEPARTMENT";
+                                }
+                                if (selectedCategory === "INDIVIDUAL") {
+                                    return okr.level === "INDIVIDUAL";
+                                }
+                                return true;
+                            });
 
-                                    {okr.keyResults?.length > 0 && (
-                                        <div className="bg-gray-50/70 rounded-xl p-4 flex flex-col gap-3 border border-gray-100">
-                                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("keyResults")}</h4>
-                                            <div className="flex flex-col gap-2.5">
-                                                {okr.keyResults.map((kr: any) => (
-                                                    <div key={kr.id} className="flex items-center justify-between text-xs">
-                                                        <span className="font-semibold text-gray-800">{kr.title}</span>
-                                                        <div className="flex items-center gap-3 w-1/3">
-                                                            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                                <div className="h-full bg-[#9327FF] rounded-full" style={{ width: `${kr.progress}%` }} />
+                            const isHr = userRole === "HR_ADMIN" || userRole === "SUPER_ADMIN" || userRole === "DIRECTOR";
+
+                            return (
+                                <div className="grid grid-cols-1 gap-4">
+                                    {displayedObjectives.map((okr: any) => {
+                                        const isReadOnly = selectedCategory === "HISTORY" && !isHr;
+
+                                        return (
+                                            <div key={okr.id} className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col gap-6 hover:shadow-md transition-all relative group">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex flex-col gap-2">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md ${okr.level === 'COMPANY' ? 'bg-purple-50 text-purple-700 border border-purple-100' : okr.level === 'DEPARTMENT' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-gray-100 text-gray-700'}`}>
+                                                                {okr.level}
+                                                            </span>
+                                                            {okr.employee && (
+                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">
+                                                                    {okr.employee.firstName} {okr.employee.lastName}
+                                                                </span>
+                                                            )}
+                                                            {okr.department && (
+                                                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">
+                                                                    {t("departmentLabel")}: {okr.department.name}
+                                                                </span>
+                                                            )}
+                                                            <span className="text-[10px] font-medium text-gray-400">
+                                                                {t("statusLabel")}: {okr.status}
+                                                            </span>
+                                                            {Math.round(okr.progress || 0) >= 100 && (
+                                                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                                    ✓ Yakunlangan
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <h3 className="text-lg font-bold text-gray-900">{okr.title}</h3>
+                                                        {okr.description && <p className="text-xs text-gray-500 font-medium">{okr.description}</p>}
+                                                    </div>
+                                                    <div className="flex items-center gap-6">
+                                                        <div className="flex flex-col items-end gap-0.5">
+                                                            <span className="text-2xl font-black font-mono tracking-tight text-gray-900">{Math.round(okr.progress)}%</span>
+                                                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("total")}</span>
+                                                        </div>
+                                                        {!isReadOnly && (
+                                                            <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button onClick={() => handleOpenModal(okr)} className="text-[10px] font-bold uppercase tracking-wider text-[#9327FF] hover:underline cursor-pointer">{t("edit")}</button>
+                                                                <button onClick={() => handleDelete(okr.id)} className="text-[10px] font-bold uppercase tracking-wider text-rose-600 hover:underline cursor-pointer">{t("delete")}</button>
                                                             </div>
-                                                            <span className="text-xs font-mono font-bold w-20 text-right text-gray-700">{kr.currentValue} / {kr.targetValue} {kr.unit}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {okr.keyResults?.length > 0 && (
+                                                    <div className="bg-gray-50/70 rounded-xl p-4 flex flex-col gap-3 border border-gray-100">
+                                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("keyResults")}</h4>
+                                                        <div className="flex flex-col gap-2.5">
+                                                            {okr.keyResults.map((kr: any) => (
+                                                                <div key={kr.id} className="flex items-center justify-between text-xs">
+                                                                    <span className="font-semibold text-gray-800">{kr.title}</span>
+                                                                    <div className="flex items-center gap-3 w-1/3">
+                                                                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                                            <div className="h-full bg-[#9327FF] rounded-full" style={{ width: `${kr.progress}%` }} />
+                                                                        </div>
+                                                                        <span className="text-xs font-mono font-bold w-20 text-right text-gray-700">{kr.currentValue} / {kr.targetValue} {kr.unit}</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
-                                                ))}
+                                                )}
                                             </div>
+                                        );
+                                    })}
+                                    {displayedObjectives.length === 0 && (
+                                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center gap-2 text-center">
+                                            <div className="w-10 h-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center text-xl">
+                                                🎯
+                                            </div>
+                                            <span className="text-sm text-gray-400 font-medium">
+                                                {selectedCategory === "HISTORY" ? "Yakunlangan OKR lar mavjud emas" : t("noOkrsInCycle")}
+                                            </span>
                                         </div>
                                     )}
                                 </div>
-                            ))}
-                            {[...(dashboard.tree?.company || []), ...(dashboard.tree?.department || []), ...(dashboard.tree?.individual || [])].length === 0 && (
-                                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center gap-2 text-center">
-                                    <div className="w-10 h-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center text-xl">
-                                        🎯
-                                    </div>
-                                    <span className="text-sm text-gray-400 font-medium">{t("noOkrsInCycle")}</span>
-                                </div>
-                            )}
-                        </div>
+                            );
+                        })()}
                     </div>
                 </div>
             )}
@@ -785,9 +961,16 @@ export default function OkrManager() {
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="bg-[#9327FF] hover:bg-[#7e22ce] text-white px-8 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer"
+                                    disabled={isSubmitting}
+                                    className="bg-[#9327FF] hover:bg-[#7e22ce] disabled:opacity-70 disabled:cursor-not-allowed text-white px-8 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 min-w-[120px]"
                                 >
-                                    Saqlash
+                                    {isSubmitting && (
+                                        <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    )}
+                                    {isSubmitting ? "Saqlanmoqda..." : "Saqlash"}
                                 </button>
                             </div>
                         </form>
@@ -866,13 +1049,94 @@ export default function OkrManager() {
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="bg-[#9327FF] hover:bg-[#7e22ce] text-white px-8 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer"
+                                    disabled={isCycleSubmitting}
+                                    className="bg-[#9327FF] hover:bg-[#7e22ce] disabled:opacity-70 disabled:cursor-not-allowed text-white px-8 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 min-w-[120px]"
                                 >
-                                    Yaratish
+                                    {isCycleSubmitting && (
+                                        <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    )}
+                                    {isCycleSubmitting ? "Saqlanmoqda..." : "Yaratish"}
                                 </button>
                             </div>
                         </form>
                     </div>
+                </div>
+            )}
+
+            {deleteTargetId && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-lg border border-gray-100 flex flex-col gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-1">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </div>
+                        <div className="text-center space-y-1.5">
+                            <h3 className="text-base font-bold text-gray-900">
+                                Haqiqatan ham ushbu OKR ni o'chirmoqchimisiz?
+                            </h3>
+                            <p className="text-xs text-gray-500">
+                                Ushbu amalni ortga qaytarib bo'lmaydi.
+                            </p>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-3">
+                            <button 
+                                type="button" 
+                                disabled={isDeleting}
+                                onClick={() => setDeleteTargetId(null)}
+                                className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                type="button" 
+                                disabled={isDeleting}
+                                onClick={handleConfirmDelete}
+                                className="bg-red-500 hover:bg-red-600 disabled:opacity-70 disabled:cursor-not-allowed text-white px-6 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 min-w-[120px]"
+                            >
+                                {isDeleting && (
+                                    <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                )}
+                                {isDeleting ? "O'chirilmoqda..." : "O'chirish"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div className="fixed top-5 right-5 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 flex items-center gap-3 transition-all duration-300 animate-in fade-in slide-in-from-top-4 max-w-sm">
+                    {toast.type === "error" ? (
+                        <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    )}
+                    <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-900">
+                            {toast.message}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setToast(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs ml-auto pl-2 cursor-pointer"
+                    >
+                        ✕
+                    </button>
                 </div>
             )}
         </div>

@@ -259,7 +259,7 @@ export default function EmployeeDetailsTable({
                                         {u.employee?.leaveBalance !== undefined ? `${u.employee.leaveBalance} d` : "-"}
                                     </td>
                                     <td className="p-4 text-xs font-bold text-slate-700">
-                                        38h
+                                        {u.employee?.attendanceHours !== undefined ? `${u.employee.attendanceHours}h` : u.employee?.totalHours !== undefined ? `${u.employee.totalHours}h` : u.attendanceHours !== undefined ? `${u.attendanceHours}h` : "0h"}
                                     </td>
                                     <td className="p-4 text-xs font-bold text-emerald-600">
                                         {u.employee?.okrProgress !== undefined ? `${u.employee.okrProgress}%` : "0%"}

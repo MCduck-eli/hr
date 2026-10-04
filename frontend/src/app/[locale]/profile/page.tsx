@@ -68,6 +68,7 @@ export default function EmployeeProfilePage() {
     const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
 
     const [checkInKr, setCheckInKr] = useState<any>(null);
+    const [checkInProgress, setCheckInProgress] = useState<number | string>(100);
     const [checkInComment, setCheckInComment] = useState("");
     const [checkInFile, setCheckInFile] = useState<File | null>(null);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
@@ -296,6 +297,11 @@ export default function EmployeeProfilePage() {
         try {
             const formData = new FormData();
             if (checkInComment) formData.append("comment", checkInComment);
+            if (checkInProgress !== undefined && checkInProgress !== "") {
+                formData.append("progress", String(checkInProgress));
+                formData.append("percentage", String(checkInProgress));
+                formData.append("value", String(checkInProgress));
+            }
             if (checkInFile) {
                 formData.append("proofImage", checkInFile);
             }
@@ -304,6 +310,7 @@ export default function EmployeeProfilePage() {
             setCheckInKr(null);
             setCheckInFile(null);
             setCheckInComment("");
+            setCheckInProgress(100);
             setRefreshKey(prev => prev + 1);
         } catch (err: any) {
             alert(err.message || "Failed to check in");
@@ -733,16 +740,16 @@ export default function EmployeeProfilePage() {
                             {statsCards.map((st, idx) => (
                                 <div
                                     key={idx}
-                                    className="p-5 bg-white rounded-2xl shadow-2xs border border-slate-100 hover:shadow-md transition-all duration-200 flex items-center justify-between group"
+                                    className="p-5 bg-white rounded-2xl shadow-2xs border border-slate-100 hover:shadow-md transition-all duration-200 flex items-center justify-between group min-h-[110px] gap-3"
                                 >
-                                    <div className="flex flex-col gap-1 min-w-0">
-                                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">
+                                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-normal break-words leading-tight">
                                             {st.title}
                                         </span>
-                                        <span className="text-2xl font-black text-slate-900 group-hover:text-[#9327FF] transition-colors truncate">
+                                        <span className="text-xl font-black text-slate-900 group-hover:text-[#9327FF] transition-colors whitespace-normal break-words leading-snug">
                                             {st.value}
                                         </span>
-                                        <span className="text-[11px] font-semibold text-slate-500 truncate mt-0.5">
+                                        <span className="text-[11px] font-semibold text-slate-500 whitespace-normal break-words leading-tight mt-0.5">
                                             {st.subtext}
                                         </span>
                                     </div>
@@ -1031,7 +1038,7 @@ export default function EmployeeProfilePage() {
                                                     const latestCheckIn = kr.checkIns?.[0];
                                                     const isPending = latestCheckIn?.status === "PENDING";
                                                     const isRejected = latestCheckIn?.status === "REJECTED";
-                                                    const isApproved = kr.progress >= 100 || latestCheckIn?.status === "APPROVED";
+                                                    const isCompleted = (kr.progress || 0) >= 100;
 
                                                     return (
                                                         <div key={kr.id} className="p-4 bg-slate-50/70 rounded-xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1040,7 +1047,7 @@ export default function EmployeeProfilePage() {
                                                                 <div className="flex items-center gap-3 w-full max-w-md">
                                                                     <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
                                                                         <div 
-                                                                            className={`h-full transition-all duration-300 rounded-full ${isApproved ? "bg-emerald-500" : isPending ? "bg-amber-500" : isRejected ? "bg-rose-500" : "bg-[#9327FF]"}`} 
+                                                                            className={`h-full transition-all duration-300 rounded-full ${isCompleted ? "bg-emerald-500" : isPending ? "bg-amber-500" : isRejected ? "bg-rose-500" : "bg-[#9327FF]"}`} 
                                                                             style={{ width: `${Math.min(100, Math.max(0, kr.progress))}%` }} 
                                                                         />
                                                                     </div>
@@ -1060,14 +1067,15 @@ export default function EmployeeProfilePage() {
                                                                     <span className="px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-1.5">
                                                                         <span>⏳</span> Kutilmoqda
                                                                     </span>
-                                                                ) : isApproved ? (
+                                                                ) : isCompleted ? (
                                                                     <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-1.5">
-                                                                        <span>✓</span> Tasdiqlangan
+                                                                        <span>✓</span> Tugallangan
                                                                     </span>
                                                                 ) : isRejected ? (
                                                                     <button
                                                                         onClick={() => {
                                                                             setCheckInKr(kr);
+                                                                            setCheckInProgress(100);
                                                                             setCheckInComment("");
                                                                             setCheckInFile(null);
                                                                         }}
@@ -1079,12 +1087,13 @@ export default function EmployeeProfilePage() {
                                                                     <button
                                                                         onClick={() => {
                                                                             setCheckInKr(kr);
+                                                                            setCheckInProgress(100);
                                                                             setCheckInComment("");
                                                                             setCheckInFile(null);
                                                                         }}
                                                                         className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer shadow-xs"
                                                                     >
-                                                                        🚀 Topshirish
+                                                                        {kr.progress > 0 ? "⚡ Natijani yangilash" : "🚀 Topshirish"}
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -1523,8 +1532,24 @@ export default function EmployeeProfilePage() {
                                     Maqsadli ko'rsatkich
                                 </span>
                                 <span className="text-sm font-black text-slate-900">
-                                    {checkInKr.targetValue} {checkInKr.unit || ""} (100% bajarilgan deb topshiriladi)
+                                    {checkInKr.targetValue} {checkInKr.unit || ""}
                                 </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                                    Bajarilish foizi (%)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={checkInProgress}
+                                    onChange={(e) => setCheckInProgress(e.target.value === "" ? "" : Number(e.target.value))}
+                                    placeholder="100"
+                                    required
+                                    className="border border-slate-200 rounded-xl p-3 text-sm focus:border-[#9327FF] outline-none w-full font-medium"
+                                />
                             </div>
 
                             <div className="flex flex-col gap-1.5">

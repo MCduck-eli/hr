@@ -477,6 +477,7 @@ export class OkrService {
         comment?: string,
         imageUrl?: string,
         userId?: string,
+        value?: number,
     ) {
         const kr = await prisma.keyResult.findUnique({
             where: { id: keyResultId },
@@ -485,12 +486,12 @@ export class OkrService {
 
         if (!kr) throw new AppError("Key Result not found", 404);
 
-        const value = kr.targetValue;
+        const checkInValue = value !== undefined && value !== null && !isNaN(value) ? value : kr.targetValue;
 
         const checkIn = await prisma.okrCheckIn.create({
             data: {
                 keyResultId,
-                value,
+                value: checkInValue,
                 comment,
                 imageUrl,
                 status: "PENDING",
@@ -590,7 +591,7 @@ export class OkrService {
         });
     }
 
-    async reviewCheckIn(checkInId: string, status: "APPROVED" | "REJECTED") {
+    async reviewCheckIn(checkInId: string, status: "APPROVED" | "REJECTED", progress?: number, reason?: string) {
         const checkIn = await prisma.okrCheckIn.findUnique({
             where: { id: checkInId },
             include: {
@@ -607,19 +608,31 @@ export class OkrService {
         if (!checkIn) throw new AppError("Check-in not found", 404);
         if (checkIn.status !== "PENDING") throw new AppError("Check-in is already reviewed", 400);
 
+        const finalValue = progress !== undefined && progress !== null && !isNaN(progress)
+            ? progress
+            : (checkIn.value !== undefined && checkIn.value !== null ? Number(checkIn.value) : 100);
+
         await prisma.okrCheckIn.update({
             where: { id: checkInId },
-            data: { status }
+            data: {
+                status,
+                value: finalValue,
+                ...(reason ? { comment: reason } : {}),
+            },
         });
 
         if (status === "APPROVED") {
             const kr = checkIn.keyResult;
-            
+            const progressValue = finalValue;
+            const targetVal = kr.targetValue > 0 ? kr.targetValue : 1;
+            const calculatedProgress = progressValue <= 100 ? progressValue : Math.min(100, Math.round((progressValue / targetVal) * 100));
+            const calculatedCurrentValue = progressValue <= 100 ? Math.round((progressValue / 100) * targetVal) : progressValue;
+
             await prisma.keyResult.update({
                 where: { id: kr.id },
                 data: {
-                    currentValue: kr.targetValue,
-                    progress: 100,
+                    currentValue: calculatedCurrentValue,
+                    progress: calculatedProgress,
                 },
             });
 
@@ -636,13 +649,14 @@ export class OkrService {
                 userId: targetUserId,
                 title: status === "APPROVED" ? "OKR Natijangiz Tasdiqlandi" : "OKR Natijangiz Qaytarildi",
                 message: status === "APPROVED"
-                    ? `'${checkIn.keyResult.title}' bo'yicho yuborgan OKR natijangiz tasdiqlandi.`
-                    : `'${checkIn.keyResult.title}' bo'yicho yuborgan OKR natijangiz rad etildi.`,
+                    ? `'${checkIn.keyResult.title}' bo'yicha yuborgan OKR natijangiz tasdiqlandi.`
+                    : `'${checkIn.keyResult.title}' bo'yicha yuborgan OKR natijangiz rad etildi.${reason ? ` Sabab: ${reason}` : ""}`,
                 type: "GENERAL",
                 metadata: {
                     type: "OKR_CHECKIN_REVIEWED",
                     checkInId,
                     status,
+                    reason: reason || null,
                 },
             }).catch(() => {});
         }

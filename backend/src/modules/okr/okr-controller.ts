@@ -60,11 +60,14 @@ export class OkrController {
                 imageUrl = `/uploads/${files.proofImage[0].filename}`;
             }
 
+            const rawProgress = req.body.progress || req.body.percentage || req.body.value;
+            const parsedValue = rawProgress !== undefined && rawProgress !== "" ? Number(rawProgress) : undefined;
             const result = await okrService.checkInKeyResult(
                 req.params.keyResultId,
                 req.body.comment,
                 imageUrl,
                 userId,
+                parsedValue,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -111,7 +114,10 @@ export class OkrController {
     async reviewCheckIn(req: Request<{ checkInId: string }>, res: Response, next: NextFunction) {
         try {
             const { status } = req.body;
-            const result = await okrService.reviewCheckIn(req.params.checkInId, status);
+            const rawProgress = req.body.progress ?? req.body.value ?? req.body.percentage;
+            const parsedProgress = rawProgress !== undefined && rawProgress !== null && rawProgress !== "" ? Number(rawProgress) : undefined;
+            const reason = req.body.rejectReason || req.body.reason || req.body.feedback || req.body.comment;
+            const result = await okrService.reviewCheckIn(req.params.checkInId, status, parsedProgress, reason);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

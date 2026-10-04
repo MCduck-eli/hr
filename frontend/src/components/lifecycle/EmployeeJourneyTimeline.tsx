@@ -46,92 +46,92 @@ export default function EmployeeJourneyTimeline({
         CANDIDATE_APPLIED: {
             label: t("stages.CANDIDATE_APPLIED"),
             bg: "bg-sky-50",
-            text: "text-sky-800",
-            border: "border-sky-500",
+            text: "text-sky-700",
+            border: "border-sky-200",
             icon: "📝",
         },
         OFFER_ACCEPTED: {
             label: t("stages.OFFER_ACCEPTED"),
             bg: "bg-teal-50",
-            text: "text-teal-800",
-            border: "border-teal-500",
+            text: "text-teal-700",
+            border: "border-teal-200",
             icon: "🤝",
         },
         HIRED: {
             label: t("stages.HIRED"),
             bg: "bg-emerald-50",
-            text: "text-emerald-800",
-            border: "border-emerald-500",
+            text: "text-emerald-700",
+            border: "border-emerald-200",
             icon: "🚀",
         },
         ONBOARDING_STARTED: {
             label: t("stages.ONBOARDING_STARTED"),
             bg: "bg-blue-50",
-            text: "text-blue-800",
-            border: "border-blue-500",
+            text: "text-blue-700",
+            border: "border-blue-200",
             icon: "📚",
         },
         ONBOARDING_COMPLETED: {
             label: t("stages.ONBOARDING_COMPLETED"),
             bg: "bg-blue-50",
-            text: "text-blue-800",
-            border: "border-blue-500",
+            text: "text-blue-700",
+            border: "border-blue-200",
             icon: "✅",
         },
         PROBATION_PASSED: {
             label: t("stages.PROBATION_PASSED"),
             bg: "bg-teal-50",
-            text: "text-teal-800",
-            border: "border-teal-500",
+            text: "text-teal-700",
+            border: "border-teal-200",
             icon: "🛡️",
         },
         PROMOTED: {
             label: t("stages.PROMOTED"),
             bg: "bg-purple-50",
-            text: "text-purple-800",
-            border: "border-purple-500",
+            text: "text-purple-700",
+            border: "border-purple-200",
             icon: "👑",
         },
         DEPARTMENT_CHANGED: {
             label: t("stages.DEPARTMENT_CHANGED"),
             bg: "bg-amber-50",
-            text: "text-amber-800",
-            border: "border-amber-500",
+            text: "text-amber-700",
+            border: "border-amber-200",
             icon: "🔄",
         },
         COURSE_COMPLETED: {
             label: t("stages.COURSE_COMPLETED"),
             bg: "bg-indigo-50",
-            text: "text-indigo-800",
-            border: "border-indigo-500",
+            text: "text-indigo-700",
+            border: "border-indigo-200",
             icon: "🎓",
         },
         CERTIFICATE_EARNED: {
             label: t("stages.CERTIFICATE_EARNED"),
             bg: "bg-cyan-50",
-            text: "text-cyan-800",
-            border: "border-cyan-500",
+            text: "text-cyan-700",
+            border: "border-cyan-200",
             icon: "📜",
         },
         PERFORMANCE_REVIEWED: {
             label: t("stages.PERFORMANCE_REVIEWED"),
             bg: "bg-violet-50",
-            text: "text-violet-800",
-            border: "border-violet-500",
+            text: "text-violet-700",
+            border: "border-violet-200",
             icon: "⭐",
         },
         OFFBOARDING_STARTED: {
             label: t("stages.OFFBOARDING_STARTED"),
-            bg: "bg-red-50",
-            text: "text-red-800",
-            border: "border-red-500",
+            bg: "bg-rose-50",
+            text: "text-rose-700",
+            border: "border-rose-200",
             icon: "🚪",
         },
         TERMINATED: {
             label: t("stages.TERMINATED"),
-            bg: "bg-gray-100",
-            text: "text-gray-800",
-            border: "border-gray-400",
+            bg: "bg-slate-100",
+            text: "text-slate-700",
+            border: "border-slate-200",
             icon: "🏁",
         },
     };
@@ -139,9 +139,9 @@ export default function EmployeeJourneyTimeline({
     const getStageMeta = (stage: string) => {
         return stageConfig[stage] || {
             label: stage,
-            bg: "bg-gray-50",
-            text: "text-gray-800",
-            border: "border-black",
+            bg: "bg-slate-50",
+            text: "text-slate-700",
+            border: "border-slate-200",
             icon: "📌",
         };
     };
@@ -181,8 +181,8 @@ export default function EmployeeJourneyTimeline({
 
     if (loading) {
         return (
-            <div className="border border-black bg-white p-6 shadow-xs">
-                <div className="text-xs font-bold uppercase tracking-widest text-black animate-pulse">
+            <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm flex items-center justify-center">
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 animate-pulse">
                     {t("loading")}
                 </div>
             </div>
@@ -190,29 +190,29 @@ export default function EmployeeJourneyTimeline({
     }
 
     return (
-        <div className="border border-black bg-white p-6 md:p-8 flex flex-col gap-6 shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-black pb-4">
-                <div className="flex flex-col gap-1">
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                             {t("badge")}
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-black text-white uppercase tracking-wider">
+                        <span className="text-[11px] font-semibold px-2.5 py-0.5 bg-purple-50 text-[#9327FF] rounded-full border border-purple-100">
                             {t("dynamicPath")}
                         </span>
                     </div>
-                    <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-black">
+                    <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
                         {t("title")}
                     </h2>
                 </div>
 
-                <div className="flex items-center gap-2 bg-neutral-900 text-white px-3.5 py-2 border border-black shadow-xs">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <div className="flex items-center gap-2.5 bg-emerald-50 text-emerald-900 px-4 py-2 rounded-xl border border-emerald-100 shadow-2xs">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     <div className="flex flex-col">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600/80">
                             {t("currentStage")}:
                         </span>
-                        <span className="text-xs font-black uppercase text-emerald-400">
+                        <span className="text-xs font-bold text-emerald-700">
                             {currentStageName}
                         </span>
                     </div>
@@ -220,23 +220,23 @@ export default function EmployeeJourneyTimeline({
             </div>
 
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-800 p-3 text-xs font-bold uppercase tracking-wider">
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl text-xs font-semibold">
                     {error}
                 </div>
             )}
 
             {stages.length > 0 && (
-                <div className="flex flex-col gap-3 bg-gray-50 p-4 border border-gray-200">
+                <div className="flex flex-col gap-3 bg-slate-50/70 p-5 rounded-2xl border border-slate-100">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-wider text-black">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                             {t("stagesSequence")}
                         </span>
-                        <span className="text-[10px] font-bold text-gray-500 uppercase">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                             {t("autoPlan")}
                         </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5">
                         {stages.map((st) => {
                             const isCompleted = st.status === "COMPLETED";
                             const isCurrent = st.status === "CURRENT";
@@ -244,23 +244,23 @@ export default function EmployeeJourneyTimeline({
                             return (
                                 <div
                                     key={st.code}
-                                    className={`border p-2.5 flex flex-col justify-between gap-1.5 relative transition-all ${
+                                    className={`p-3 rounded-xl border flex flex-col justify-between gap-2 transition-all ${
                                         isCurrent
-                                            ? "border-black bg-black text-white shadow-xs ring-2 ring-emerald-500"
+                                            ? "border-purple-200 bg-purple-50/70 text-purple-900 shadow-xs ring-2 ring-purple-400/20"
                                             : isCompleted
-                                            ? "border-emerald-300 bg-emerald-50/70 text-emerald-950"
-                                            : "border-gray-200 bg-white text-gray-400 opacity-60"
+                                            ? "border-emerald-100 bg-emerald-50/60 text-emerald-900"
+                                            : "border-slate-100 bg-white text-slate-400 opacity-70"
                                     }`}
                                 >
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm">{st.icon}</span>
                                         <span
-                                            className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-xs ${
+                                            className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
                                                 isCurrent
-                                                    ? "bg-emerald-500 text-black"
+                                                    ? "bg-[#9327FF] text-white"
                                                     : isCompleted
                                                     ? "bg-emerald-600 text-white"
-                                                    : "bg-gray-100 text-gray-500"
+                                                    : "bg-slate-100 text-slate-500"
                                             }`}
                                         >
                                             {isCurrent ? t("statusCurrent") : isCompleted ? t("statusCompleted") : t("statusPlanned")}
@@ -268,7 +268,7 @@ export default function EmployeeJourneyTimeline({
                                     </div>
 
                                     <div className="flex flex-col">
-                                        <span className="text-[11px] font-black uppercase leading-tight line-clamp-2">
+                                        <span className="text-[11px] font-bold leading-snug line-clamp-2">
                                             {st.title}
                                         </span>
                                     </div>
@@ -279,52 +279,64 @@ export default function EmployeeJourneyTimeline({
                 </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-gray-50 p-3 border border-gray-200">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50/70 p-3.5 rounded-2xl border border-slate-100">
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setFilterCategory("ALL")}
-                        className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                            filterCategory === "ALL" ? "bg-black text-white" : "bg-white text-black border border-gray-300 hover:border-black"
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            filterCategory === "ALL"
+                                ? "bg-[#9327FF] text-white shadow-xs"
+                                : "bg-white text-slate-600 border border-slate-200 hover:border-purple-200 hover:text-[#9327FF]"
                         }`}
                     >
                         {t("allFilter")} ({rawTimeline.length})
                     </button>
                     <button
                         onClick={() => setFilterCategory("ONBOARDING")}
-                        className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                            filterCategory === "ONBOARDING" ? "bg-blue-700 text-white" : "bg-white text-blue-700 border border-blue-200 hover:border-blue-600"
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            filterCategory === "ONBOARDING"
+                                ? "bg-blue-600 text-white shadow-xs"
+                                : "bg-white text-blue-700 border border-blue-100 hover:bg-blue-50"
                         }`}
                     >
                         {t("onboardingFilter")}
                     </button>
                     <button
                         onClick={() => setFilterCategory("CAREER")}
-                        className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                            filterCategory === "CAREER" ? "bg-purple-700 text-white" : "bg-white text-purple-700 border border-purple-200 hover:border-purple-600"
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            filterCategory === "CAREER"
+                                ? "bg-purple-600 text-white shadow-xs"
+                                : "bg-white text-purple-700 border border-purple-100 hover:bg-purple-50"
                         }`}
                     >
                         {t("careerFilter")}
                     </button>
                     <button
                         onClick={() => setFilterCategory("PERFORMANCE")}
-                        className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                            filterCategory === "PERFORMANCE" ? "bg-violet-700 text-white" : "bg-white text-violet-700 border border-violet-200 hover:border-violet-600"
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            filterCategory === "PERFORMANCE"
+                                ? "bg-violet-600 text-white shadow-xs"
+                                : "bg-white text-violet-700 border border-violet-100 hover:bg-violet-50"
                         }`}
                     >
                         {t("performanceFilter")}
                     </button>
                     <button
                         onClick={() => setFilterCategory("ACADEMY")}
-                        className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                            filterCategory === "ACADEMY" ? "bg-cyan-700 text-white" : "bg-white text-cyan-700 border border-cyan-200 hover:border-cyan-600"
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            filterCategory === "ACADEMY"
+                                ? "bg-cyan-600 text-white shadow-xs"
+                                : "bg-white text-cyan-700 border border-cyan-100 hover:bg-cyan-50"
                         }`}
                     >
                         {t("academyFilter")}
                     </button>
                     <button
                         onClick={() => setFilterCategory("OFFBOARDING")}
-                        className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                            filterCategory === "OFFBOARDING" ? "bg-red-700 text-white" : "bg-white text-red-700 border border-red-200 hover:border-red-600"
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                            filterCategory === "OFFBOARDING"
+                                ? "bg-rose-600 text-white shadow-xs"
+                                : "bg-white text-rose-700 border border-rose-100 hover:bg-rose-50"
                         }`}
                     >
                         {t("offboardingFilter")}
@@ -337,17 +349,17 @@ export default function EmployeeJourneyTimeline({
                         placeholder={t("searchPlaceholder")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white border border-gray-300 text-xs text-black placeholder-gray-400 focus:outline-none focus:border-black"
+                        className="w-full px-3.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
                     />
                 </div>
             </div>
 
             {filteredTimeline.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-gray-300 text-gray-400 text-xs font-bold uppercase tracking-wider">
+                <div className="p-8 text-center border border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs font-semibold">
                     {t("noEvents")}
                 </div>
             ) : (
-                <div className="relative pl-6 md:pl-8 border-l-2 border-black space-y-8 my-2">
+                <div className="relative pl-6 md:pl-8 border-l-2 border-slate-200 space-y-6 my-2">
                     {filteredTimeline.map((item, idx) => {
                         const meta = getStageMeta(item.stage);
                         const formattedDate = item.date
@@ -361,32 +373,32 @@ export default function EmployeeJourneyTimeline({
                         return (
                             <div key={item.id || idx} className="relative group">
                                 <div
-                                    className={`absolute -left-[31px] md:-left-[39px] top-1.5 w-6 h-6 rounded-full border-2 border-black bg-white flex items-center justify-center text-xs shadow-xs`}
+                                    className="absolute -left-[31px] md:-left-[39px] top-2 w-7 h-7 rounded-full border border-slate-200 bg-white flex items-center justify-center text-xs shadow-2xs"
                                 >
-                                    <span className="text-[11px] leading-none">{meta.icon}</span>
+                                    <span className="text-xs leading-none">{meta.icon}</span>
                                 </div>
 
-                                <div className="border border-black bg-white p-4 md:p-5 flex flex-col gap-2 transition-all hover:shadow-xs">
-                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2">
+                                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col gap-2 shadow-2xs hover:shadow-sm transition-all">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                                         <div className="flex items-center gap-2">
-                                            <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border ${meta.bg} ${meta.text} ${meta.border}`}>
+                                            <span className={`px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-lg border ${meta.bg} ${meta.text} ${meta.border}`}>
                                                 {meta.label}
                                             </span>
                                         </div>
 
                                         <div className="flex items-center gap-3">
-                                            <span className="text-[11px] font-bold text-gray-500 font-mono">
+                                            <span className="text-xs font-medium text-slate-500 font-mono">
                                                 📅 {formattedDate}
                                             </span>
                                         </div>
                                     </div>
 
-                                    <h3 className="text-sm md:text-base font-black text-black tracking-tight mt-1">
+                                    <h3 className="text-sm md:text-base font-bold text-slate-900 tracking-tight mt-1">
                                         {item.title}
                                     </h3>
 
                                     {item.details && (
-                                        <p className="text-xs font-medium text-gray-600 leading-relaxed whitespace-pre-wrap">
+                                        <p className="text-xs font-normal text-slate-600 leading-relaxed whitespace-pre-wrap">
                                             {item.details}
                                         </p>
                                     )}

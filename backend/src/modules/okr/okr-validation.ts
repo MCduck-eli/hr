@@ -40,6 +40,9 @@ export const createObjectiveSchema = z.object({
 export const checkInKeyResultSchema = z.object({
     body: z.object({
         comment: z.string().optional().nullable(),
+        progress: z.coerce.number().optional().nullable(),
+        percentage: z.coerce.number().optional().nullable(),
+        value: z.coerce.number().optional().nullable(),
     }),
 });
 
