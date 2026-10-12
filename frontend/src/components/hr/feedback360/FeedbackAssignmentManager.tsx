@@ -34,6 +34,8 @@ export default function FeedbackAssignmentManager() {
     const [selectedTargetId, setSelectedTargetId] = useState("");
     const [assignments, setAssignments] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [globalLoading, setGlobalLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editCycleData, setEditCycleData] = useState<any>(null);
@@ -57,6 +59,7 @@ export default function FeedbackAssignmentManager() {
     };
 
     const loadInitialData = async () => {
+        setInitialLoading(true);
         try {
             const storedUser = localStorage.getItem("user");
             let currentUserId = "";
@@ -75,15 +78,23 @@ export default function FeedbackAssignmentManager() {
             ]);
             setCycles(cyclesData || []);
 
-            const validUsers = (usersData || []).filter(
-                (u: any) =>
-                    u.employee &&
-                    u.role !== "SUPER_ADMIN" &&
-                    u.role !== "DIRECTOR" &&
-                    u.role !== "HR_ADMIN" &&
+            const validUsers = (usersData || []).filter((u: any) => {
+                if (!u.employee) return false;
+                const role = (u.role || u.employee?.role || "").toUpperCase();
+                const pos = (u.employee?.position?.title || u.position || "").toUpperCase();
+                return (
+                    role !== "DIRECTOR" &&
+                    role !== "CEO" &&
+                    role !== "SUPER_ADMIN" &&
+                    role !== "ADMIN" &&
+                    role !== "HR_ADMIN" &&
+                    !pos.includes("DIREKTOR") &&
+                    !pos.includes("DIRECTOR") &&
+                    !pos.includes("CEO") &&
                     u.id !== currentUserId &&
-                    u.employee?.id !== currentUserEmpId,
-            );
+                    u.employee?.id !== currentUserEmpId
+                );
+            });
             setUsers(validUsers);
 
             if (cyclesData?.length > 0 && !selectedCycleId) {
@@ -91,6 +102,8 @@ export default function FeedbackAssignmentManager() {
             }
         } catch (err) {
             console.error(err);
+        } finally {
+            setInitialLoading(false);
         }
     };
 
@@ -107,11 +120,14 @@ export default function FeedbackAssignmentManager() {
     }, [selectedCycleId]);
 
     const loadGlobalAssignments = async () => {
+        setGlobalLoading(true);
         try {
             const data = await fetchAssignments(selectedCycleId);
             setGlobalAssignments(data || []);
         } catch (err) {
             console.error(err);
+        } finally {
+            setGlobalLoading(false);
         }
     };
 
@@ -331,86 +347,133 @@ export default function FeedbackAssignmentManager() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                <div className="flex flex-col gap-2">
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        {t("selectCycle")}
-                    </label>
-                    <div className="flex items-center gap-3 w-full">
-                        <select
-                            value={selectedCycleId}
-                            onChange={(e) => setSelectedCycleId(e.target.value)}
-                            className="flex-1 w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 px-4 py-2.5 outline-none bg-white transition-all text-sm font-medium text-gray-800"
-                        >
-                            <option value="">{t("selectCycleOption")}</option>
-                            {cycles.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.title} ({c.status || "ACTIVE"})
-                                </option>
+            {initialLoading ? (
+                <div className="flex flex-col gap-6 animate-pulse">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-2">
+                            <div className="h-4 w-32 bg-gray-200 rounded-md" />
+                            <div className="h-11 w-full bg-gray-200 rounded-xl" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <div className="h-4 w-32 bg-gray-200 rounded-md" />
+                            <div className="h-11 w-full bg-gray-200 rounded-xl" />
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-4 p-6 bg-gray-50/60 border border-gray-100 rounded-2xl">
+                        <div className="flex items-center justify-between pb-3 border-b border-gray-200/60">
+                            <div className="h-5 w-48 bg-gray-200 rounded-md" />
+                            <div className="h-7 w-36 bg-gray-200 rounded-xl" />
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="h-12 w-full bg-gray-200 rounded-xl" />
                             ))}
-                        </select>
-                        {selectedCycleId && (
-                            <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                    onClick={handleEditCycle}
-                                    className="p-2.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all cursor-pointer"
-                                    title="Tahrirlash"
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                {t("selectCycle")}
+                            </label>
+                            <div className="flex items-center gap-3 w-full">
+                                <select
+                                    value={selectedCycleId}
+                                    onChange={(e) => setSelectedCycleId(e.target.value)}
+                                    className="flex-1 w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 px-4 py-2.5 outline-none bg-white transition-all text-sm font-medium text-gray-800"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                                </button>
-                                <button
-                                    onClick={() => setIsDeleteModalOpen(true)}
-                                    className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
-                                    title="O'chirish"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                                </button>
+                                    <option value="">{t("selectCycleOption")}</option>
+                                    {cycles.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.title} ({c.status || "ACTIVE"})
+                                        </option>
+                                    ))}
+                                </select>
+                                {selectedCycleId && (
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                            onClick={handleEditCycle}
+                                            className="p-2.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all cursor-pointer"
+                                            title="Tahrirlash"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                        </button>
+                                        <button
+                                            onClick={() => setIsDeleteModalOpen(true)}
+                                            className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                                            title="O'chirish"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        {t("selectTarget")}
-                    </label>
-                    <select
-                        value={selectedTargetId}
-                        onChange={(e) => setSelectedTargetId(e.target.value)}
-                        className="w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 px-4 py-2.5 outline-none bg-white transition-all text-sm font-medium text-gray-800"
-                    >
-                        <option value="">{t("selectTargetOption")}</option>
-                        {users.map((u) => (
-                            <option key={u.employee.id} value={u.employee.id}>
-                                {u.employee.firstName} {u.employee.lastName} ({u.email})
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            {selectedCycleId && (
-                <div className="flex flex-col gap-4 p-6 bg-gray-50/60 border border-gray-100 rounded-2xl">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-200/60">
-                        <div>
-                            <h3 className="text-base font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
-                                <span>🏆</span>
-                                <span>{t("leaderboardTitle")}</span>
-                            </h3>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-0.5">
-                                {t("leaderboardSubtitle")}
-                            </p>
                         </div>
-                        <span className="text-xs font-semibold uppercase tracking-wider px-3.5 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-xl shadow-xs">
-                            {leaderboard.length} ta baholangan xodim
-                        </span>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                {t("selectTarget")}
+                            </label>
+                            <select
+                                value={selectedTargetId}
+                                onChange={(e) => setSelectedTargetId(e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 px-4 py-2.5 outline-none bg-white transition-all text-sm font-medium text-gray-800"
+                            >
+                                <option value="">{t("selectTargetOption")}</option>
+                                {users
+                                    .filter((u) => {
+                                        const role = (u.role || u.employee?.role || "").toUpperCase();
+                                        const pos = (u.employee?.position?.title || u.position || "").toUpperCase();
+                                        return (
+                                            role !== "DIRECTOR" &&
+                                            role !== "CEO" &&
+                                            role !== "ADMIN" &&
+                                            role !== "SUPER_ADMIN" &&
+                                            !pos.includes("DIREKTOR") &&
+                                            !pos.includes("DIRECTOR") &&
+                                            !pos.includes("CEO")
+                                        );
+                                    })
+                                    .map((u) => (
+                                        <option key={u.employee.id} value={u.employee.id}>
+                                            {u.employee.firstName} {u.employee.lastName} ({u.email})
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
                     </div>
 
-                    {leaderboard.length === 0 ? (
-                        <div className="py-8 text-center text-xs font-medium uppercase tracking-wider text-gray-400 bg-white border border-dashed border-gray-200 p-6 rounded-xl">
-                            {t("noLeaderboardData")}
-                        </div>
-                    ) : (
+                    {selectedCycleId && (
+                        <div className="flex flex-col gap-4 p-6 bg-gray-50/60 border border-gray-100 rounded-2xl">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-200/60">
+                                <div>
+                                    <h3 className="text-base font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
+                                        <span>🏆</span>
+                                        <span>{t("leaderboardTitle")}</span>
+                                    </h3>
+                                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-0.5">
+                                        {t("leaderboardSubtitle")}
+                                    </p>
+                                </div>
+                                <span className="text-xs font-semibold uppercase tracking-wider px-3.5 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-xl shadow-xs">
+                                    {leaderboard.length} ta baholangan xodim
+                                </span>
+                            </div>
+
+                            {globalLoading ? (
+                                <div className="overflow-x-auto bg-white border border-gray-100 rounded-xl shadow-xs p-4 flex flex-col gap-3 animate-pulse">
+                                    {[1, 2, 3, 4].map((i) => (
+                                        <div key={i} className="h-12 w-full bg-gray-200 rounded-xl" />
+                                    ))}
+                                </div>
+                            ) : leaderboard.length === 0 ? (
+                                <div className="py-8 text-center text-xs font-medium uppercase tracking-wider text-gray-400 bg-white border border-dashed border-gray-200 p-6 rounded-xl">
+                                    {t("noLeaderboardData")}
+                                </div>
+                            ) : (
                         <div className="overflow-x-auto bg-white border border-gray-100 rounded-xl shadow-xs">
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead>
@@ -518,11 +581,25 @@ export default function FeedbackAssignmentManager() {
                                 className="w-full bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all text-gray-800"
                             >
                                 <option value="">{t("selectReviewerOption")}</option>
-                                {users.map((u) => (
-                                    <option key={u.employee.id} value={u.employee.id}>
-                                        {u.employee.firstName} {u.employee.lastName}
-                                    </option>
-                                ))}
+                                {users
+                                    .filter((u) => {
+                                        const role = (u.role || u.employee?.role || "").toUpperCase();
+                                        const pos = (u.employee?.position?.title || u.position || "").toUpperCase();
+                                        return (
+                                            role !== "DIRECTOR" &&
+                                            role !== "CEO" &&
+                                            role !== "ADMIN" &&
+                                            role !== "SUPER_ADMIN" &&
+                                            !pos.includes("DIREKTOR") &&
+                                            !pos.includes("DIRECTOR") &&
+                                            !pos.includes("CEO")
+                                        );
+                                    })
+                                    .map((u) => (
+                                        <option key={u.employee.id} value={u.employee.id}>
+                                            {u.employee.firstName} {u.employee.lastName}
+                                        </option>
+                                    ))}
                             </select>
                         </div>
                         <div className="flex flex-col gap-2 w-full md:w-56">
@@ -549,8 +626,10 @@ export default function FeedbackAssignmentManager() {
                     </div>
 
                     {loading ? (
-                        <div className="text-sm font-semibold uppercase text-gray-500 tracking-wider py-8 text-center">
-                            {t("loading")}
+                        <div className="border border-gray-100 rounded-xl overflow-hidden shadow-xs p-4 flex flex-col gap-3 animate-pulse bg-white">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="h-11 w-full bg-gray-200 rounded-xl" />
+                            ))}
                         </div>
                     ) : assignments.length === 0 ? (
                         <div className="text-sm font-medium uppercase text-gray-400 tracking-wider py-8 text-center border border-dashed border-gray-200 rounded-xl">
@@ -618,7 +697,13 @@ export default function FeedbackAssignmentManager() {
                         {t("allAssignments") || "Barcha biriktirilganlar (Sikl bo'yicha)"}
                     </h3>
 
-                    {globalAssignments.length === 0 ? (
+                    {globalLoading ? (
+                        <div className="overflow-x-auto bg-white border border-gray-100 rounded-xl shadow-xs p-4 flex flex-col gap-3 animate-pulse">
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="h-12 w-full bg-gray-200 rounded-xl" />
+                            ))}
+                        </div>
+                    ) : globalAssignments.length === 0 ? (
                         <div className="text-sm font-medium uppercase text-gray-400 tracking-wider py-8 text-center border border-dashed border-gray-200 rounded-xl">
                             {t("noAssignmentsGlobal") || "Hali hech kim biriktirilmagan."}
                         </div>
@@ -693,6 +778,8 @@ export default function FeedbackAssignmentManager() {
                         </div>
                     )}
                 </div>
+            )}
+            </>
             )}
 
             {isCreateModalOpen && (

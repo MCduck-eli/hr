@@ -1,0 +1,414 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.discService = exports.DiscService = void 0;
+const db_1 = __importDefault(require("../../config/db"));
+const appError_1 = require("../../utils/appError");
+class DiscService {
+    async resolveCallerCompany(currentUser) {
+        if (!currentUser?.id)
+            return null;
+        if (currentUser.role === "SUPER_ADMIN" && !currentUser.companyName)
+            return null;
+        if (currentUser.companyName)
+            return currentUser.companyName;
+        const caller = await db_1.default.user.findUnique({
+            where: { id: currentUser.id },
+            select: { role: true, companyName: true },
+        });
+        if (caller && caller.role !== "SUPER_ADMIN") {
+            return caller.companyName || null;
+        }
+        return currentUser.companyName || null;
+    }
+    async createQuestion(payload, currentUser) {
+        const resolvedCompany = await this.resolveCallerCompany(currentUser) || payload.companyName || null;
+        return db_1.default.discQuestion.create({
+            data: {
+                text: payload.text,
+                order: payload.order ?? 1,
+                companyName: resolvedCompany,
+                options: {
+                    create: payload.options,
+                },
+            },
+            include: { options: true },
+        });
+    }
+    async updateQuestion(id, payload, currentUser) {
+        const companyFilter = await this.resolveCallerCompany(currentUser);
+        const question = await db_1.default.discQuestion.findFirst({
+            where: {
+                id,
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
+        });
+        if (!question)
+            throw new appError_1.AppError("Savol topilmadi", 404);
+        if (payload.options && payload.options.length > 0) {
+            await db_1.default.discOption.deleteMany({ where: { questionId: id } });
+            return db_1.default.discQuestion.update({
+                where: { id },
+                data: {
+                    ...(payload.text ? { text: payload.text } : {}),
+                    ...(payload.order !== undefined ? { order: payload.order } : {}),
+                    options: {
+                        create: payload.options.map((o) => ({
+                            text: o.text,
+                            discType: o.discType,
+                            score: o.score ?? 1,
+                        })),
+                    },
+                },
+                include: { options: true },
+            });
+        }
+        return db_1.default.discQuestion.update({
+            where: { id },
+            data: {
+                ...(payload.text ? { text: payload.text } : {}),
+                ...(payload.order !== undefined ? { order: payload.order } : {}),
+            },
+            include: { options: true },
+        });
+    }
+    async deleteQuestion(id, currentUser) {
+        const companyFilter = await this.resolveCallerCompany(currentUser);
+        const question = await db_1.default.discQuestion.findFirst({
+            where: {
+                id,
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
+        });
+        if (!question)
+            throw new appError_1.AppError("Savol topilmadi", 404);
+        await db_1.default.discOption.deleteMany({ where: { questionId: id } });
+        return db_1.default.discQuestion.delete({ where: { id } });
+    }
+    async getQuestions(currentUser) {
+        const companyFilter = await this.resolveCallerCompany(currentUser);
+        if (companyFilter) {
+            const companyCount = await db_1.default.discQuestion.count({
+                where: { companyName: companyFilter },
+            });
+            if (companyCount === 0) {
+                const seedQuestions = [
+                    {
+                        text: "Yangi loyiha yoki kutilmagan murakkab muammoga duch kelganingizda, birinchi navbatda nima qilasiz?",
+                        order: 1,
+                        options: [
+                            { text: "Vaziyatni o'z qo'limga olaman, tezkor va qat'iy qarorlar qabul qilib harakatni boshlayman.", discType: "D", score: 1 },
+                            { text: "Jamoani yig'ib, barchani ilhomlantiraman va yangi g'oyalarni muhokama qilaman.", discType: "I", score: 1 },
+                            { text: "Vaziyatni bosiqlik bilan baholab, mavjud reja va jamoa a'zolariga yordam berishga kirishaman.", discType: "S", score: 1 },
+                            { text: "Barcha faktlar, ma'lumotlar va xatarlarni chuqur tahlil qilib, aniq reja tuzaman.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Jamoaviy yig'ilishlarda o'zingizni qanday tutasiz?",
+                        order: 2,
+                        options: [
+                            { text: "Asosiy e'tiborni natijaga qarataman, ortiqcha gaplarsiz yakuniy qarorga kelishni talab qilaman.", discType: "D", score: 1 },
+                            { text: "Faol fikr bildiraman, muhitni erkin va do'stona saqlashga harakat qilaman.", discType: "I", score: 1 },
+                            { text: "Boshqalarni diqqat bilan tinglayman va umumiy kelishuvga (konsensusga) erishishni qo'llab-quvvatlayman.", discType: "S", score: 1 },
+                            { text: "Mantiqiy savollar beraman, hisob-kitoblar va qoidalar to'g'riligini tekshiraman.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Siz uchun ish faoliyatingizdagi eng muhim omil nima?",
+                        order: 3,
+                        options: [
+                            { text: "Yuksak maqsadlarga erishish, g'alaba qozonish va mustaqil bo'lish.", discType: "D", score: 1 },
+                            { text: "E'tirof etilish, odamlar bilan aloqada bo'lish va ijodiy erkinlik.", discType: "I", score: 1 },
+                            { text: "Barqarorlik, jamoaviy ishonch va xavfsiz ish muhiti.", discType: "S", score: 1 },
+                            { text: "Yuqori sifat, aniqlik, mukammallik va xatolarga yo'l qo'ymaslik.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Kutilmagan o'zgarishlar yoki stressli vaziyatda qanday munosabat bildirasiz?",
+                        order: 4,
+                        options: [
+                            { text: "Tezda moslashaman va vaziyatni boshqarishga kirishaman.", discType: "D", score: 1 },
+                            { text: "Ijobiy (optimizm) kayfiyatni saqlayman va boshqalarga dalda beraman.", discType: "I", score: 1 },
+                            { text: "Bir oz noqulaylik sezsam-da, tartib bilan jamoaga tayanch bo'lishga harakat qilaman.", discType: "S", score: 1 },
+                            { text: "Yangi sharoitlarni diqqat bilan o'rganaman va o'zgarishlar mantig'ini tushunishga intilaman.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Boshqalar sizni ko'proq qanday inson deb bilishadi?",
+                        order: 5,
+                        options: [
+                            { text: "Qat'iyatli, to'g'riso'z va maqsadiga intiluvchan lider.", discType: "D", score: 1 },
+                            { text: "Xushchaqchaq, muloqotga ochiq va ilhom beruvchi.", discType: "I", score: 1 },
+                            { text: "Ishonchli, sadoqatli, samimiy va sabrli hamkasb.", discType: "S", score: 1 },
+                            { text: "Tartibli, mas'uliyatli, har bir detalga e'tiborli mutaxassis.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Biror muhim vazifani bajarishda sizning ustuvorligingiz qanday?",
+                        order: 6,
+                        options: [
+                            { text: "Vazifani tez va belgilangan muddatdan oldin yakunlash.", discType: "D", score: 1 },
+                            { text: "Jarayon qiziqarli va odamlarni jalb qiladigan bo'lishi.", discType: "I", score: 1 },
+                            { text: "Jarayon silliq va bir maromda, asabiylashuvlarsiz o'tishi.", discType: "S", score: 1 },
+                            { text: "Hamma narsa 100% to'g'ri, standartlarga mos va mukammal bajarilishi.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Hamkasblar o'rtasida ziddiyat (konflikt) paydo bo'lsa, nima qilasiz?",
+                        order: 7,
+                        options: [
+                            { text: "Muammoni to'g'ridan-to'g'ri ochiq muhokama qilib, zudlik bilan yechim talab qilaman.", discType: "D", score: 1 },
+                            { text: "Vaziyatni yumshatib, hazil va ijobiy muloqot bilan tomonlarni yarashtiraman.", discType: "I", score: 1 },
+                            { text: "Har ikki tomonni sabr bilan tinglab, o'zaro tushunish va murosa yo'lini topaman.", discType: "S", score: 1 },
+                            { text: "Faktlar, dalillar va qoidalarga tayanib, xolis va mantiqiy xulosaga kelaman.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Sizga yangi vazifalar topshirilganda nimani afzal ko'rasiz?",
+                        order: 8,
+                        options: [
+                            { text: "Menga faqat maqsad va muddat aytilsin, qanday qilishni o'zim hal qilaman.", discType: "D", score: 1 },
+                            { text: "Ijodiy erkinlik va yangi odamlar bilan hamkorlik qilish imkoniyati berilsin.", discType: "I", score: 1 },
+                            { text: "Jamoa bilan aniq rollar taqsimlangan va ishonchli muhit bo'lsin.", discType: "S", score: 1 },
+                            { text: "Batafsil texnik topshiriq, mezonlar va aniq talablar ko'rsatilsin.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "Qanday ish muhiti sizning unumdorligingizni oshiradi?",
+                        order: 9,
+                        options: [
+                            { text: "Raqobatbardosh, tezkor va yangi cho'qqilarni zabt etadigan dinamik muhit.", discType: "D", score: 1 },
+                            { text: "Do'stona, qizg'in muloqotga boy va energiya beruvchi muhit.", discType: "I", score: 1 },
+                            { text: "Tinch, barqaror, o'zaro hurmat va yordamga asoslangan muhit.", discType: "S", score: 1 },
+                            { text: "Tartibli, tizimli, aniq reja va sifat standartlari ustuvor bo'lgan muhit.", discType: "C", score: 1 },
+                        ],
+                    },
+                    {
+                        text: "O'z mehnatingiz natijasini qanday baholaysiz?",
+                        order: 10,
+                        options: [
+                            { text: "Erishilgan aniq raqamlar, g'alabalar va natijadorlik bilan.", discType: "D", score: 1 },
+                            { text: "Jamoa va mijozlarning minnatdorchiligi hamda e'tirofi bilan.", discType: "I", score: 1 },
+                            { text: "Loyiha muammosiz, barqaror va barcha a'zolar xursand bo'lgani bilan.", discType: "S", score: 1 },
+                            { text: "Ish 100% xatosiz, yuqori sifat va mukammallikda bajarilgani bilan.", discType: "C", score: 1 },
+                        ],
+                    },
+                ];
+                for (const q of seedQuestions) {
+                    await db_1.default.discQuestion.create({
+                        data: {
+                            text: q.text,
+                            order: q.order,
+                            companyName: companyFilter,
+                            options: {
+                                create: q.options,
+                            },
+                        },
+                    }).catch(() => { });
+                }
+            }
+            return db_1.default.discQuestion.findMany({
+                where: { companyName: companyFilter },
+                include: { options: true },
+                orderBy: { order: "asc" },
+            });
+        }
+        return db_1.default.discQuestion.findMany({
+            include: { options: true },
+            orderBy: { order: "asc" },
+        });
+    }
+    async submitAssessment(userId, answers) {
+        const employee = await db_1.default.employee.findUnique({
+            where: { userId },
+        });
+        if (!employee) {
+            throw new appError_1.AppError("Employee profile not found", 404);
+        }
+        const optionIds = answers.map((a) => a.optionId);
+        const selectedOptions = await db_1.default.discOption.findMany({
+            where: { id: { in: optionIds } },
+        });
+        const optionMap = new Map(selectedOptions.map((opt) => [opt.id, opt]));
+        let dRaw = 0;
+        let iRaw = 0;
+        let sRaw = 0;
+        let cRaw = 0;
+        const responseData = [];
+        answers.forEach((ans) => {
+            const opt = optionMap.get(ans.optionId);
+            if (opt) {
+                if (opt.discType === "D")
+                    dRaw += opt.score;
+                if (opt.discType === "I")
+                    iRaw += opt.score;
+                if (opt.discType === "S")
+                    sRaw += opt.score;
+                if (opt.discType === "C")
+                    cRaw += opt.score;
+                responseData.push({
+                    questionId: ans.questionId,
+                    optionId: ans.optionId,
+                    discType: opt.discType,
+                });
+            }
+        });
+        const totalScore = dRaw + iRaw + sRaw + cRaw || 1;
+        const dScore = Math.round((dRaw / totalScore) * 100);
+        const iScore = Math.round((iRaw / totalScore) * 100);
+        const sScore = Math.round((sRaw / totalScore) * 100);
+        const cScore = Math.round((cRaw / totalScore) * 100);
+        const scores = [
+            { type: "D", score: dScore },
+            { type: "I", score: iScore },
+            { type: "S", score: sScore },
+            { type: "C", score: cScore },
+        ].sort((a, b) => b.score - a.score);
+        const primaryType = scores[0].type;
+        const secondaryType = scores[1].score > 15 ? scores[1].type : null;
+        return db_1.default.discAssessment.create({
+            data: {
+                employeeId: employee.id,
+                dScore,
+                iScore,
+                sScore,
+                cScore,
+                primaryType,
+                secondaryType,
+                responses: {
+                    create: responseData,
+                },
+            },
+            include: {
+                employee: { select: { firstName: true, lastName: true } },
+            },
+        });
+    }
+    async getMyDiscProfile(userId) {
+        const employee = await db_1.default.employee.findUnique({
+            where: { userId },
+        });
+        if (!employee)
+            throw new appError_1.AppError("Employee profile not found", 404);
+        const latestAssessment = await db_1.default.discAssessment.findFirst({
+            where: { employeeId: employee.id },
+            orderBy: { createdAt: "desc" },
+        });
+        if (!latestAssessment) {
+            return { hasTakenTest: false, assessment: null, description: null };
+        }
+        const descriptions = this.getDiscTypeDescription(latestAssessment.primaryType, latestAssessment.secondaryType);
+        return {
+            hasTakenTest: true,
+            assessment: latestAssessment,
+            description: descriptions,
+        };
+    }
+    async getTeamDiscAnalytics(departmentId, currentUser) {
+        const companyFilter = await this.resolveCallerCompany(currentUser);
+        const where = {
+            user: {
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+                role: { notIn: ["SUPER_ADMIN"] },
+            },
+        };
+        if (departmentId)
+            where.departmentId = departmentId;
+        const employees = await db_1.default.employee.findMany({
+            where,
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                department: { select: { name: true } },
+                position: { select: { title: true } },
+                discAssessments: {
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                },
+            },
+        });
+        let countD = 0;
+        let countI = 0;
+        let countS = 0;
+        let countC = 0;
+        let totalAssessed = 0;
+        const members = [];
+        employees.forEach((emp) => {
+            const latest = emp.discAssessments[0];
+            if (latest) {
+                totalAssessed++;
+                if (latest.primaryType === "D")
+                    countD++;
+                if (latest.primaryType === "I")
+                    countI++;
+                if (latest.primaryType === "S")
+                    countS++;
+                if (latest.primaryType === "C")
+                    countC++;
+                members.push({
+                    employeeId: emp.id,
+                    fullName: `${emp.firstName} ${emp.lastName}`,
+                    department: emp.department?.name,
+                    position: emp.position?.title,
+                    primaryType: latest.primaryType,
+                    secondaryType: latest.secondaryType,
+                    scores: {
+                        D: latest.dScore,
+                        I: latest.iScore,
+                        S: latest.sScore,
+                        C: latest.cScore,
+                    },
+                });
+            }
+        });
+        const total = totalAssessed || 1;
+        return {
+            totalEmployees: employees.length,
+            totalAssessed,
+            distribution: {
+                D: Math.round((countD / total) * 100),
+                I: Math.round((countI / total) * 100),
+                S: Math.round((countS / total) * 100),
+                C: Math.round((countC / total) * 100),
+            },
+            members,
+        };
+    }
+    getDiscTypeDescription(primary, secondary) {
+        const baseDescriptions = {
+            D: {
+                title: "Dominance (Yetakchi / Qaror qabul qiluvchi)",
+                traits: "Natijaga yo'naltirilgan, qat'iyatli, tez qaror qabul qiladigan va qiyinchiliklardan qo'rqmaydigan.",
+                communication: "Aniq, qisqa va natijaga qaratilgan muloqotni afzal ko'radi.",
+                strengths: "Muammolarni tez hal qilish, xatarlarni o'z zimmasiga olish va liderlik.",
+            },
+            I: {
+                title: "Influence (Ta'sirchan / Muloqotmand)",
+                traits: "Ochiq ko'ngil, ilhomlantiruvchi, xushchaqchaq va jamoani birlashtiruvchi.",
+                communication: "Esterial va ijtimoiy muloqot, do'stona muhitni xush ko'radi.",
+                strengths: "Taqdimot qilish, munosabatlar o'rnatish va motivatsiya berish.",
+            },
+            S: {
+                title: "Steadiness (Barqaror / Sadoqatli)",
+                traits: "Bosiq, sabrli, jamoada hamkorlikni va barqarorlikni birinchi o'ringa qo'yadigan.",
+                communication: "Yumshoq, tinglashga tayyor va tushunishga intiluvchi muloqot.",
+                strengths: "Izchillik, ishonchlilik va kuchli jamoaviy qo'llab-quvvatlash.",
+            },
+            C: {
+                title: "Conscientiousness (Aniq / Tahlilchi)",
+                traits: "Sifat, aniqlik, mantiq va qoidalarga qat'iy rioya qiladigan.",
+                communication: "Faktlar va raqamlarga asoslangan jiddiy muloqot.",
+                strengths: "Tahlil qilish, sifat nazorati va tartib-intizom.",
+            },
+        };
+        return {
+            primary: baseDescriptions[primary] || null,
+            secondaryType: secondary || null,
+        };
+    }
+}
+exports.DiscService = DiscService;
+exports.discService = new DiscService();

@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const validate_middleware_1 = require("./../../middlewares/validate-middleware");
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const disc_controller_1 = require("./disc-controller");
+const disc_validation_1 = require("./disc-validation");
+const discRouter = (0, express_1.Router)();
+discRouter.use(auth_middleware_1.authenticate);
+discRouter.get("/questions", disc_controller_1.discController.getQuestions);
+discRouter.post("/questions", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), (0, validate_middleware_1.validate)(disc_validation_1.createQuestionSchema), disc_controller_1.discController.createQuestion);
+discRouter.put("/questions/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), disc_controller_1.discController.updateQuestion);
+discRouter.delete("/questions/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), disc_controller_1.discController.deleteQuestion);
+discRouter.post("/submit", (0, validate_middleware_1.validate)(disc_validation_1.submitAssessmentSchema), disc_controller_1.discController.submitAssessment);
+discRouter.get("/my-profile", disc_controller_1.discController.getMyDiscProfile);
+discRouter.get("/team-analytics", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "DEPARTMENT_HEAD"), disc_controller_1.discController.getTeamDiscAnalytics);
+exports.default = discRouter;

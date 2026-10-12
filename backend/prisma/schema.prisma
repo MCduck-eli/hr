@@ -1252,3 +1252,16 @@ model EnpsResponse {
   @@index([employeeId])
   @@index([questionId])
 }
+
+model TrialRequest {
+  id           String   @id @default(uuid())
+  firstName    String
+  lastName     String
+  phone        String
+  email        String
+  status       String   @default("TRIAL_ACTIVE")
+  createdAt    DateTime @default(now())
+  trialEndDate DateTime
+
+  @@index([email])
+}

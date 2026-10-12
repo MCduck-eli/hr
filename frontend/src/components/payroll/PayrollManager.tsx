@@ -26,12 +26,94 @@ import {
 } from "@/src/services/payroll-service";
 import { fetchAllUsers } from "@/src/services/user-service";
 import PayslipModal from "./PayslipModal";
-import CompanyExpensesAnalytics from "./CompanyExpensesAnalytics";
+
+function PayrollCircularProgress({
+    value,
+    size = 64,
+    strokeWidth = 6,
+    color,
+}: {
+    value: number;
+    size?: number;
+    strokeWidth?: number;
+    color: string;
+}) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const clamped = Math.min(100, Math.max(0, value));
+    const offset = circumference - (clamped / 100) * circumference;
+
+    return (
+        <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+            <svg className="w-full h-full transform -rotate-90" viewBox={`0 0 ${size} ${size}`}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke="#E5E7EB"
+                    strokeWidth={strokeWidth}
+                    fill="transparent"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    fill="transparent"
+                    className="transition-all duration-500 ease-out"
+                />
+            </svg>
+            <span className="absolute text-xs font-black text-gray-900">
+                {Math.round(clamped)}%
+            </span>
+        </div>
+    );
+}
+
+function PayrollEmployeeAvatar({ emp, employeeId, employees }: { emp: any; employeeId?: string; employees?: any[] }) {
+    const [imageError, setImageError] = useState(false);
+    const matchedEmp = employees?.find((e: any) => (emp?.id && e.id === emp.id) || (employeeId && e.id === employeeId));
+    const rawAvatar = emp?.avatar || emp?.user?.avatar || emp?.image || emp?.user?.image || emp?.profilePhoto || emp?.user?.profilePhoto || matchedEmp?.avatar || matchedEmp?.image || "";
+
+    const initial = emp?.user?.name ? emp.user.name[0] : (emp?.firstName ? emp.firstName[0] : "E");
+
+    let avatarSrc: string | null = null;
+    if (rawAvatar && !imageError) {
+        if (rawAvatar.startsWith("http://") || rawAvatar.startsWith("https://") || rawAvatar.startsWith("data:")) {
+            avatarSrc = rawAvatar;
+        } else {
+            const rawApi = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+            const baseOrigin = rawApi.replace(/\/api(\/v\d+)?\/?$/, "").replace(/\/+$/, "");
+            const cleanPath = rawAvatar.startsWith("/") ? rawAvatar : `/${rawAvatar}`;
+            avatarSrc = `${baseOrigin}${cleanPath}`;
+        }
+    }
+
+    if (avatarSrc) {
+        return (
+            <img
+                src={avatarSrc}
+                alt={emp?.user?.name || emp?.firstName || "Avatar"}
+                onError={() => setImageError(true)}
+                className="w-8 h-8 rounded-full object-cover shrink-0"
+            />
+        );
+    }
+
+    return (
+        <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+            {initial}
+        </div>
+    );
+}
 
 export default function PayrollManager() {
     const t = useTranslations("Payroll");
     const currentDate = new Date();
-    const [activeViewMode, setActiveViewMode] = useState<"operations" | "expenses">("operations");
     const [selectedMonth, setSelectedMonth] = useState<number>(currentDate.getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState<number>(currentDate.getFullYear());
     const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -832,6 +914,8 @@ export default function PayrollManager() {
 
     const netSalaryPercent = totalGrossSalary > 0 ? Math.round((totalNetSalary / totalGrossSalary) * 100) : 0;
     const taxPercentShare = totalGrossSalary > 0 ? Math.round((totalTaxAmount / totalGrossSalary) * 100) : 0;
+    const totalDeductionsAndAdvances = totalDeductions + totalPaidAdvances;
+    const deductionsPercentShare = totalGrossSalary > 0 ? Math.round((totalDeductionsAndAdvances / totalGrossSalary) * 100) : 0;
 
     const departmentExpensesMap: Record<string, { name: string; totalNet: number; totalGross: number; count: number }> = {};
     payrolls.forEach((p) => {
@@ -867,37 +951,7 @@ export default function PayrollManager() {
 
     return (
         <div className="flex flex-col gap-8 w-full">
-            {/* View Mode Switcher: Operations vs Company Expenses Analytics */}
-            <div className="flex border-b border-gray-200 gap-2">
-                <button
-                    onClick={() => setActiveViewMode("operations")}
-                    className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 cursor-pointer ${
-                        activeViewMode === "operations"
-                            ? "border-black text-black"
-                            : "border-transparent text-gray-400 hover:text-black"
-                    }`}
-                >
-                    <span>💵</span>
-                    <span>Oylik Maoshlar & To'lovlar</span>
-                </button>
-                <button
-                    onClick={() => setActiveViewMode("expenses")}
-                    className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 cursor-pointer ${
-                        activeViewMode === "expenses"
-                            ? "border-black text-black"
-                            : "border-transparent text-gray-400 hover:text-black"
-                    }`}
-                >
-                    <span>📊</span>
-                    <span>Kompaniya Xarajatlari & Moliya Tahlili</span>
-                </button>
-            </div>
-
-            {activeViewMode === "expenses" ? (
-                <CompanyExpensesAnalytics />
-            ) : (
-                <>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
                 <div>
                     <h2 className="text-2xl font-black uppercase tracking-tight text-black flex items-center gap-2">
                         <span>💰</span> {t("title")}
@@ -908,7 +962,7 @@ export default function PayrollManager() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
-                    <div className="flex items-center gap-1.5 bg-white border border-gray-300 p-1">
+                    <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg p-1 shadow-2xs">
                         <select
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(Number(e.target.value))}
@@ -934,55 +988,29 @@ export default function PayrollManager() {
                     </div>
 
                     <button
-                        onClick={handleRunAutoCalculation}
-                        disabled={calculating}
-                        className="px-3.5 py-2.5 bg-white text-black border-2 border-black text-xs font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                        <span>⚡</span>
-                        {calculating ? t("calculating") : t("autoCalculate")}
-                    </button>
-
-                    <button
-                        onClick={handleOpenCompensationModal}
-                        className="px-3.5 py-2.5 bg-blue-50 text-blue-900 border border-blue-300 text-xs font-bold uppercase tracking-wider hover:bg-blue-100 transition-colors flex items-center gap-1.5"
-                    >
-                        <span>⚙️</span>
-                        {t("compensationSettingsBtn") || "Oylik & Soatbay"}
-                    </button>
-
-                    <button
-                        onClick={handleOpenScheduleModal}
-                        className="px-3.5 py-2.5 bg-indigo-50 text-indigo-900 border border-indigo-300 text-xs font-bold uppercase tracking-wider hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
-                    >
-                        {t("scheduleBtn")}
-                    </button>
-
-                    <button
                         onClick={() => handleOpenAddAdvance()}
-                        className="px-3.5 py-2.5 bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-bold uppercase tracking-wider hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+                        className="px-3.5 py-2.5 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
                     >
                         {t("addAdvanceBtn")}
                     </button>
 
                     <button
                         onClick={handleOpenAdvancesList}
-                        className="px-3.5 py-2.5 bg-teal-50 text-teal-900 border border-teal-300 text-xs font-bold uppercase tracking-wider hover:bg-teal-100 transition-colors flex items-center gap-1.5"
+                        className="px-3.5 py-2.5 bg-teal-50 text-teal-900 border border-teal-200 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-teal-100 transition-colors flex items-center gap-1.5"
                     >
                         {t("advancesListBtn")}
                     </button>
 
                     <button
                         onClick={handleOpenPaymentHistory}
-                        className="px-3.5 py-2.5 bg-purple-50 text-purple-900 border border-purple-300 text-xs font-bold uppercase tracking-wider hover:bg-purple-100 transition-colors flex items-center gap-1.5"
+                        className="px-3.5 py-2.5 bg-purple-50 text-purple-900 border border-purple-200 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-purple-100 transition-colors flex items-center gap-1.5"
                     >
                         {t("paymentHistoryBtn")}
                     </button>
 
-
-
                     <button
                         onClick={() => setIsManualModalOpen(true)}
-                        className="px-4 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                        className="px-4 py-2.5 bg-purple-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-700 rounded-lg transition-colors shadow-xs"
                     >
                         + {t("newPayroll")}
                     </button>
@@ -990,7 +1018,7 @@ export default function PayrollManager() {
             </div>
 
             {(hasDueSalaries || hasDueAdvances) && (
-                <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border-2 border-amber-400 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-200">
+                <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border border-amber-300 rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-200">
                     <div className="flex items-start gap-3">
                         <span className="text-2xl">🔔</span>
                         <div>
@@ -1002,12 +1030,12 @@ export default function PayrollManager() {
                             </p>
                             <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
                                 {hasDueSalaries && (
-                                    <span className="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 font-bold">
+                                    <span className="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 font-bold rounded">
                                         📅 {t("dueSalaryNotice", { count: pendingCount, month: getMonthName(selectedMonth) })}
                                     </span>
                                 )}
                                 {hasDueAdvances && (
-                                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold">
+                                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold rounded">
                                         💳 {t("dueAdvanceNotice", { count: awaitingAdvancesCount || dueReminders?.advanceDue?.pendingCount || 0 })}
                                     </span>
                                 )}
@@ -1018,14 +1046,14 @@ export default function PayrollManager() {
                         {hasDueAdvances && (
                             <button
                                 onClick={handleOpenAdvancesList}
-                                className="px-3.5 py-1.5 bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 transition-colors"
+                                className="px-3.5 py-1.5 bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer"
                             >
                                 {t("advancesListBtn")}
                             </button>
                         )}
                         <button
                             onClick={handleOpenScheduleModal}
-                            className="px-3.5 py-1.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                            className="px-3.5 py-1.5 bg-purple-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-700 rounded-lg transition-colors cursor-pointer"
                         >
                             {t("scheduleBtn")}
                         </button>
@@ -1034,7 +1062,7 @@ export default function PayrollManager() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="bg-white border border-gray-200 p-5 flex flex-col gap-1 shadow-xs">
+                <div className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-1 shadow-xs">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                         {t("totalFund")}
                     </span>
@@ -1046,7 +1074,7 @@ export default function PayrollManager() {
                     </span>
                 </div>
 
-                <div className="bg-white border border-gray-200 p-5 flex flex-col gap-1 shadow-xs">
+                <div className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-1 shadow-xs">
                     <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
                         {t("totalBonuses")}
                     </span>
@@ -1058,7 +1086,7 @@ export default function PayrollManager() {
                     </span>
                 </div>
 
-                <div className="bg-white border border-gray-200 p-5 flex flex-col gap-1 shadow-xs">
+                <div className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-1 shadow-xs">
                     <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">
                         {t("totalDeductions")}
                     </span>
@@ -1070,19 +1098,19 @@ export default function PayrollManager() {
                     </span>
                 </div>
 
-                <div className="bg-white border-2 border-black p-5 flex flex-col gap-1 shadow-xs bg-slate-50">
-                    <span className="text-[10px] font-black text-black uppercase tracking-widest">
+                <div className="bg-purple-50/40 border border-purple-200 rounded-xl p-5 flex flex-col gap-1 shadow-xs">
+                    <span className="text-[10px] font-black text-purple-900 uppercase tracking-widest">
                         {t("totalNet")}
                     </span>
-                    <span className="text-xl font-black text-black tracking-tight">
+                    <span className="text-xl font-black text-purple-950 tracking-tight">
                         {formatMoney(totalNetSalary)}
                     </span>
-                    <span className="text-[11px] font-medium text-gray-600">
+                    <span className="text-[11px] font-medium text-purple-700">
                         {t("netPayDesc")}
                     </span>
                 </div>
 
-                <div className="bg-white border border-gray-200 p-5 flex flex-col gap-1 shadow-xs">
+                <div className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-1 shadow-xs">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                         {t("paidStatus")}
                     </span>
@@ -1097,7 +1125,7 @@ export default function PayrollManager() {
 
             {/* Oylik Xarajatlar Taqsimoti & Shaffoflik Paneli */}
             {payrolls.length > 0 && (
-                <div className="bg-white border-2 border-black p-6 flex flex-col gap-6 shadow-sm">
+                <div className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col gap-6 shadow-sm">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                         <div>
                             <div className="flex items-center gap-2">
@@ -1125,63 +1153,41 @@ export default function PayrollManager() {
                         </div>
                     </div>
 
-                    {/* Visual Stacked Progress Bar */}
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between text-xs font-bold text-gray-700">
-                            <span>Umumiy Oylik Hisobi (Gross Fond: {formatMoney(totalGrossSalary)})</span>
-                            <span className="text-gray-500 text-[11px]">100%</span>
-                        </div>
-                        <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden flex shadow-inner">
-                            {totalNetSalary > 0 && (
-                                <div
-                                    style={{ width: `${totalGrossSalary > 0 ? (totalNetSalary / totalGrossSalary) * 100 : 0}%` }}
-                                    className="bg-emerald-500 hover:bg-emerald-600 transition-all cursor-pointer relative"
-                                    title={`Xodimlar Sof Maoshi: ${formatMoney(totalNetSalary)}`}
-                                />
-                            )}
-                            {totalTaxAmount > 0 && (
-                                <div
-                                    style={{ width: `${totalGrossSalary > 0 ? (totalTaxAmount / totalGrossSalary) * 100 : 0}%` }}
-                                    className="bg-amber-500 hover:bg-amber-600 transition-all cursor-pointer relative"
-                                    title={`Daromad Solig'i (12%): ${formatMoney(totalTaxAmount)}`}
-                                />
-                            )}
-                            {totalPaidAdvances > 0 && (
-                                <div
-                                    style={{ width: `${totalGrossSalary > 0 ? (totalPaidAdvances / totalGrossSalary) * 100 : 0}%` }}
-                                    className="bg-purple-500 hover:bg-purple-600 transition-all cursor-pointer relative"
-                                    title={`To'langan Avanslar: ${formatMoney(totalPaidAdvances)}`}
-                                />
-                            )}
-                            {totalBonuses > 0 && (
-                                <div
-                                    style={{ width: `${totalGrossSalary > 0 ? (totalBonuses / totalGrossSalary) * 100 : 0}%` }}
-                                    className="bg-blue-500 hover:bg-blue-600 transition-all cursor-pointer relative"
-                                    title={`Bonuslar: ${formatMoney(totalBonuses)}`}
-                                />
-                            )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold mt-1">
-                            <span className="flex items-center gap-1.5 text-emerald-800">
-                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                                Sof Maosh ({netSalaryPercent}%)
-                            </span>
-                            <span className="flex items-center gap-1.5 text-amber-800">
-                                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
-                                Soliq 12% ({taxPercentShare}%)
-                            </span>
-                            {totalPaidAdvances > 0 && (
-                                <span className="flex items-center gap-1.5 text-purple-800">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span>
-                                    Avanslar ({totalGrossSalary > 0 ? Math.round((totalPaidAdvances / totalGrossSalary) * 100) : 0}%)
+                    <div className="flex flex-col sm:flex-row justify-around items-center gap-6 p-4 bg-gray-50/60 rounded-xl border border-gray-100">
+                        <div className="flex items-center gap-4">
+                            <PayrollCircularProgress value={netSalaryPercent} color="#10B981" />
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold uppercase text-gray-500">
+                                    Sof Maosh
                                 </span>
-                            )}
-                            {totalBonuses > 0 && (
-                                <span className="flex items-center gap-1.5 text-blue-800">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
-                                    Bonuslar ({totalGrossSalary > 0 ? Math.round((totalBonuses / totalGrossSalary) * 100) : 0}%)
+                                <span className="text-base font-black text-green-500 mt-0.5">
+                                    {formatMoney(totalNetSalary)}
                                 </span>
-                            )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <PayrollCircularProgress value={taxPercentShare} color="#F97316" />
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold uppercase text-gray-500">
+                                    Davlat Solig'i
+                                </span>
+                                <span className="text-base font-black text-orange-500 mt-0.5">
+                                    {formatMoney(totalTaxAmount)}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <PayrollCircularProgress value={deductionsPercentShare} color="#EF4444" />
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold uppercase text-gray-500">
+                                    Ushlanmalar/Avanslar
+                                </span>
+                                <span className="text-base font-black text-rose-500 mt-0.5">
+                                    {formatMoney(totalDeductionsAndAdvances)}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -1302,9 +1308,9 @@ export default function PayrollManager() {
                         <button
                             key={st.id}
                             onClick={() => setStatusFilter(st.id)}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                            className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
                                 statusFilter === st.id
-                                    ? "bg-black text-white"
+                                    ? "bg-purple-600 text-white shadow-xs"
                                     : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100"
                             }`}
                         >
@@ -1318,7 +1324,7 @@ export default function PayrollManager() {
                         <button
                             type="button"
                             onClick={handleExportPaidListPdf}
-                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer rounded-lg"
                         >
                             <span>📥</span>
                             <span>{t("downloadPdfBtn")}</span>
@@ -1331,11 +1337,11 @@ export default function PayrollManager() {
                             placeholder={t("searchPlaceholder")}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="px-3 py-1.5 bg-white border border-gray-300 text-xs font-medium focus:outline-none focus:border-black w-60"
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-purple-500 w-60 shadow-2xs"
                         />
                         <button
                             type="submit"
-                            className="px-3 py-1.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
+                            className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer shadow-xs"
                         >
                             {t("search")}
                         </button>
@@ -1348,7 +1354,7 @@ export default function PayrollManager() {
                     {t("loading")}
                 </div>
             ) : payrolls.length === 0 ? (
-                <div className="p-16 text-center border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-3 bg-white">
+                <div className="p-16 text-center border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-3 bg-white">
                     <span className="text-3xl">📊</span>
                     <p className="text-sm font-bold uppercase tracking-wider text-gray-700">
                         {t("emptyTitle", { month: getMonthName(selectedMonth), year: selectedYear })}
@@ -1358,13 +1364,13 @@ export default function PayrollManager() {
                     </p>
                     <button
                         onClick={handleRunAutoCalculation}
-                        className="mt-2 px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
+                        className="mt-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-xs cursor-pointer"
                     >
                         {t("startAutoCalculate")}
                     </button>
                 </div>
             ) : (
-                <div className="bg-white border border-gray-200 overflow-x-auto shadow-xs">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-xs">
                     <table className="w-full text-left border-collapse text-xs">
                         <thead>
                             <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-500">
@@ -1460,9 +1466,7 @@ export default function PayrollManager() {
                                     <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
                                         <td className="p-4 font-bold text-black">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs uppercase">
-                                                    {emp.user?.name ? emp.user.name[0] : (emp.firstName ? emp.firstName[0] : "E")}
-                                                </div>
+                                                <PayrollEmployeeAvatar emp={emp} employeeId={p.employeeId} employees={employees} />
                                                 <div>
                                                     <p className="text-black font-bold flex items-center gap-2">
                                                         <span>{emp.user?.name || `${emp.firstName || ""} ${emp.lastName || ""}`.trim() || "Xodim"}</span>
@@ -1658,7 +1662,7 @@ export default function PayrollManager() {
                                                 </button>
                                                 <button
                                                     onClick={() => setSelectedPayslip(p)}
-                                                    className="px-2.5 py-1 bg-gray-100 text-black text-[11px] font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors border border-gray-300 cursor-pointer"
+                                                    className="px-2.5 py-1 bg-gray-100 text-gray-800 text-[11px] font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors border border-gray-200 rounded-lg cursor-pointer"
                                                 >
                                                     🧾 {t("viewPayslip")}
                                                 </button>
@@ -1683,8 +1687,8 @@ export default function PayrollManager() {
 
             {isAutoCalcModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b-2 border-black pb-4">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                             <div>
                                 <h3 className="text-lg font-black uppercase tracking-tight text-black flex items-center gap-2">
                                     <span>⚡</span> {t("autoCalcModalTitle")}
@@ -1832,14 +1836,14 @@ export default function PayrollManager() {
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={() => setIsAutoCalcModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase tracking-wider text-black hover:bg-gray-100"
+                                    className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold uppercase tracking-wider text-gray-700 hover:bg-gray-100"
                                 >
                                     {t("cancel")}
                                 </button>
                                 <button
                                     onClick={handleSaveBatchPayroll}
                                     disabled={batchGenerating}
-                                    className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 disabled:opacity-50"
+                                    className="px-6 py-2 bg-purple-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-700 rounded-lg disabled:opacity-50"
                                 >
                                     {batchGenerating ? t("saving") : `💾 ${t("saveBatch")}`}
                                 </button>
@@ -1851,8 +1855,8 @@ export default function PayrollManager() {
 
             {isScheduleModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-lg p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-black pb-3">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                             <h3 className="text-sm font-black uppercase text-black flex items-center gap-2">
                                 <span>📅</span> {t("scheduleModalTitle")}
                             </h3>
@@ -1879,7 +1883,7 @@ export default function PayrollManager() {
                                     required
                                     value={scheduleForm.salaryPayDay}
                                     onChange={(e) => setScheduleForm({ ...scheduleForm, salaryPayDay: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg font-bold focus:outline-none focus:border-purple-500"
                                 />
                             </div>
 
@@ -1894,7 +1898,7 @@ export default function PayrollManager() {
                                     required
                                     value={scheduleForm.advancePayDay}
                                     onChange={(e) => setScheduleForm({ ...scheduleForm, advancePayDay: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg font-bold focus:outline-none focus:border-purple-500"
                                 />
                             </div>
 
@@ -1910,7 +1914,7 @@ export default function PayrollManager() {
                                         required
                                         value={scheduleForm.advancePercentage}
                                         onChange={(e) => setScheduleForm({ ...scheduleForm, advancePercentage: e.target.value })}
-                                        className="w-full p-2.5 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
+                                        className="w-full p-2.5 bg-white border border-gray-200 rounded-lg font-bold focus:outline-none focus:border-purple-500"
                                     />
                                 </div>
                                 <div>
@@ -1924,7 +1928,7 @@ export default function PayrollManager() {
                                         required
                                         value={scheduleForm.notificationLeadDays}
                                         onChange={(e) => setScheduleForm({ ...scheduleForm, notificationLeadDays: e.target.value })}
-                                        className="w-full p-2.5 bg-white border border-gray-300 font-bold focus:outline-none focus:border-black"
+                                        className="w-full p-2.5 bg-white border border-gray-200 rounded-lg font-bold focus:outline-none focus:border-purple-500"
                                     />
                                 </div>
                             </div>
@@ -1935,23 +1939,23 @@ export default function PayrollManager() {
                                         type="checkbox"
                                         checked={scheduleForm.isAdvanceEnabled}
                                         onChange={(e) => setScheduleForm({ ...scheduleForm, isAdvanceEnabled: e.target.checked })}
-                                        className="w-4 h-4 accent-black"
+                                        className="w-4 h-4 accent-purple-600"
                                     />
                                     <span>{t("isAdvanceEnabledLabel")}</span>
                                 </label>
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200 mt-2">
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 mt-2">
                                 <button
                                     type="button"
                                     onClick={() => setIsScheduleModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-black hover:bg-gray-100"
+                                    className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold uppercase text-gray-700 hover:bg-gray-100 cursor-pointer"
                                 >
                                     {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:bg-neutral-800"
+                                    className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
                                 >
                                     {t("saveSchedule")}
                                 </button>
@@ -1963,8 +1967,8 @@ export default function PayrollManager() {
 
             {isAddAdvanceModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-black pb-3">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                             <h3 className="text-sm font-black uppercase text-black flex items-center gap-1.5">
                                 <span>💳</span> {t("advanceModalTitle")}
                             </h3>
@@ -1988,12 +1992,12 @@ export default function PayrollManager() {
                                         const empId = e.target.value;
                                         const limitInfo = getEmployeeAvailableAdvanceLimit(empId, Number(advanceForm.month || selectedMonth), Number(advanceForm.year || selectedYear));
                                         setAdvanceForm({
-                                            ...advanceForm,
+                                             ...advanceForm,
                                             employeeId: empId,
                                             amount: limitInfo.availableEarnedSalary > 0 ? limitInfo.availableEarnedSalary.toString() : "0",
                                         });
                                     }}
-                                    className="w-full p-2.5 bg-gray-50 border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-purple-500"
                                     required
                                 >
                                     <option value="">{t("selectEmployee")}</option>
@@ -2012,7 +2016,7 @@ export default function PayrollManager() {
                                     Number(advanceForm.year || selectedYear)
                                 );
                                 return (
-                                    <div className="bg-blue-50 border border-blue-200 p-3 rounded-xs text-[11px] text-blue-900 flex flex-col gap-1">
+                                    <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-[11px] text-blue-900 flex flex-col gap-1">
                                         <div className="flex justify-between font-bold">
                                             <span>Kunlik stavka:</span>
                                             <span>{formatMoney(limitInfo.dailyRate)} / kun</span>
@@ -2039,7 +2043,7 @@ export default function PayrollManager() {
                                         placeholder="500000"
                                         value={advanceForm.amount}
                                         onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })}
-                                        className="w-full p-2.5 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
+                                        className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs font-bold focus:outline-none focus:border-purple-500"
                                     />
                                 </div>
                                 <div>
@@ -2061,12 +2065,12 @@ export default function PayrollManager() {
                                             }
                                             setAdvanceForm({ ...advanceForm, dueDate: val, month: m, year: y });
                                         }}
-                                        className="w-full p-2 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
+                                        className="w-full p-2 bg-white border border-gray-200 rounded-lg text-xs font-bold focus:outline-none focus:border-purple-500"
                                     />
                                 </div>
                             </div>
 
-                            <div className="p-3 bg-amber-50 border border-amber-200">
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                                 <label className="flex items-center gap-2 cursor-pointer font-bold text-amber-950">
                                     <input
                                         type="checkbox"
@@ -2088,21 +2092,21 @@ export default function PayrollManager() {
                                     placeholder={t("advanceReasonPlaceholder")}
                                     value={advanceForm.reason}
                                     onChange={(e) => setAdvanceForm({ ...advanceForm, reason: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-purple-500"
                                 />
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200 mt-2">
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 mt-2">
                                 <button
                                     type="button"
                                     onClick={() => setIsAddAdvanceModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-black hover:bg-gray-100"
+                                    className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold uppercase text-gray-700 hover:bg-gray-100 cursor-pointer"
                                 >
                                     {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:bg-neutral-800"
+                                    className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
                                 >
                                     {t("saveAdvance")}
                                 </button>
@@ -2114,8 +2118,8 @@ export default function PayrollManager() {
 
             {isAdvancesListModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b-2 border-black pb-3">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                             <div>
                                 <h3 className="text-base font-black uppercase text-black flex items-center gap-2">
                                     <span>💳</span> {t("advancesListModalTitle", { month: getMonthName(selectedMonth), year: selectedYear })}
@@ -2236,14 +2240,14 @@ export default function PayrollManager() {
                             <button
                                 type="button"
                                 onClick={() => handleOpenAddAdvance()}
-                                className="px-4 py-2 bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-bold uppercase hover:bg-emerald-100"
+                                className="px-4 py-2 bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold uppercase hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
                             >
                                 + {t("addAdvanceBtn")}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setIsAdvancesListModalOpen(false)}
-                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase"
+                                className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
                             >
                                 {t("close")}
                             </button>
@@ -2254,8 +2258,8 @@ export default function PayrollManager() {
 
             {isPaymentHistoryModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b-2 border-black pb-3">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                             <div>
                                 <h3 className="text-base font-black uppercase text-black flex items-center gap-2">
                                     <span>🏛️</span> {t("paymentHistoryModalTitle")}
@@ -2424,7 +2428,7 @@ export default function PayrollManager() {
                             <button
                                 type="button"
                                 onClick={() => setIsPaymentHistoryModalOpen(false)}
-                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase"
+                                className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
                             >
                                 {t("close")}
                             </button>
@@ -2435,8 +2439,8 @@ export default function PayrollManager() {
 
             {isPayModalOpen && payModalTarget && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-black pb-3">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                             <h3 className="text-sm font-black uppercase text-black flex items-center gap-1.5">
                                 <span>💰</span> {t("payModalTitle")}
                             </h3>
@@ -2448,7 +2452,7 @@ export default function PayrollManager() {
                             </button>
                         </div>
 
-                        <div className="p-4 bg-gray-50 border border-gray-200 flex flex-col gap-1.5 text-xs">
+                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-1.5 text-xs">
                             <span className="text-gray-500 font-bold uppercase">{t("employee")}:</span>
                             <span className="text-sm font-black text-black">{payModalTarget.name}</span>
                             <span className="text-gray-500 font-bold uppercase mt-2">{t("netSalary")}:</span>
@@ -2463,7 +2467,7 @@ export default function PayrollManager() {
                                 <select
                                     value={payForm.paymentMethod}
                                     onChange={(e) => setPayForm({ ...payForm, paymentMethod: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 font-medium focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg font-medium focus:outline-none focus:border-purple-500"
                                 >
                                     <option value="BANK_CARD">{t("methodBankCard")}</option>
                                     <option value="CASH">{t("methodCash")}</option>
@@ -2480,21 +2484,21 @@ export default function PayrollManager() {
                                     placeholder="Tranzaksiya raqami yoki izoh..."
                                     value={payForm.note}
                                     onChange={(e) => setPayForm({ ...payForm, note: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 font-medium focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg font-medium focus:outline-none focus:border-purple-500"
                                 />
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200 mt-2">
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 mt-2">
                                 <button
                                     type="button"
                                     onClick={() => setIsPayModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-black hover:bg-gray-100"
+                                    className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold uppercase text-gray-700 hover:bg-gray-100 cursor-pointer"
                                 >
                                     {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2 bg-emerald-600 text-white text-xs font-bold uppercase hover:bg-emerald-700"
+                                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
                                 >
                                     {t("confirmPayment")}
                                 </button>
@@ -2508,8 +2512,8 @@ export default function PayrollManager() {
 
             {isManualModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-black pb-3">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                             <h3 className="text-sm font-black uppercase text-black">
                                 {t("createModalTitle")}
                             </h3>
@@ -2535,7 +2539,7 @@ export default function PayrollManager() {
                                             baseSalary: empObj?.salary ? empObj.salary.toString() : manualForm.baseSalary,
                                         });
                                     }}
-                                    className="w-full p-2.5 bg-gray-50 border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-purple-500"
                                     required
                                 >
                                     <option value="">{t("selectEmployee")}</option>
@@ -2554,7 +2558,7 @@ export default function PayrollManager() {
                                     placeholder="5000000"
                                     value={manualForm.baseSalary}
                                     onChange={(e) => setManualForm({ ...manualForm, baseSalary: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 text-xs font-bold focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs font-bold focus:outline-none focus:border-purple-500"
                                     required
                                 />
                             </div>
@@ -2566,7 +2570,7 @@ export default function PayrollManager() {
                                     placeholder="0"
                                     value={manualForm.bonus}
                                     onChange={(e) => setManualForm({ ...manualForm, bonus: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-purple-500"
                                 />
                             </div>
 
@@ -2577,21 +2581,21 @@ export default function PayrollManager() {
                                     placeholder="0"
                                     value={manualForm.deductions}
                                     onChange={(e) => setManualForm({ ...manualForm, deductions: e.target.value })}
-                                    className="w-full p-2.5 bg-white border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
+                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-purple-500"
                                 />
                             </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200 mt-2">
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 mt-2">
                                 <button
                                     type="button"
                                     onClick={() => setIsManualModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-black hover:bg-gray-100"
+                                    className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold uppercase text-gray-700 hover:bg-gray-100 cursor-pointer"
                                 >
                                     {t("cancel")}
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:bg-neutral-800"
+                                    className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
                                 >
                                     {t("save")}
                                 </button>
@@ -2603,8 +2607,8 @@ export default function PayrollManager() {
 
             {isCompensationModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white border-2 border-black w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                             <div>
                                 <h3 className="text-base font-black uppercase tracking-tight text-black flex items-center gap-2">
                                     <span>⚙️</span> {t("compensationModalTitle") || "Xodimlarning Oylik va Soatbay To'lov Sozlamalari"}
@@ -2630,7 +2634,7 @@ export default function PayrollManager() {
                                 placeholder={t("searchPlaceholder") || "Xodim ismi bo'yicha qidirish..."}
                                 value={compSearch}
                                 onChange={(e) => setCompSearch(e.target.value)}
-                                className="w-full sm:w-80 p-2.5 bg-gray-50 border border-gray-300 text-xs font-medium focus:outline-none focus:border-black"
+                                className="w-full sm:w-80 p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-purple-500"
                             />
                         </div>
 
@@ -2829,18 +2833,18 @@ export default function PayrollManager() {
                                             </span>
                                         </div>
 
-                                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-200 mt-2">
+                                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 mt-2">
                                             <button
                                                 type="button"
                                                 onClick={() => setEditingCompEmp(null)}
-                                                className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-black hover:bg-gray-100"
+                                                className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold uppercase text-gray-700 hover:bg-gray-100 cursor-pointer"
                                             >
                                                 {t("cancel") || "Bekor qilish"}
                                             </button>
                                             <button
                                                 type="submit"
                                                 disabled={savingComp}
-                                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:bg-neutral-800 disabled:opacity-50"
+                                                className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                                             >
                                                 {savingComp ? (t("saving") || "Saqlanmoqda...") : (t("saveCompensation") || "Saqlash")}
                                             </button>
@@ -2850,13 +2854,13 @@ export default function PayrollManager() {
                             </div>
                         )}
 
-                        <div className="flex items-center justify-end pt-3 border-t border-gray-200">
+                        <div className="flex items-center justify-end pt-3 border-t border-gray-100">
                             <button
                                 onClick={() => {
                                     setIsCompensationModalOpen(false);
                                     setEditingCompEmp(null);
                                 }}
-                                className="px-6 py-2 bg-black text-white text-xs font-bold uppercase hover:bg-neutral-800"
+                                className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
                             >
                                 {t("close") || "Yopish"}
                             </button>
@@ -2870,8 +2874,6 @@ export default function PayrollManager() {
                 onClose={() => setSelectedPayslip(null)}
                 payroll={selectedPayslip}
             />
-                </>
-            )}
         </div>
     );
 }

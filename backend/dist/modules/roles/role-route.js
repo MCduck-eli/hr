@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const role_controller_1 = require("./role-controller");
+const roleRouter = (0, express_1.Router)();
+roleRouter.use(auth_middleware_1.authenticate);
+roleRouter.get("/", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN", "MANAGER", "DEPARTMENT_HEAD", "RECRUITER", "EMPLOYEE"), role_controller_1.roleController.getAll);
+roleRouter.post("/", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"), role_controller_1.roleController.create);
+roleRouter.put("/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"), role_controller_1.roleController.update);
+roleRouter.delete("/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"), role_controller_1.roleController.delete);
+exports.default = roleRouter;

@@ -1,0 +1,1280 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.dashboardService = exports.DashboardService = void 0;
+const db_1 = __importDefault(require("../../config/db"));
+const appError_1 = require("../../utils/appError");
+class DashboardService {
+    async getEmployeeDashboardData(id) {
+        const userSelect = {
+            id: true,
+            email: true,
+            role: true,
+            companyName: true,
+            employee: {
+                select: {
+                    id: true,
+                    userId: true,
+                    firstName: true,
+                    lastName: true,
+                    departmentId: true,
+                    positionId: true,
+                    gradeId: true,
+                    statusConfigId: true,
+                    salary: true,
+                    leaveBalance: true,
+                    status: true,
+                    department: { select: { id: true, name: true } },
+                    position: { select: { id: true, title: true } },
+                    grade: {
+                        select: {
+                            id: true,
+                            code: true,
+                            title: true,
+                            level: true,
+                            minSalary: true,
+                            maxSalary: true,
+                            requirements: true,
+                            responsibilities: true,
+                        },
+                    },
+                    statusConfig: { select: { id: true, code: true } },
+                    courseProgresses: {
+                        select: {
+                            courseId: true,
+                            progressPercent: true,
+                            isCompleted: true,
+                        },
+                    },
+                    lifecycleEvents: {
+                        select: {
+                            title: true,
+                            description: true,
+                            createdAt: true,
+                        },
+                        orderBy: { createdAt: "desc" },
+                        take: 3,
+                    },
+                },
+            },
+        };
+        let user = await db_1.default.user.findUnique({
+            where: { id },
+            select: userSelect,
+        });
+        if (!user) {
+            const employeeRecord = await db_1.default.employee.findUnique({
+                where: { id },
+                select: { userId: true },
+            });
+            if (employeeRecord?.userId) {
+                user = await db_1.default.user.findUnique({
+                    where: { id: employeeRecord.userId },
+                    select: userSelect,
+                });
+            }
+        }
+        if (!user) {
+            throw new appError_1.AppError("Foydalanuvchi topilmadi", 404);
+        }
+        if (!user.employee &&
+            (user.role === "SUPER_ADMIN" || user.role === "HR_ADMIN")) {
+            let adminEmployee = await db_1.default.employee.findFirst({
+                where: { userId: user.id },
+                select: { id: true },
+            });
+            if (!adminEmployee) {
+                adminEmployee = await db_1.default.employee.create({
+                    data: {
+                        userId: user.id,
+                        firstName: user.email?.split("@")[0] || "Admin",
+                        lastName: "Admin",
+                        status: "NEW",
+                    },
+                    select: { id: true },
+                });
+            }
+            user = await db_1.default.user.findUnique({
+                where: { id: user.id },
+                select: userSelect,
+            });
+        }
+        if (!user) {
+            throw new appError_1.AppError("Foydalanuvchi topilmadi", 404);
+        }
+        const currentUser = user;
+        const employee = currentUser.employee;
+        if (!employee) {
+            throw new appError_1.AppError("Xodim topilmadi", 404);
+        }
+        const userCompany = currentUser.companyName || null;
+        const companyFilter = userCompany
+            ? { OR: [{ companyName: userCompany }, { companyName: null }] }
+            : {};
+        const employeeIdMatches = [
+            employee.id,
+            currentUser.id,
+            ...(employee.userId ? [employee.userId] : []),
+        ].filter(Boolean);
+        const whereOkrs = {
+            OR: [
+                {
+                    employeeId: { in: employeeIdMatches },
+                    ...companyFilter,
+                },
+                {
+                    level: "INDIVIDUAL",
+                    employeeId: { in: employeeIdMatches },
+                    ...companyFilter,
+                },
+                ...(employee.departmentId
+                    ? [
+                        {
+                            level: "DEPARTMENT",
+                            departmentId: employee.departmentId,
+                            ...companyFilter,
+                        },
+                    ]
+                    : []),
+                ...(userCompany
+                    ? [
+                        {
+                            level: "COMPANY",
+                            companyName: userCompany,
+                        },
+                    ]
+                    : [{ level: "COMPANY" }]),
+            ],
+        };
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const feedbackAssignments = await db_1.default.feedbackAssignment.findMany({
+            where: {
+                OR: [
+                    { reviewerId: employee.id, isCompleted: false },
+                    {
+                        targetId: employee.id,
+                        isCompleted: true,
+                        ...(userCompany ? { cycle: { companyName: userCompany } } : {}),
+                    },
+                ],
+            },
+            select: {
+                reviewerId: true,
+                targetId: true,
+                isCompleted: true,
+                answers: {
+                    select: { score: true },
+                },
+            },
+        });
+        const pendingFeedbacks = feedbackAssignments.filter((f) => f.reviewerId === employee.id && !f.isCompleted).length;
+        const targetedCourses = await db_1.default.academyCourse.findMany({
+            where: {
+                ...(currentUser.companyName ? { companyName: currentUser.companyName } : {}),
+                OR: [
+                    { targetEmployeeId: employee.id },
+                    { AND: [{ targetEmployeeId: null }, { targetDepartmentId: null }] },
+                    ...(employee.departmentId ? [{ targetDepartmentId: employee.departmentId }] : []),
+                ],
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                coverUrl: true,
+                videoUrl: true,
+            },
+        });
+        const allTemplates = await db_1.default.onboardingTemplate.findMany({
+            where: {
+                ...(currentUser.companyName ? { companyName: currentUser.companyName } : {}),
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                coverUrl: true,
+                videoUrl: true,
+                departmentId: true,
+                targetStatusConfigId: true,
+                targetStatus: true,
+                tasks: {
+                    select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                    },
+                },
+                courses: {
+                    select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                        videoUrl: true,
+                    },
+                },
+            },
+        });
+        const employeeOnboardingRecord = await db_1.default.employeeOnboarding.findUnique({
+            where: { employeeId: employee.id },
+            select: {
+                courses: {
+                    select: {
+                        courseId: true,
+                        isCompleted: true,
+                        progressPercent: true,
+                        course: {
+                            select: {
+                                templateId: true,
+                            },
+                        },
+                    },
+                },
+                tasks: {
+                    select: {
+                        taskId: true,
+                        status: true,
+                    },
+                },
+            },
+        });
+        const employeeOkrs = await db_1.default.objective.findMany({
+            where: whereOkrs,
+            select: {
+                id: true,
+                title: true,
+                progress: true,
+                minExpectedProgress: true,
+                level: true,
+                departmentId: true,
+                employeeId: true,
+                cycleId: true,
+                createdAt: true,
+                keyResults: {
+                    select: {
+                        id: true,
+                        title: true,
+                        targetValue: true,
+                        currentValue: true,
+                        initialValue: true,
+                        unit: true,
+                        progress: true,
+                        checkIns: {
+                            select: {
+                                id: true,
+                                value: true,
+                                comment: true,
+                                status: true,
+                                createdAt: true,
+                            },
+                            orderBy: { createdAt: "desc" },
+                            take: 1,
+                        },
+                    },
+                },
+                cycle: {
+                    select: {
+                        id: true,
+                        title: true,
+                        startDate: true,
+                        endDate: true,
+                        isCurrent: true,
+                        minExpectedProgress: true,
+                    },
+                },
+                department: { select: { id: true, name: true } },
+                employee: { select: { firstName: true, lastName: true } },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+        let currentCycle = employeeOkrs.find((o) => o.cycle?.isCurrent)?.cycle || null;
+        if (!currentCycle) {
+            currentCycle = await db_1.default.okrCycle.findFirst({
+                where: {
+                    ...(currentUser.companyName ? { OR: [{ companyName: currentUser.companyName }, { companyName: null }] } : {}),
+                },
+                select: {
+                    id: true,
+                    title: true,
+                    startDate: true,
+                    endDate: true,
+                    isCurrent: true,
+                    minExpectedProgress: true,
+                },
+                orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
+            });
+        }
+        const attendances = await db_1.default.attendance.findMany({
+            where: { employeeId: employee.id },
+            select: {
+                date: true,
+                checkIn: true,
+                checkOut: true,
+                status: true,
+            },
+            orderBy: { date: "desc" },
+            take: 31,
+        });
+        const nextGrade = employee.grade
+            ? await db_1.default.jobGrade.findFirst({
+                where: {
+                    level: { gt: employee.grade.level },
+                    ...(userCompany ? { OR: [{ companyName: userCompany }, { companyName: null }] } : {}),
+                },
+                select: {
+                    id: true,
+                    code: true,
+                    title: true,
+                    level: true,
+                    minSalary: true,
+                    maxSalary: true,
+                    requirements: true,
+                    responsibilities: true,
+                },
+                orderBy: { level: "asc" },
+            })
+            : await db_1.default.jobGrade.findFirst({
+                where: {
+                    ...(userCompany ? { OR: [{ companyName: userCompany }, { companyName: null }] } : {}),
+                },
+                select: {
+                    id: true,
+                    code: true,
+                    title: true,
+                    level: true,
+                    minSalary: true,
+                    maxSalary: true,
+                    requirements: true,
+                    responsibilities: true,
+                },
+                orderBy: { level: "asc" },
+            });
+        const activePromotionRequest = await db_1.default.promotionRequest.findFirst({
+            where: {
+                employeeId: employee.id,
+                status: { in: ["PENDING", "APPROVED_BY_MANAGER"] },
+            },
+            select: {
+                id: true,
+                status: true,
+                proposedSalary: true,
+                reason: true,
+                createdAt: true,
+                targetGrade: {
+                    select: {
+                        id: true,
+                        title: true,
+                        level: true,
+                    },
+                },
+                currentGrade: {
+                    select: {
+                        id: true,
+                        title: true,
+                        level: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+        const discAssessment = await db_1.default.discAssessment.findFirst({
+            where: { employeeId: employee.id },
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                primaryType: true,
+                secondaryType: true,
+                dScore: true,
+                iScore: true,
+                sScore: true,
+                cScore: true,
+                createdAt: true,
+            },
+        });
+        const academyCourses = targetedCourses.map((course) => {
+            const cp = (employee.courseProgresses || []).find((p) => p.courseId === course.id);
+            return {
+                id: course.id,
+                title: course.title || "Academy Kursi",
+                description: course.description,
+                coverUrl: course.coverUrl,
+                videoUrl: course.videoUrl,
+                progress: cp?.progressPercent || 0,
+                type: "ACADEMY",
+                isCompleted: cp?.isCompleted || false,
+            };
+        });
+        const matchingTemplates = allTemplates.filter((t) => {
+            if (t.departmentId &&
+                employee.departmentId &&
+                t.departmentId !== employee.departmentId) {
+                return false;
+            }
+            const isTemplateForAll = !t.targetStatusConfigId && !t.targetStatus;
+            if (isTemplateForAll)
+                return true;
+            if (t.targetStatusConfigId) {
+                return employee.statusConfigId === t.targetStatusConfigId;
+            }
+            if (t.targetStatus) {
+                if (employee.statusConfig?.code) {
+                    return employee.statusConfig.code === t.targetStatus;
+                }
+                return employee.status === t.targetStatus;
+            }
+            return false;
+        });
+        const onboardingCourses = matchingTemplates.flatMap((t) => {
+            const templateEnrollments = (employeeOnboardingRecord?.courses || []).filter((item) => item.courseId === t.id ||
+                item.course?.templateId === t.id ||
+                (t.courses &&
+                    t.courses.some((c) => c.id === item.courseId)));
+            const latestProgress = templateEnrollments.reduce((max, item) => {
+                const p = item.isCompleted
+                    ? 100
+                    : item.progressPercent || 0;
+                return p > max ? p : max;
+            }, 0);
+            const isTemplateCompleted = templateEnrollments.some((item) => item.isCompleted ||
+                (item.progressPercent || 0) >= 95) || latestProgress >= 95;
+            if (t.courses && t.courses.length > 0) {
+                return t.courses.map((c) => {
+                    const specificEnrollment = templateEnrollments.find((item) => item.courseId === c.id);
+                    const progress = specificEnrollment
+                        ? specificEnrollment.isCompleted
+                            ? 100
+                            : specificEnrollment.progressPercent || 0
+                        : latestProgress;
+                    const isDone = isTemplateCompleted || progress >= 95;
+                    return {
+                        id: c.id,
+                        title: c.title || t.title,
+                        description: c.description || t.description,
+                        coverUrl: t.coverUrl,
+                        videoUrl: c.videoUrl || t.videoUrl,
+                        progress: isDone ? 100 : progress,
+                        type: "ONBOARDING",
+                        isCompleted: isDone,
+                    };
+                });
+            }
+            else {
+                return [
+                    {
+                        id: t.id,
+                        title: t.title || "Onboarding Kursi",
+                        description: t.description,
+                        coverUrl: t.coverUrl,
+                        videoUrl: t.videoUrl,
+                        progress: isTemplateCompleted ? 100 : latestProgress,
+                        type: "ONBOARDING",
+                        isCompleted: isTemplateCompleted,
+                    },
+                ];
+            }
+        });
+        const allMatchingTasks = matchingTemplates.flatMap((t) => t.tasks);
+        const onboardingTasks = allMatchingTasks.map((t) => {
+            const ot = (employeeOnboardingRecord?.tasks || []).find((item) => item.taskId === t.id);
+            return {
+                id: t.id,
+                title: t.title || "Onboarding Vazifa",
+                description: t.description,
+                progress: ot?.status === "COMPLETED" ? 100 : 0,
+                type: "ONBOARDING_TASK",
+                isCompleted: ot?.status === "COMPLETED" || false,
+            };
+        });
+        const activeCourses = [
+            ...academyCourses,
+            ...onboardingCourses,
+            ...onboardingTasks,
+        ];
+        let okrProgress = 0;
+        let okrs = [];
+        let minExpectedProgress = 0;
+        if (currentCycle) {
+            minExpectedProgress = currentCycle.minExpectedProgress || 0;
+        }
+        if (employeeOkrs.length > 0) {
+            const total = employeeOkrs.reduce((acc, okr) => acc + okr.progress, 0);
+            okrProgress = Math.round(total / employeeOkrs.length);
+            const okrsWithMinProgress = employeeOkrs.filter((o) => o.minExpectedProgress !== null && o.minExpectedProgress !== undefined);
+            if (okrsWithMinProgress.length > 0) {
+                const totalMin = okrsWithMinProgress.reduce((acc, okr) => acc + okr.minExpectedProgress, 0);
+                minExpectedProgress = Math.round(totalMin / okrsWithMinProgress.length);
+            }
+            okrs = employeeOkrs;
+        }
+        let totalMs = 0;
+        const now = new Date();
+        for (const att of attendances) {
+            if (att.checkIn && att.checkOut) {
+                totalMs += att.checkOut.getTime() - att.checkIn.getTime();
+            }
+            else if (att.checkIn && att.date.getTime() === today.getTime()) {
+                totalMs += Math.max(0, now.getTime() - att.checkIn.getTime());
+            }
+            else if (att.checkIn) {
+                totalMs += 8 * 60 * 60 * 1000;
+            }
+        }
+        const attendanceHours = Math.round((totalMs / (1000 * 60 * 60)) * 10) / 10;
+        const todayAtt = attendances.find((a) => a.date.getTime() === today.getTime());
+        const todayAttendance = {
+            isCheckedIn: Boolean(todayAtt?.checkIn),
+            isCheckedOut: Boolean(todayAtt?.checkOut),
+            checkInTime: todayAtt?.checkIn ? todayAtt.checkIn.toISOString() : null,
+            checkOutTime: todayAtt?.checkOut ? todayAtt.checkOut.toISOString() : null,
+            status: todayAtt?.status || null,
+        };
+        const employeeGrade = employee.grade
+            ? {
+                id: employee.grade.id,
+                code: employee.grade.code,
+                title: employee.grade.title,
+                level: employee.grade.level,
+                minSalary: employee.grade.minSalary,
+                maxSalary: employee.grade.maxSalary,
+                requirements: employee.grade.requirements,
+                responsibilities: employee.grade.responsibilities,
+            }
+            : null;
+        const employeePosition = employee.position?.title || employee.position || null;
+        const employeeSalary = employee.salary || employee.grade?.minSalary || null;
+        const targetFeedbacks = feedbackAssignments.filter((f) => f.targetId === employee.id && f.isCompleted);
+        let totalFeedbackScore = 0;
+        let totalAnswers = 0;
+        targetFeedbacks.forEach((asg) => {
+            asg.answers.forEach((ans) => {
+                totalFeedbackScore += ans.score;
+                totalAnswers += 1;
+            });
+        });
+        const feedback360Score = totalAnswers > 0
+            ? Number((totalFeedbackScore / totalAnswers).toFixed(1))
+            : null;
+        const careerPath = {
+            currentGrade: employeeGrade,
+            nextGrade: nextGrade
+                ? {
+                    id: nextGrade.id,
+                    code: nextGrade.code,
+                    title: nextGrade.title,
+                    level: nextGrade.level,
+                    minSalary: nextGrade.minSalary,
+                    maxSalary: nextGrade.maxSalary,
+                    requirements: nextGrade.requirements,
+                    responsibilities: nextGrade.responsibilities,
+                }
+                : null,
+            activePromotionRequest: activePromotionRequest
+                ? {
+                    id: activePromotionRequest.id,
+                    status: activePromotionRequest.status,
+                    targetGradeTitle: activePromotionRequest.targetGrade?.title,
+                    targetGradeLevel: activePromotionRequest.targetGrade?.level,
+                    proposedSalary: activePromotionRequest.proposedSalary,
+                    reason: activePromotionRequest.reason,
+                    createdAt: activePromotionRequest.createdAt,
+                }
+                : null,
+            okrTarget: 80,
+            currentOkr: okrProgress,
+            feedbackTarget: 4.0,
+            currentFeedback: feedback360Score,
+            isOkrMet: okrProgress >= 80,
+            isFeedbackMet: feedback360Score !== null && feedback360Score >= 4.0,
+            isReadyForPromotion: okrProgress >= 80 &&
+                (feedback360Score === null || feedback360Score >= 4.0),
+        };
+        return {
+            user: {
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                role: currentUser.role,
+                email: currentUser.email,
+                companyName: currentUser.companyName,
+                employee: {
+                    id: employee.id,
+                    department: employee.department?.name || null,
+                    position: employeePosition,
+                    salary: employeeSalary,
+                    grade: employeeGrade,
+                },
+            },
+            grade: employeeGrade,
+            position: employeePosition,
+            salary: employeeSalary,
+            careerPath,
+            discAssessment,
+            feedback360Score,
+            okrProgress,
+            minExpectedProgress,
+            okrs,
+            attendanceHours,
+            todayAttendance,
+            pendingFeedbacks,
+            leaveBalance: employee.leaveBalance,
+            activeCourses,
+            recentActivities: (employee.lifecycleEvents || []).map((event) => ({
+                title: event.title,
+                description: event.description,
+                timeAgo: "Yaqinda",
+            })),
+        };
+    }
+    async updateVideoProgress(userId, payload) {
+        const user = await db_1.default.user.findUnique({
+            where: { id: userId },
+            select: { id: true, role: true },
+        });
+        let targetId = userId;
+        if (payload.targetUserId &&
+            (user?.role === "SUPER_ADMIN" || user?.role === "HR_ADMIN" || user?.role === "DIRECTOR")) {
+            targetId = payload.targetUserId;
+        }
+        let employee = await db_1.default.employee.findUnique({
+            where: { userId: targetId },
+            select: { id: true },
+        });
+        if (!employee) {
+            employee = await db_1.default.employee.findUnique({
+                where: { id: targetId },
+                select: { id: true },
+            });
+        }
+        if (!employee) {
+            const targetUser = await db_1.default.user.findUnique({
+                where: { id: targetId },
+                select: { id: true, email: true },
+            });
+            if (targetUser) {
+                employee = await db_1.default.employee.create({
+                    data: {
+                        userId: targetUser.id,
+                        firstName: targetUser.email.split("@")[0] || "User",
+                        lastName: "Employee",
+                        status: "NEW",
+                    },
+                    select: { id: true },
+                });
+            }
+        }
+        if (!employee) {
+            throw new appError_1.AppError("Xodim topilmadi", 404);
+        }
+        const progressVal = Math.round(Number(payload.progressPercent ?? payload.progress ?? payload.progressPercentage ?? 0));
+        const isFullyCompleted = progressVal >= 95;
+        if (payload.type === "ACADEMY" || !payload.type) {
+            return db_1.default.courseProgress.upsert({
+                where: {
+                    courseId_employeeId: {
+                        courseId: payload.courseId,
+                        employeeId: employee.id,
+                    },
+                },
+                update: {
+                    progressPercent: progressVal,
+                    isCompleted: isFullyCompleted ? true : undefined,
+                    completedAt: isFullyCompleted ? new Date() : undefined,
+                },
+                create: {
+                    courseId: payload.courseId,
+                    employeeId: employee.id,
+                    progressPercent: progressVal,
+                    isCompleted: isFullyCompleted,
+                    completedAt: isFullyCompleted ? new Date() : undefined,
+                },
+            });
+        }
+        if (payload.type === "ONBOARDING") {
+            let onboarding = await db_1.default.employeeOnboarding.findUnique({
+                where: { employeeId: employee.id },
+                select: { id: true },
+            });
+            if (!onboarding) {
+                onboarding = await db_1.default.employeeOnboarding.create({
+                    data: {
+                        employeeId: employee.id,
+                        status: "IN_PROGRESS",
+                    },
+                    select: { id: true },
+                });
+            }
+            let validCourseId = payload.courseId;
+            const existingCourse = await db_1.default.onboardingCourse.findUnique({
+                where: { id: payload.courseId },
+                select: { id: true },
+            });
+            if (!existingCourse) {
+                const template = await db_1.default.onboardingTemplate.findUnique({
+                    where: { id: payload.courseId },
+                    select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                        videoUrl: true,
+                        courses: {
+                            select: { id: true },
+                            take: 1,
+                        },
+                    },
+                });
+                if (template) {
+                    if (template.courses && template.courses.length > 0) {
+                        validCourseId = template.courses[0].id;
+                    }
+                    else {
+                        const newCourse = await db_1.default.onboardingCourse.create({
+                            data: {
+                                templateId: template.id,
+                                title: template.title,
+                                description: template.description,
+                                videoUrl: template.videoUrl || "",
+                            },
+                            select: { id: true },
+                        });
+                        validCourseId = newCourse.id;
+                    }
+                }
+            }
+            return db_1.default.employeeOnboardingCourse.upsert({
+                where: {
+                    onboardingId_courseId: {
+                        onboardingId: onboarding.id,
+                        courseId: validCourseId,
+                    },
+                },
+                update: {
+                    progressPercent: progressVal,
+                    isCompleted: isFullyCompleted ? true : undefined,
+                    completedAt: isFullyCompleted ? new Date() : undefined,
+                },
+                create: {
+                    onboardingId: onboarding.id,
+                    courseId: validCourseId,
+                    progressPercent: progressVal,
+                    isCompleted: isFullyCompleted,
+                    completedAt: isFullyCompleted ? new Date() : undefined,
+                },
+            });
+        }
+    }
+    async getHRDashboardActivities(userId) {
+        const user = await db_1.default.user.findUnique({
+            where: { id: userId },
+            select: { id: true, companyName: true },
+        });
+        if (!user) {
+            throw new appError_1.AppError("Foydalanuvchi topilmadi", 404);
+        }
+        const companyName = user.companyName;
+        const employeeCompanyFilter = companyName
+            ? { user: { companyName } }
+            : {};
+        const empSelect = {
+            select: {
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                department: { select: { name: true } },
+            },
+        };
+        const attendances = await db_1.default.attendance.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                status: true,
+                lateMinutes: true,
+                createdAt: true,
+                date: true,
+                employee: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+        const leaveRequests = await db_1.default.leaveRequest.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                type: true,
+                reason: true,
+                status: true,
+                createdAt: true,
+                employee: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+        const onboardings = await db_1.default.employeeOnboarding.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+                tasks: { select: { status: true } },
+                courses: { select: { isCompleted: true } },
+                employee: empSelect,
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 10,
+        });
+        const promotionRequests = await db_1.default.promotionRequest.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                createdAt: true,
+                targetGrade: { select: { title: true } },
+                employee: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+        const feedbackAssignments = await db_1.default.feedbackAssignment.findMany({
+            where: {
+                target: employeeCompanyFilter,
+                isCompleted: true,
+            },
+            select: {
+                id: true,
+                createdAt: true,
+                target: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+        const objectives = await db_1.default.objective.findMany({
+            where: {
+                ...(companyName ? { companyName } : {}),
+                employeeId: { not: null },
+            },
+            select: {
+                id: true,
+                title: true,
+                progress: true,
+                createdAt: true,
+                updatedAt: true,
+                employee: empSelect,
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 10,
+        });
+        const lifecycleEvents = await db_1.default.employeeLifecycleEvent.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                createdAt: true,
+                eventDate: true,
+                employee: empSelect,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+        const notifications = await db_1.default.notification.findMany({
+            where: {
+                ...(companyName ? { user: { companyName } } : {}),
+            },
+            select: {
+                id: true,
+                title: true,
+                message: true,
+                createdAt: true,
+                user: {
+                    select: {
+                        employee: {
+                            select: {
+                                firstName: true,
+                                lastName: true,
+                                avatar: true,
+                                department: { select: { name: true } },
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+        });
+        const GRADIENTS = [
+            "from-purple-500 to-violet-600",
+            "from-amber-500 to-orange-600",
+            "from-emerald-500 to-teal-600",
+            "from-blue-500 to-indigo-600",
+            "from-indigo-500 to-purple-600",
+            "from-cyan-500 to-blue-600",
+            "from-rose-500 to-pink-600",
+        ];
+        const getInitials = (name) => {
+            const parts = name.trim().split(/\s+/);
+            if (parts.length >= 2) {
+                return (parts[0][0] + parts[1][0]).toUpperCase();
+            }
+            return name.slice(0, 2).toUpperCase() || "HR";
+        };
+        const getAvatarBg = (name) => {
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const idx = Math.abs(hash) % GRADIENTS.length;
+            return GRADIENTS[idx];
+        };
+        const formatTimeAgo = (dateInput) => {
+            if (!dateInput)
+                return "Yaqinda";
+            const date = new Date(dateInput);
+            const now = new Date();
+            const diffMs = now.getTime() - date.getTime();
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            if (diffMins < 1)
+                return "Hozirgina";
+            if (diffMins < 60)
+                return `${diffMins} daqiqa oldin`;
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24)
+                return `${diffHours} soat oldin`;
+            const diffDays = Math.floor(diffHours / 24);
+            if (diffDays < 7)
+                return `${diffDays} kun oldin`;
+            return date.toLocaleDateString("uz-UZ");
+        };
+        const getAvatarUrl = (emp) => emp?.avatar || null;
+        const items = [];
+        for (const att of attendances) {
+            const empName = att.employee ? `${att.employee.firstName} ${att.employee.lastName}`.trim() : "Xodim";
+            const deptName = att.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            const isLate = att.status === "LATE" || (att.lateMinutes && att.lateMinutes > 0);
+            items.push({
+                id: `att-${att.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(att.employee),
+                department: deptName,
+                eventText: isLate
+                    ? `Bugun ${att.lateMinutes ? `${att.lateMinutes} daqiqa` : "kechikib"} keldi`
+                    : att.status === "PRESENT"
+                        ? "Bugungi ish kuniga o'z vaqtida yetib keldi"
+                        : "Davomat qayd etildi",
+                timeAgo: formatTimeAgo(att.createdAt || att.date),
+                category: "delay",
+                badgeText: isLate ? `Kechikish${att.lateMinutes ? ` (+${att.lateMinutes}m)` : ""}` : "O'z vaqtida",
+                badgeClass: isLate
+                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                rawDate: att.createdAt ? new Date(att.createdAt).getTime() : new Date(att.date).getTime(),
+            });
+        }
+        for (const lr of leaveRequests) {
+            const empName = lr.employee ? `${lr.employee.firstName} ${lr.employee.lastName}`.trim() : "Xodim";
+            const deptName = lr.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            const leaveName = lr.type === "SICK" ? "Kasallik ta'tili (Sick Leave)" : lr.type === "ANNUAL" ? "Yillik mehnat ta'tili" : "Mehnat ta'tili";
+            items.push({
+                id: `leave-${lr.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(lr.employee),
+                department: deptName,
+                eventText: `${leaveName} so'rovini qoldirdi${lr.reason ? `: ${lr.reason}` : ""}`.trim(),
+                timeAgo: formatTimeAgo(lr.createdAt),
+                category: "leave",
+                badgeText: lr.status === "APPROVED" ? "Tasdiqlangan" : lr.status === "REJECTED" ? "Rad etilgan" : "Ta'til so'rovi",
+                badgeClass: lr.status === "APPROVED"
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : lr.status === "REJECTED"
+                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                        : "bg-blue-50 text-blue-700 border border-blue-200",
+                rawDate: new Date(lr.createdAt).getTime(),
+            });
+        }
+        for (const ob of onboardings) {
+            const empName = ob.employee ? `${ob.employee.firstName} ${ob.employee.lastName}`.trim() : "Xodim";
+            const deptName = ob.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            const totalItems = (ob.tasks?.length || 0) + (ob.courses?.length || 0);
+            const completedItems = (ob.tasks?.filter((t) => t.status === "COMPLETED").length || 0) + (ob.courses?.filter((c) => c.isCompleted).length || 0);
+            const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : (ob.status === "COMPLETED" ? 100 : 0);
+            items.push({
+                id: `ob-${ob.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(ob.employee),
+                department: deptName,
+                eventText: progress >= 100
+                    ? "Onboarding adaptatsiya dasturini to'liq yakunladi"
+                    : "Onboarding adaptatsiya jarayonini davom ettirmoqda",
+                timeAgo: formatTimeAgo(ob.updatedAt || ob.createdAt),
+                category: "onboarding",
+                badgeText: progress >= 100 ? "Onboarding yakunlandi" : "Adaptatsiya jarayoni",
+                badgeClass: progress >= 100
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-cyan-50 text-cyan-700 border border-cyan-200",
+                progress,
+                progressColor: progress >= 100 ? "#10b981" : "#06b6d4",
+                progressLabel: "Adaptatsiya",
+                rawDate: new Date(ob.updatedAt || ob.createdAt).getTime(),
+            });
+        }
+        for (const pr of promotionRequests) {
+            const empName = pr.employee ? `${pr.employee.firstName} ${pr.employee.lastName}`.trim() : "Xodim";
+            const deptName = pr.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            const gradeTitle = pr.targetGrade?.title || "Yangi daraja";
+            items.push({
+                id: `pr-${pr.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(pr.employee),
+                department: deptName,
+                eventText: `${gradeTitle} bo'yicha lavozimni oshirish (Level Up) arizasini topshirdi`,
+                timeAgo: formatTimeAgo(pr.createdAt),
+                category: "evaluation",
+                badgeText: "Karyera arizasi",
+                badgeClass: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+                rawDate: new Date(pr.createdAt).getTime(),
+            });
+        }
+        for (const fb of feedbackAssignments) {
+            const empName = fb.target ? `${fb.target.firstName} ${fb.target.lastName}`.trim() : "Xodim";
+            const deptName = fb.target?.department?.name || "Bo'lim ko'rsatilmagan";
+            items.push({
+                id: `fb-${fb.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(fb.target),
+                department: deptName,
+                eventText: "360 darajali baholash so'rovnomasini to'liq yakunladi",
+                timeAgo: formatTimeAgo(fb.createdAt),
+                category: "evaluation",
+                badgeText: "360° Baholash",
+                badgeClass: "bg-purple-50 text-[#9327FF] border border-purple-200",
+                progress: 100,
+                progressColor: "#9327FF",
+                progressLabel: "Baholash",
+                rawDate: new Date(fb.createdAt).getTime(),
+            });
+        }
+        for (const obj of objectives) {
+            const empName = obj.employee ? `${obj.employee.firstName} ${obj.employee.lastName}`.trim() : "Xodim";
+            const deptName = obj.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            items.push({
+                id: `obj-${obj.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(obj.employee),
+                department: deptName,
+                eventText: `"${obj.title}" OKR maqsadi bo'yicha oraliq ko'rsatkichni yangiladi`,
+                timeAgo: formatTimeAgo(obj.updatedAt || obj.createdAt),
+                category: "evaluation",
+                badgeText: "OKR Natijasi",
+                badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                progress: Math.round(obj.progress || 0),
+                progressColor: (obj.progress || 0) >= 70 ? "#10b981" : "#f59e0b",
+                progressLabel: "Haftalik OKR",
+                rawDate: new Date(obj.updatedAt || obj.createdAt).getTime(),
+            });
+        }
+        for (const evt of lifecycleEvents) {
+            const empName = evt.employee ? `${evt.employee.firstName} ${evt.employee.lastName}`.trim() : "Xodim";
+            const deptName = evt.employee?.department?.name || "Bo'lim ko'rsatilmagan";
+            items.push({
+                id: `evt-${evt.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(evt.employee),
+                department: deptName,
+                eventText: evt.title ? `${evt.title}${evt.description ? `: ${evt.description}` : ""}`.trim() : (evt.description || "Hodisa qayd etildi"),
+                timeAgo: formatTimeAgo(evt.createdAt || evt.eventDate),
+                category: "all",
+                badgeText: "Lifecycle",
+                badgeClass: "bg-slate-100 text-slate-700 border border-slate-200",
+                rawDate: new Date(evt.createdAt || evt.eventDate).getTime(),
+            });
+        }
+        for (const notif of notifications) {
+            const emp = notif.user?.employee;
+            if (!emp)
+                continue;
+            const empName = `${emp.firstName} ${emp.lastName}`.trim();
+            const deptName = emp.department?.name || "Bo'lim ko'rsatilmagan";
+            items.push({
+                id: `notif-${notif.id}`,
+                employeeName: empName,
+                avatarInitials: getInitials(empName),
+                avatarBg: getAvatarBg(empName),
+                avatarUrl: getAvatarUrl(emp),
+                department: deptName,
+                eventText: `${notif.title}: ${notif.message}`.trim(),
+                timeAgo: formatTimeAgo(notif.createdAt),
+                category: "all",
+                badgeText: "Bildirishnoma",
+                badgeClass: "bg-purple-50 text-[#9327FF] border border-purple-200",
+                rawDate: new Date(notif.createdAt).getTime(),
+            });
+        }
+        items.sort((a, b) => b.rawDate - a.rawDate);
+        return items.slice(0, 30);
+    }
+    async getHRDashboardSummary(userId) {
+        const user = await db_1.default.user.findUnique({
+            where: { id: userId },
+            select: { id: true, companyName: true },
+        });
+        if (!user) {
+            throw new appError_1.AppError("Foydalanuvchi topilmadi", 404);
+        }
+        const companyName = user.companyName;
+        const employeeCompanyFilter = companyName
+            ? { user: { companyName } }
+            : {};
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const allDepartments = await db_1.default.department.findMany({
+            where: companyName ? { companyName } : {},
+            select: { id: true },
+        });
+        const allEmployees = await db_1.default.employee.findMany({
+            where: companyName ? { user: { companyName } } : {},
+            select: {
+                id: true,
+                status: true,
+                user: {
+                    select: {
+                        role: true,
+                        customRole: {
+                            select: {
+                                baseRole: true,
+                            },
+                        },
+                    },
+                },
+                onboarding: {
+                    select: {
+                        status: true,
+                    },
+                },
+            },
+        });
+        const todayAttendances = await db_1.default.attendance.findMany({
+            where: {
+                employee: employeeCompanyFilter,
+                date: { gte: today, lt: tomorrow },
+                OR: [
+                    { checkIn: { not: null } },
+                    { status: { in: ["PRESENT", "LATE", "HALF_DAY"] } },
+                ],
+            },
+            select: { id: true },
+        });
+        const requiredPolicies = await db_1.default.companyPolicy.findMany({
+            where: {
+                parentId: null,
+                isRequired: true,
+                ...(companyName ? { OR: [{ companyName }, { companyName: null }] } : {}),
+            },
+            select: {
+                id: true,
+                version: true,
+                signatures: {
+                    select: {
+                        employeeId: true,
+                        signedVersion: true,
+                    },
+                },
+            },
+        });
+        const totalDepartments = allDepartments.length;
+        const todayCheckedInCount = todayAttendances.length;
+        const totalEmployees = allEmployees.filter((emp) => emp.user?.role !== "SUPER_ADMIN" && emp.user?.role !== "DIRECTOR").length;
+        const validEmployees = allEmployees.filter((emp) => {
+            const role = emp.user?.role;
+            const baseRole = emp.user?.customRole?.baseRole;
+            return role !== "DIRECTOR" && baseRole !== "DIRECTOR" && role !== "SUPER_ADMIN";
+        });
+        let onboardingPercentage = 0;
+        if (validEmployees.length > 0) {
+            let totalScoreSum = 0;
+            let countWithScore = 0;
+            for (const emp of validEmployees) {
+                const ob = emp.onboarding;
+                if (ob) {
+                    countWithScore++;
+                    if (ob.status === "COMPLETED") {
+                        totalScoreSum += 100;
+                    }
+                    else if (ob.status === "IN_PROGRESS") {
+                        totalScoreSum += 50;
+                    }
+                }
+            }
+            if (countWithScore > 0) {
+                onboardingPercentage = Math.round(totalScoreSum / countWithScore);
+            }
+        }
+        const onboardingStatusText = onboardingPercentage >= 100
+            ? "Yakunlandi"
+            : onboardingPercentage > 0
+                ? "Jarayonda"
+                : "Rejalar yo'q";
+        const attendancePercentage = totalEmployees > 0
+            ? Math.min(100, Math.round((todayCheckedInCount / totalEmployees) * 100))
+            : 0;
+        const attendanceStatusText = attendancePercentage >= 80
+            ? "Faol"
+            : attendancePercentage >= 50
+                ? "O'rtacha"
+                : attendancePercentage > 0
+                    ? "Past"
+                    : "Qayd etilmadi";
+        let regulationsPercentage = 0;
+        const totalRequiredSlots = requiredPolicies.length * validEmployees.length;
+        if (totalRequiredSlots > 0) {
+            const validEmployeeIds = new Set(validEmployees.map((e) => e.id));
+            let totalSignedSlots = 0;
+            for (const policy of requiredPolicies) {
+                const validSignatures = policy.signatures.filter((s) => validEmployeeIds.has(s.employeeId) && s.signedVersion === policy.version);
+                totalSignedSlots += validSignatures.length;
+            }
+            regulationsPercentage = Math.min(100, Math.round((totalSignedSlots / totalRequiredSlots) * 100));
+        }
+        const regulationsStatusText = regulationsPercentage >= 100
+            ? "To'liq tanishildi"
+            : "Jarayonda";
+        return {
+            totalEmployees,
+            totalDepartments,
+            onboardingPercentage,
+            onboardingStatusText,
+            attendancePercentage,
+            attendanceStatusText,
+            todayCheckedInCount,
+            regulationsPercentage,
+            regulationsStatusText,
+        };
+    }
+}
+exports.DashboardService = DashboardService;
+exports.dashboardService = new DashboardService();

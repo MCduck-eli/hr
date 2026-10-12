@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const validate_middleware_1 = require("../../middlewares/validate-middleware");
+const org_chart_validation_1 = require("./org-chart.validation");
+const org_chart_controller_1 = require("./org-chart-controller");
+const orgChartRouter = (0, express_1.Router)();
+orgChartRouter.use(auth_middleware_1.authenticate);
+orgChartRouter.get("/tree", org_chart_controller_1.orgChartController.getOrgTree);
+orgChartRouter.get("/my-context", org_chart_controller_1.orgChartController.getMyOrgContext);
+orgChartRouter.get("/history", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN"), org_chart_controller_1.orgChartController.getOrgHistory);
+orgChartRouter.patch("/employees/:employeeId/hierarchy", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN"), (0, validate_middleware_1.validate)(org_chart_validation_1.updateHierarchySchema), org_chart_controller_1.orgChartController.updateEmployeeHierarchy);
+exports.default = orgChartRouter;

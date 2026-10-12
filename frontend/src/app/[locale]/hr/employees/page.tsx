@@ -135,9 +135,10 @@ export default function HREmployeesPage() {
                 invalidateQuery("hr");
                 invalidateQuery("director");
                 loadUsers();
-                showToast("Muvaffaqiyatli saqlandi", "success");
+                showToast("Xodim ma'lumotlari muvaffaqiyatli yangilandi!", "success");
             } catch (err: any) {
                 setError(err.message);
+                showToast("Xatolik yuz berdi, qayta urinib ko'ring", "error");
             } finally {
                 setLoading(false);
             }
@@ -155,9 +156,10 @@ export default function HREmployeesPage() {
             invalidateQuery("hr");
             invalidateQuery("director");
             loadUsers();
-            showToast("Xodim muvaffaqiyatli yaratildi", "success");
+            showToast("Xodim muvaffaqiyatli yaratildi!", "success");
         } catch (err: any) {
             setError(err.message);
+            showToast("Xatolik yuz berdi, qayta urinib ko'ring", "error");
         } finally {
             setLoading(false);
         }
@@ -188,9 +190,9 @@ export default function HREmployeesPage() {
             invalidateQuery("hr");
             invalidateQuery("director");
             loadUsers();
-            showToast(t("deletedSuccess") || "Xodim muvaffaqiyatli o'chirildi", "success");
+            showToast("Xodim muvaffaqiyatli o'chirildi!", "success");
         } catch (err: any) {
-            showToast(err.message || t("deleteError") || "Xatolik yuz berdi", "error");
+            showToast("Xatolik yuz berdi, qayta urinib ko'ring", "error");
         } finally {
             setIsDeleting(false);
         }
@@ -308,14 +310,33 @@ export default function HREmployeesPage() {
             {toast && (
                 <div className="fixed top-6 right-6 z-50 transition-all duration-300 transform translate-y-0">
                     <div
-                        className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium ${
+                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border text-xs sm:text-sm font-medium ${
                             toast.type === "success"
                                 ? "bg-white border-emerald-200 text-emerald-800"
                                 : "bg-white border-rose-200 text-rose-800"
                         }`}
                     >
-                        <span className={`w-2 h-2 rounded-full ${toast.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`} />
+                        {toast.type === "success" ? (
+                            <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                        ) : (
+                            <div className="w-6 h-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </div>
+                        )}
                         <span>{toast.message}</span>
+                        <button
+                            type="button"
+                            onClick={() => setToast(null)}
+                            className="text-gray-400 hover:text-gray-600 ml-2 cursor-pointer"
+                        >
+                            ✕
+                        </button>
                     </div>
                 </div>
             )}

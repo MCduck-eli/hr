@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const geofence_controller_1 = require("./geofence-controller");
+const validate_middleware_1 = require("../../middlewares/validate-middleware");
+const geofence_validation_1 = require("./geofence-validation");
+const geofenceRouter = (0, express_1.Router)();
+geofenceRouter.use(auth_middleware_1.authenticate);
+geofenceRouter.get("/", geofence_controller_1.geofenceController.getAll);
+geofenceRouter.post("/", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN"), (0, validate_middleware_1.validate)(geofence_validation_1.createGeofenceSchema), geofence_controller_1.geofenceController.create);
+geofenceRouter.delete("/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN"), geofence_controller_1.geofenceController.delete);
+exports.default = geofenceRouter;

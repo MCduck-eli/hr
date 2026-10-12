@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const employee_status_controller_1 = require("./employee-status-controller");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const employeeStatusRouter = (0, express_1.Router)();
+employeeStatusRouter.use(auth_middleware_1.authenticate);
+employeeStatusRouter.get("/", employee_status_controller_1.employeeStatusController.getAllStatuses);
+employeeStatusRouter.post("/", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN"), employee_status_controller_1.employeeStatusController.createStatus);
+employeeStatusRouter.put("/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN"), employee_status_controller_1.employeeStatusController.updateStatus);
+employeeStatusRouter.delete("/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN"), employee_status_controller_1.employeeStatusController.deleteStatus);
+exports.default = employeeStatusRouter;

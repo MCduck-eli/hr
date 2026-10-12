@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const enps_controller_1 = require("./enps-controller");
+const enpsRouter = (0, express_1.Router)();
+enpsRouter.use(auth_middleware_1.authenticate);
+enpsRouter.get("/questions", enps_controller_1.enpsController.getQuestions);
+enpsRouter.post("/questions", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "CEO"), enps_controller_1.enpsController.createQuestion);
+enpsRouter.put("/questions/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "CEO"), enps_controller_1.enpsController.updateQuestion);
+enpsRouter.delete("/questions/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "CEO"), enps_controller_1.enpsController.deleteQuestion);
+enpsRouter.post("/submit", enps_controller_1.enpsController.submitEnps);
+enpsRouter.get("/my-latest", enps_controller_1.enpsController.getMyLatestEnps);
+enpsRouter.get("/analytics", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "CEO"), enps_controller_1.enpsController.getEnpsAnalytics);
+exports.default = enpsRouter;

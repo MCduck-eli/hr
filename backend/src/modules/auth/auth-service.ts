@@ -62,6 +62,68 @@ export class AuthService {
             throw new Error("Email yoki parol noto'g'ri");
         }
 
+        if (user.role !== "SUPER_ADMIN") {
+            let searchEmails = [user.email];
+            if (user.companyName) {
+                const companyUsers = await prisma.user.findMany({
+                    where: { companyName: user.companyName },
+                    select: { email: true },
+                });
+                const emails = companyUsers.map((u) => u.email).filter(Boolean);
+                searchEmails = Array.from(new Set([...searchEmails, ...emails]));
+            }
+
+            const trial = await prisma.trialRequest.findFirst({
+                where: {
+                    email: { in: searchEmails },
+                },
+                orderBy: { createdAt: "desc" },
+            });
+
+            if (trial) {
+                const endDate = (trial as any).subscriptionEndsAt || trial.trialEndDate;
+                if (endDate && new Date() > new Date(endDate)) {
+                    throw new AppError(
+                        "Sinov muddati tugagan. Tizimdan foydalanishni davom ettirish uchun to'lovni amalga oshiring.",
+                        403,
+                    );
+                }
+            }
+
+            if (user.companyName && (prisma as any).company) {
+                const company = await (prisma as any).company.findFirst({
+                    where: {
+                        OR: [
+                            { name: user.companyName },
+                            { title: user.companyName },
+                        ],
+                    },
+                }).catch(() => null);
+
+                if (company) {
+                    const companyEndDate =
+                        company.trialEndDate ||
+                        company.subscriptionEndsAt ||
+                        company.subscriptionExpiresAt;
+                    if (companyEndDate && new Date() > new Date(companyEndDate)) {
+                        throw new AppError(
+                            "Sinov muddati tugagan. Tizimdan foydalanishni davom ettirish uchun to'lovni amalga oshiring.",
+                            403,
+                        );
+                    }
+                }
+            }
+
+            const userEndDate =
+                (user as any).trialEndDate || (user as any).subscriptionEndsAt;
+            if (userEndDate && new Date() > new Date(userEndDate)) {
+                throw new AppError(
+                    "Sinov muddati tugagan. Tizimdan foydalanishni davom ettirish uchun to'lovni amalga oshiring.",
+                    403,
+                );
+            }
+        }
+
         if (user.employee && user.employee.status === "TERMINATED") {
             throw new Error(
                 "Ushbu xodimning hisobi ishdan bo'shatilganligi sababli to'liq yopilgan va tizimga kirish huquqlari bekor qilingan.",

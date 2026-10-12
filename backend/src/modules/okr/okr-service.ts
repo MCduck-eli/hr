@@ -448,7 +448,7 @@ export class OkrService {
             const allUsers = await prisma.user.findMany({
                 where: {
                     role: { notIn: ["SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"] },
-                    ...(existing.companyName ? { companyName: existing.companyName } : {}),
+                    ...(objective.companyName ? { companyName: objective.companyName } : {}),
                 },
                 select: { id: true },
             });

@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const validate_middleware_1 = require("../../middlewares/validate-middleware");
+const leave_validation_1 = require("./leave-validation");
+const leave_controller_1 = require("./leave-controller");
+const leaveRouter = (0, express_1.Router)();
+leaveRouter.use(auth_middleware_1.authenticate);
+leaveRouter.post("/", (0, validate_middleware_1.validate)(leave_validation_1.createLeaveSchema), leave_controller_1.leaveController.create);
+leaveRouter.get("/my", leave_controller_1.leaveController.getMyLeaves);
+leaveRouter.get("/", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"), leave_controller_1.leaveController.getAllLeaves);
+leaveRouter.patch("/:id/status", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"), (0, validate_middleware_1.validate)(leave_validation_1.updateLeaveStatusSchema), leave_controller_1.leaveController.updateStatus);
+exports.default = leaveRouter;

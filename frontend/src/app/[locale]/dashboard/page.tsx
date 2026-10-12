@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Skeleton from "@/src/components/ui/Skeleton";
 import { createUser, updateUser } from "@/src/services/user-service";
+import TrialNotificationDropdown from "@/src/components/super-admin/TrialNotificationDropdown";
 
 function DirectorAvatar({ user }: { user: any }) {
     const [imageError, setImageError] = useState(false);
@@ -426,9 +428,12 @@ export default function SuperAdminDashboard() {
                         </p>
                     </div>
 
-                    <div className="bg-white border border-slate-200/80 px-4 py-2 rounded-2xl shadow-sm text-xs font-bold text-slate-700 flex items-center gap-2.5 w-fit">
-                        <span className="text-slate-400 font-medium uppercase">{t("totalCompanies")}:</span>
-                        <span className="font-mono text-sm font-black text-slate-950">{directors.length}</span>
+                    <div className="flex items-center gap-3">
+                        <TrialNotificationDropdown locale={locale} />
+                        <div className="bg-white border border-slate-200/80 px-4 py-2 rounded-2xl shadow-sm text-xs font-bold text-slate-700 flex items-center gap-2.5 w-fit">
+                            <span className="text-slate-400 font-medium uppercase">{t("totalCompanies")}:</span>
+                            <span className="font-mono text-sm font-black text-slate-950">{directors.length}</span>
+                        </div>
                     </div>
                 </div>
 

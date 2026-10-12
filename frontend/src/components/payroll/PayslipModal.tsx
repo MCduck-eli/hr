@@ -27,8 +27,8 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
 
     return (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white">
-            <div className="bg-white border-2 border-black w-full max-w-2xl max-h-[95vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-6 print:border-none print:shadow-none print:max-w-none print:p-8 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between border-b-2 border-black pb-4 print:hidden">
+            <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col gap-6 print:border-none print:shadow-none print:max-w-none print:p-8 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4 print:hidden">
                     <div className="flex items-center gap-2">
                         <span className="text-2xl">🧾</span>
                         <div>
@@ -43,13 +43,13 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handlePrint}
-                            className="px-3 py-1.5 bg-gray-100 text-black text-xs font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-colors border border-black"
+                            className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors border border-gray-200 rounded-lg cursor-pointer"
                         >
                             🖨 {t("print")}
                         </button>
                         <button
                             onClick={onClose}
-                            className="text-lg font-bold text-gray-400 hover:text-black transition-colors px-2"
+                            className="text-lg font-bold text-gray-400 hover:text-black transition-colors px-2 cursor-pointer"
                         >
                             ✕
                         </button>
@@ -88,7 +88,7 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-gray-50 border border-gray-200 text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs">
                         <div>
                             <span className="text-[10px] font-bold uppercase text-gray-400 block">{t("employee")}</span>
                             <span className="font-bold text-black">{emp.firstName} {emp.lastName}</span>
@@ -114,7 +114,7 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-black border-b border-black pb-1">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-black border-b border-gray-100 pb-1">
                             {t("earningsDeductions")}
                         </h4>
                         
@@ -160,7 +160,7 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
                             </div>
                         </div>
 
-                        <div className="p-4 bg-black text-white flex items-center justify-between mt-2">
+                        <div className="p-4 bg-gray-900 rounded-xl text-white flex items-center justify-between mt-2">
                             <div>
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block">
                                     {t("netSalaryUpper")}
@@ -185,10 +185,10 @@ export default function PayslipModal({ isOpen, onClose, payroll }: PayslipModalP
                     </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 print:hidden">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 print:hidden">
                     <button
                         onClick={onClose}
-                        className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                        className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
                     >
                         {t("close")}
                     </button>

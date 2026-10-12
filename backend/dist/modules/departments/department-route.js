@@ -1,0 +1,18 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const department_controller_1 = require("./department-controller");
+const validate_middleware_1 = require("../../middlewares/validate-middleware");
+const department_validation_1 = require("./department-validation");
+const departmentRouter = (0, express_1.Router)();
+departmentRouter.use(auth_middleware_1.authenticate);
+departmentRouter.get("/", department_controller_1.departmentController.getAll);
+departmentRouter.get("/:id", department_controller_1.departmentController.getOne);
+departmentRouter.post("/", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), (0, validate_middleware_1.validate)(department_validation_1.createDepartmentSchema), department_controller_1.departmentController.create);
+departmentRouter.post("/:id/assign-employee", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), department_controller_1.departmentController.assignEmployee);
+departmentRouter.patch("/:id/assign-employee", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), department_controller_1.departmentController.assignEmployee);
+departmentRouter.post("/:id/unassign-employee", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), department_controller_1.departmentController.unassignEmployee);
+departmentRouter.patch("/:id/unassign-employee", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), department_controller_1.departmentController.unassignEmployee);
+departmentRouter.delete("/:id", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"), department_controller_1.departmentController.delete);
+exports.default = departmentRouter;

@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const validate_middleware_1 = require("../../middlewares/validate-middleware");
+const notification_controller_1 = require("./notification-controller");
+const notification_validation_1 = require("./notification-validation");
+const notificationRouter = (0, express_1.Router)();
+notificationRouter.use(auth_middleware_1.authenticate);
+notificationRouter.get("/my-notifications", notification_controller_1.notificationController.getMyNotifications);
+notificationRouter.patch("/read-all", notification_controller_1.notificationController.markAllAsRead);
+notificationRouter.patch("/:id/read", notification_controller_1.notificationController.markAsRead);
+notificationRouter.post("/register-device", (0, validate_middleware_1.validate)(notification_validation_1.registerDeviceTokenSchema), notification_controller_1.notificationController.registerDeviceToken);
+notificationRouter.post("/send-manual", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN"), (0, validate_middleware_1.validate)(notification_validation_1.sendManualNotificationSchema), notification_controller_1.notificationController.sendManualNotification);
+exports.default = notificationRouter;

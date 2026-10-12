@@ -908,67 +908,82 @@ export default function HRPenaltyManager() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-rose-600 truncate">
-                            {t("cardTotalFines")} ({getMonthName(selectedMonth)})
-                        </span>
-                        <div className="text-2xl font-black text-rose-600">
-                            -{Number(summaryStats.grandTotalFines || 0).toLocaleString()} UZS
+            {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center justify-between">
+                            <div className="flex flex-col gap-2 w-full">
+                                <div className="h-3 w-28 bg-gray-200 rounded-md" />
+                                <div className="h-7 w-36 bg-gray-200 rounded-md" />
+                                <div className="h-3 w-24 bg-gray-200 rounded-md" />
+                            </div>
+                            <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0" />
                         </div>
-                        <span className="text-[11px] font-medium text-rose-600 mt-0.5">
-                            {t("cardTotalFinesSub")}
-                        </span>
-                    </div>
-                    <CircularProgress value={finePercent} size={46} strokeWidth={4} color="#f43f5e" />
+                    ))}
                 </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
+                        <div className="flex flex-col gap-1 min-w-0">
+                            <span className="text-xs font-bold uppercase tracking-wider text-rose-600 truncate">
+                                {t("cardTotalFines")} ({getMonthName(selectedMonth)})
+                            </span>
+                            <div className="text-2xl font-black text-rose-600">
+                                -{Number(summaryStats.grandTotalFines || 0).toLocaleString()} UZS
+                            </div>
+                            <span className="text-[11px] font-medium text-rose-600 mt-0.5">
+                                {t("cardTotalFinesSub")}
+                            </span>
+                        </div>
+                        <CircularProgress value={finePercent} size={46} strokeWidth={4} color="#f43f5e" />
+                    </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-amber-600 truncate">
-                            {t("cardLatenessAuto")}
-                        </span>
-                        <div className="text-2xl font-black text-amber-600">
-                            {summaryStats.totalLateCount || 0} {t("unitItems")}
+                    <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
+                        <div className="flex flex-col gap-1 min-w-0">
+                            <span className="text-xs font-bold uppercase tracking-wider text-amber-600 truncate">
+                                {t("cardLatenessAuto")}
+                            </span>
+                            <div className="text-2xl font-black text-amber-600">
+                                {summaryStats.totalLateCount || 0} {t("unitItems")}
+                            </div>
+                            <span className="text-[11px] font-medium text-amber-600 mt-0.5">
+                                {t("totalLabel")} {formatLateTime(summaryStats.totalLateMinutes || 0)} (-{Number(summaryStats.totalLateFines || 0).toLocaleString()} UZS)
+                            </span>
                         </div>
-                        <span className="text-[11px] font-medium text-amber-600 mt-0.5">
-                            {t("totalLabel")} {formatLateTime(summaryStats.totalLateMinutes || 0)} (-{Number(summaryStats.totalLateFines || 0).toLocaleString()} UZS)
-                        </span>
+                        <CircularProgress value={latePercent} size={46} strokeWidth={4} color="#f59e0b" />
                     </div>
-                    <CircularProgress value={latePercent} size={46} strokeWidth={4} color="#f59e0b" />
-                </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-red-600 truncate">
-                            {t("cardAbsenceAuto")}
-                        </span>
-                        <div className="text-2xl font-black text-red-600">
-                            {summaryStats.totalAbsentDays || 0} {t("unitDays")}
+                    <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
+                        <div className="flex flex-col gap-1 min-w-0">
+                            <span className="text-xs font-bold uppercase tracking-wider text-red-600 truncate">
+                                {t("cardAbsenceAuto")}
+                            </span>
+                            <div className="text-2xl font-black text-red-600">
+                                {summaryStats.totalAbsentDays || 0} {t("unitDays")}
+                            </div>
+                            <span className="text-[11px] font-medium text-red-600 mt-0.5">
+                                {t("totalLabel")} (-{Number(summaryStats.totalAbsentFines || 0).toLocaleString()} UZS)
+                            </span>
                         </div>
-                        <span className="text-[11px] font-medium text-red-600 mt-0.5">
-                            {t("totalLabel")} (-{Number(summaryStats.totalAbsentFines || 0).toLocaleString()} UZS)
-                        </span>
+                        <CircularProgress value={absentPercent} size={46} strokeWidth={4} color="#ef4444" />
                     </div>
-                    <CircularProgress value={absentPercent} size={46} strokeWidth={4} color="#ef4444" />
-                </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-xs font-bold uppercase tracking-wider text-purple-600 truncate">
-                            {t("cardDisciplinaryManual")}
-                        </span>
-                        <div className="text-2xl font-black text-slate-900">
-                            {summaryStats.totalDisciplinaryCount || 0} {t("unitItems")}
+                    <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
+                        <div className="flex flex-col gap-1 min-w-0">
+                            <span className="text-xs font-bold uppercase tracking-wider text-purple-600 truncate">
+                                {t("cardDisciplinaryManual")}
+                            </span>
+                            <div className="text-2xl font-black text-slate-900">
+                                {summaryStats.totalDisciplinaryCount || 0} {t("unitItems")}
+                            </div>
+                            <span className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                {t("cardDisciplinarySub")} (-{Number(summaryStats.totalDisciplinaryFines || 0).toLocaleString()} UZS)
+                            </span>
                         </div>
-                        <span className="text-[11px] font-medium text-slate-500 mt-0.5">
-                            {t("cardDisciplinarySub")} (-{Number(summaryStats.totalDisciplinaryFines || 0).toLocaleString()} UZS)
-                        </span>
+                        <CircularProgress value={discPercent} size={46} strokeWidth={4} color="#9327FF" />
                     </div>
-                    <CircularProgress value={discPercent} size={46} strokeWidth={4} color="#9327FF" />
                 </div>
-            </div>
+            )}
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-4">
@@ -1113,8 +1128,19 @@ export default function HRPenaltyManager() {
             )}
 
             {loading ? (
-                <div className="p-12 text-center text-xs font-bold uppercase tracking-widest text-gray-400 animate-pulse">
-                    {t("loading")}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4 animate-pulse">
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                        <div className="h-4 w-48 bg-gray-200 rounded-md" />
+                        <div className="h-4 w-24 bg-gray-200 rounded-md" />
+                    </div>
+                    <div className="flex flex-col gap-3">
+                        <div className="h-10 w-full bg-gray-200 rounded-md" />
+                        <div className="h-10 w-full bg-gray-200 rounded-md" />
+                        <div className="h-10 w-full bg-gray-200 rounded-md" />
+                        <div className="h-10 w-full bg-gray-200 rounded-md" />
+                        <div className="h-10 w-full bg-gray-200 rounded-md" />
+                        <div className="h-10 w-full bg-gray-200 rounded-md" />
+                    </div>
                 </div>
             ) : (
                 <>

@@ -7,6 +7,7 @@ import CareerPathRequirements from "@/src/components/profile/CareerPathRequireme
 import EmployeeJourneyTimeline from "@/src/components/lifecycle/EmployeeJourneyTimeline";
 import EmployeePayslipsSection from "@/src/components/payroll/EmployeePayslipsSection";
 import PayrollManager from "@/src/components/payroll/PayrollManager";
+import CompanyExpensesAnalytics from "@/src/components/payroll/CompanyExpensesAnalytics";
 import EmployeeTestModal from "@/src/components/profile/EmployeeTestModal";
 import EmployeeEnpsModal from "@/src/components/profile/EmployeeEnpsModal";
 import AbsenceReasonModal from "@/src/components/hr/attendance/absence-reason-modal";
@@ -17,8 +18,9 @@ import { fetchOffboardingDetails, toggleOffboardingTask } from "@/src/services/o
 import ExitInterviewModal from "@/src/components/offboarding/ExitInterviewModal";
 import EmployeeResignationModal from "@/src/components/offboarding/EmployeeResignationModal";
 import Skeleton from "@/src/components/ui/Skeleton";
+import OkrCard from "@/src/components/profile/OkrCard";
 
-type ProfileTab = "overview" | "career" | "okr" | "assessments" | "offboarding" | "payroll";
+type ProfileTab = "overview" | "career" | "okr" | "assessments" | "offboarding" | "payroll" | "expenses" | "reports" | "attendance" | "regulations" | "academy";
 
 function CircularProgress({ value, size = 48, strokeWidth = 4, color = "#9327FF" }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
     const radius = (size - strokeWidth) / 2;
@@ -66,6 +68,7 @@ export default function EmployeeProfilePage() {
     const [loading, setLoading] = useState(true);
 
     const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
+    const [viewMode, setViewMode] = useState<"employee" | "accountant">("accountant");
 
     const [checkInKr, setCheckInKr] = useState<any>(null);
     const [checkInProgress, setCheckInProgress] = useState<number | string>(100);
@@ -73,6 +76,7 @@ export default function EmployeeProfilePage() {
     const [checkInFile, setCheckInFile] = useState<File | null>(null);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [showHistory, setShowHistory] = useState(false);
 
     const [pendingTasks, setPendingTasks] = useState<any[]>([]);
     const [feedbackReport, setFeedbackReport] = useState<any>(null);
@@ -92,7 +96,7 @@ export default function EmployeeProfilePage() {
         if (typeof window !== "undefined") {
             const searchParams = new URLSearchParams(window.location.search);
             const tabParam = searchParams.get("tab") as ProfileTab | null;
-            if (tabParam && ["overview", "career", "okr", "assessments", "offboarding", "payroll"].includes(tabParam)) {
+            if (tabParam && ["overview", "career", "okr", "assessments", "offboarding", "payroll", "expenses", "reports"].includes(tabParam)) {
                 setActiveTab(tabParam);
             }
         }
@@ -393,10 +397,25 @@ export default function EmployeeProfilePage() {
     const fullName = `${firstName} ${lastName}`.trim();
 
     const roleData = dashboardData?.user?.role || currentUser.role;
-    const userPermissions: string[] =
-        dashboardData?.user?.permissions ||
-        currentUser?.permissions ||
-        [];
+    let tokenPermissions: string[] = [];
+    try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        if (token) {
+            const tokenParts = token.split(".");
+            if (tokenParts.length === 3) {
+                const tokenPayload = JSON.parse(atob(tokenParts[1]));
+                if (Array.isArray(tokenPayload.permissions)) {
+                    tokenPermissions = tokenPayload.permissions;
+                }
+            }
+        }
+    } catch (e) {}
+
+    const userPermissions: string[] = Array.from(new Set([
+        ...(Array.isArray(dashboardData?.user?.permissions) ? dashboardData.user.permissions : []),
+        ...(Array.isArray(currentUser?.permissions) ? currentUser.permissions : []),
+        ...tokenPermissions,
+    ]));
 
     const isAccountant =
         roleData === "ACCOUNTANT" ||
@@ -435,7 +454,10 @@ export default function EmployeeProfilePage() {
 
     const activeCourses = dashboardData?.activeCourses || [];
     const recentActivities = dashboardData?.recentActivities || [];
-    const okrs = dashboardData?.okrs || [];
+    const rawOkrs: any[] = dashboardData?.okrs || [];
+    const okrs = Array.from(new Map(rawOkrs.map((item: any) => [item.id, item])).values());
+    const activeOkrs = okrs.filter((okr: any) => (okr.progress || 0) < 100);
+    const completedOkrs = okrs.filter((okr: any) => (okr.progress || 0) >= 100);
 
     const statsCards = [
         {
@@ -487,7 +509,7 @@ export default function EmployeeProfilePage() {
         },
     ];
 
-    const menuItems = [
+    const allEmployeeMenuItems = [
         {
             id: "overview" as ProfileTab,
             label: "Umumiy ko'rinish",
@@ -496,6 +518,18 @@ export default function EmployeeProfilePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
             ),
+            permission: null,
+        },
+        {
+            id: "attendance" as ProfileTab,
+            label: "Davomat",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            ),
+            permission: "attendance",
+            href: `/${locale}/hr/attendance`,
         },
         {
             id: "career" as ProfileTab,
@@ -506,6 +540,7 @@ export default function EmployeeProfilePage() {
                 </svg>
             ),
             badge: grade ? `L${grade.level}` : undefined,
+            permission: "grading",
         },
         {
             id: "okr" as ProfileTab,
@@ -516,10 +551,15 @@ export default function EmployeeProfilePage() {
                 </svg>
             ),
             badge: okrs.length > 0 ? `${okrs.length}` : undefined,
+            permission: "okr",
         },
         {
             id: "assessments" as ProfileTab,
-            label: "Baholash & Testlar",
+            label: userPermissions.includes("disc") && !userPermissions.includes("feedback360")
+                ? "DISC Modeli"
+                : !userPermissions.includes("disc") && userPermissions.includes("feedback360")
+                ? "360° Baholash"
+                : "Baholash & Testlar",
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
@@ -527,6 +567,19 @@ export default function EmployeeProfilePage() {
             ),
             badge: pendingTasks.length > 0 ? `${pendingTasks.length} ta vazifa` : undefined,
             badgeColor: "bg-amber-100 text-amber-800",
+            permission: "assessments",
+        },
+        {
+            id: "payroll" as ProfileTab,
+            label: "Shaxsiy ish haqi",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            ),
+            badge: undefined,
+            badgeColor: undefined,
+            permission: "payroll",
         },
         {
             id: "offboarding" as ProfileTab,
@@ -538,50 +591,130 @@ export default function EmployeeProfilePage() {
             ),
             badge: offboardingData && offboardingData.status !== "CANCELLED" ? "Faol" : undefined,
             badgeColor: offboardingData?.status === "COMPLETED" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800",
+            permission: "offboarding",
+        },
+        {
+            id: "regulations" as ProfileTab,
+            label: "Ichki nizomlar",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            ),
+            permission: "regulations",
+            href: `/${locale}/regulations`,
+        },
+        {
+            id: "academy" as ProfileTab,
+            label: "Akademiya",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            ),
+            permission: "academy",
+            href: `/${locale}/academy`,
         },
     ];
 
-    if (canManagePayroll) {
-        menuItems.push({
+    const employeeMenuItems = roleData === "EMPLOYEE"
+        ? allEmployeeMenuItems.filter((item) => {
+            if (!item.permission) return true;
+            if (item.permission === "assessments") {
+                return userPermissions.includes("disc") || userPermissions.includes("feedback360");
+            }
+            return userPermissions.includes(item.permission);
+        })
+        : allEmployeeMenuItems;
+
+    const accountantMenuItems = [
+        {
             id: "payroll" as ProfileTab,
-            label: "Moliya & Ish Haqi",
+            label: "Kompaniya maoshlari",
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
             ),
             badge: undefined,
             badgeColor: undefined,
-        });
-    }
+        },
+        {
+            id: "expenses" as ProfileTab,
+            label: "Xarajatlar",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+            ),
+            badge: undefined,
+            badgeColor: undefined,
+        },
+        {
+            id: "reports" as ProfileTab,
+            label: "Hisobotlar",
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            ),
+            badge: undefined,
+            badgeColor: undefined,
+        },
+    ];
 
-    const quickSidebarActions = [
+    const menuItems = isAccountant && viewMode === "accountant" ? accountantMenuItems : employeeMenuItems;
+
+    const allQuickSidebarActions = [
         {
             label: "Kelolmaslik sababini bildirish",
             icon: "📝",
             action: () => setIsReasonModalOpen(true),
+            permission: "attendance",
         },
         {
             label: "Ichki nizomlar",
             icon: "⚖️",
             action: () => router.push(`/${locale}/regulations`),
+            permission: "regulations",
         },
         {
             label: "Ta'til so'rovi",
             icon: "🏖️",
             action: () => router.push(`/${locale}/hr/attendance`),
+            permission: "attendance",
         },
         {
             label: "OKR progressini yangilash",
             icon: "🎯",
             action: () => setActiveTab("okr"),
+            permission: "okr",
         },
         {
             label: "eNPS bahosini berish",
             icon: "💬",
             action: () => setIsEnpsModalOpen(true),
+            permission: "feedback360",
         },
     ];
+
+    const quickSidebarActions = roleData === "EMPLOYEE"
+        ? allQuickSidebarActions.filter((qa) => {
+            if (qa.permission === "feedback360") {
+                return userPermissions.includes("feedback360") || userPermissions.includes("disc");
+            }
+            return userPermissions.includes(qa.permission);
+        })
+        : allQuickSidebarActions;
+
+    useEffect(() => {
+        if (roleData === "EMPLOYEE" && menuItems.length > 0) {
+            const isTabAllowed = menuItems.some((item) => item.id === activeTab);
+            if (!isTabAllowed) {
+                setActiveTab(menuItems[0].id);
+            }
+        }
+    }, [activeTab, menuItems, roleData]);
 
     return (
         <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)] bg-slate-50/60 font-sans">
@@ -608,14 +741,20 @@ export default function EmployeeProfilePage() {
 
                     <div className="flex flex-col gap-1">
                         <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                            Shaxsiy Kabinet
+                            {isAccountant && viewMode === "accountant" ? "Bugalteriya Menyusi" : "Shaxsiy Kabinet"}
                         </span>
                         {menuItems.map((item) => {
                             const isActive = activeTab === item.id;
                             return (
                                 <button
                                     key={item.id}
-                                    onClick={() => setActiveTab(item.id)}
+                                    onClick={() => {
+                                        if ((item as any).href) {
+                                            router.push((item as any).href);
+                                        } else {
+                                            setActiveTab(item.id);
+                                        }
+                                    }}
                                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
                                         isActive
                                             ? "bg-[#9327FF] text-white shadow-xs"
@@ -644,44 +783,71 @@ export default function EmployeeProfilePage() {
                         })}
                     </div>
 
-                    <div className="flex flex-col gap-1 pt-3 border-t border-slate-100">
-                        <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                            Tezkor Amallar
-                        </span>
-                        {quickSidebarActions.map((qa, idx) => (
-                            <button
-                                key={idx}
-                                onClick={qa.action}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition-all text-left cursor-pointer"
-                            >
-                                <span className="text-sm">{qa.icon}</span>
-                                <span className="truncate">{qa.label}</span>
-                            </button>
-                        ))}
-                    </div>
+                    {(!isAccountant || viewMode !== "accountant") && quickSidebarActions.length > 0 && (
+                        <div className="flex flex-col gap-1 pt-3 border-t border-slate-100">
+                            <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                Tezkor Amallar
+                            </span>
+                            {quickSidebarActions.map((qa, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={qa.action}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition-all text-left cursor-pointer"
+                                >
+                                    <span className="text-sm">{qa.icon}</span>
+                                    <span className="truncate">{qa.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
-                    {isHrAdmin && (
+                    {(isHrAdmin || isAccountant) && (
                         <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
                             <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                                 Ma'muriyat
                             </span>
-                            <button
-                                onClick={() => router.push(`/${locale}/hr/dashboard`)}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 transition-colors text-left cursor-pointer"
-                            >
-                                <span>🛡️</span>
-                                <span>HR Admin Dashboard &rarr;</span>
-                            </button>
+                            {isHrAdmin && (
+                                <button
+                                    onClick={() => router.push(`/${locale}/hr/dashboard`)}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 transition-colors text-left cursor-pointer"
+                                >
+                                    <span>🛡️</span>
+                                    <span>HR Admin Dashboard &rarr;</span>
+                                </button>
+                            )}
+                            {isAccountant && (
+                                <button
+                                    onClick={() => {
+                                        if (viewMode === "accountant") {
+                                            setViewMode("employee");
+                                            setActiveTab("overview");
+                                        } else {
+                                            setViewMode("accountant");
+                                            setActiveTab("payroll");
+                                        }
+                                    }}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 transition-colors text-left cursor-pointer"
+                                >
+                                    <span>💼</span>
+                                    <span>
+                                        {viewMode === "accountant"
+                                            ? "Xodim Profili \u2192"
+                                            : "Bugalteriya Paneli \u2192"}
+                                    </span>
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
 
                 <div className="p-4 m-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-purple-100 text-[#9327FF] flex items-center justify-center font-bold text-sm shrink-0">
-                        👤
+                        {isAccountant && viewMode === "accountant" ? "💼" : "👤"}
                     </div>
                     <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-slate-800">Xodim Profili</span>
+                        <span className="text-xs font-bold text-slate-800">
+                            {isAccountant && viewMode === "accountant" ? "Bugalteriya Paneli" : "Xodim Profili"}
+                        </span>
                         <span className="text-[10px] text-slate-500 truncate">
                             {currentUser?.companyName || "Kompaniya xodimi"}
                         </span>
@@ -709,29 +875,35 @@ export default function EmployeeProfilePage() {
                             )}
                         </div>
                         <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-                            {t("welcomeBack")} {firstName}!
+                            {isAccountant && viewMode === "accountant"
+                                ? "Bugalteriya Boshqaruv Paneli"
+                                : `${t("welcomeBack")} ${firstName}!`}
                         </h1>
                         <p className="text-slate-500 text-xs md:text-sm font-medium">
-                            {positionTitle ? `${positionTitle} • ` : ""}{departmentName ? `${departmentName} • ` : ""}Shaxsiy ko'rsatkichlaringiz va faoliyat monitoringi
+                            {isAccountant && viewMode === "accountant"
+                                ? "Kompaniya ish haqi, xarajatlar va to'lovlar monitoringi"
+                                : `${positionTitle ? `${positionTitle} • ` : ""}${departmentName ? `${departmentName} • ` : ""}Shaxsiy ko'rsatkichlaringiz va faoliyat monitoringi`}
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <button
-                            onClick={() => router.push(`/${locale}/academy`)}
-                            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold rounded-xl px-4 py-2.5 transition-all duration-200 shadow-2xs flex items-center gap-2 text-xs md:text-sm cursor-pointer"
-                        >
-                            <span>📚</span>
-                            <span>Akademiya</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("okr")}
-                            className="bg-[#9327FF] hover:bg-purple-700 text-white font-bold rounded-xl px-4 py-2.5 transition-all duration-200 shadow-sm flex items-center gap-2 text-xs md:text-sm cursor-pointer"
-                        >
-                            <span>🎯</span>
-                            <span>Mening OKRlarim</span>
-                        </button>
-                    </div>
+                    {(!isAccountant || viewMode !== "accountant") && (
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                onClick={() => router.push(`/${locale}/academy`)}
+                                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold rounded-xl px-4 py-2.5 transition-all duration-200 shadow-2xs flex items-center gap-2 text-xs md:text-sm cursor-pointer"
+                            >
+                                <span>📚</span>
+                                <span>Akademiya</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("okr")}
+                                className="bg-[#9327FF] hover:bg-purple-700 text-white font-bold rounded-xl px-4 py-2.5 transition-all duration-200 shadow-sm flex items-center gap-2 text-xs md:text-sm cursor-pointer"
+                            >
+                                <span>🎯</span>
+                                <span>Mening OKRlarim</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {activeTab === "overview" && (
@@ -984,127 +1156,68 @@ export default function EmployeeProfilePage() {
                                 </p>
                             </div>
                             <span className="px-3 py-1 bg-purple-50 text-[#9327FF] text-xs font-bold rounded-lg w-fit">
-                                {okrs.length} ta maqsad biriktirilgan
+                                {activeOkrs.length} ta faol maqsad ({okrs.length} jami)
                             </span>
                         </div>
 
                         <div className="flex flex-col gap-5">
-                            {okrs.length === 0 ? (
+                            {activeOkrs.length === 0 ? (
                                 <div className="p-12 border border-dashed border-slate-300 bg-white rounded-2xl text-center flex flex-col items-center justify-center gap-3">
                                     <span className="text-4xl">🎯</span>
                                     <p className="text-sm text-slate-500 font-semibold">
-                                        Hozircha biriktirilgan OKR maqsadlar mavjud emas.
+                                        Hozircha faol OKR maqsadlar mavjud emas.
                                     </p>
                                 </div>
                             ) : (
-                                okrs.map((okr: any) => (
-                                    <div key={okr.id} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-2xs flex flex-col gap-5">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                                            <div className="flex flex-col gap-1.5 flex-1">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className={`px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md ${
-                                                        okr.level === "INDIVIDUAL"
-                                                            ? "bg-purple-100 text-purple-800"
-                                                            : okr.level === "DEPARTMENT"
-                                                            ? "bg-blue-100 text-blue-800"
-                                                            : "bg-emerald-100 text-emerald-800"
-                                                    }`}>
-                                                        {okr.level === "INDIVIDUAL" ? "👤 Shaxsiy OKR" : okr.level === "DEPARTMENT" ? `🏢 Bo'lim OKR${okr.department?.name ? ` (${okr.department.name})` : ""}` : "🌐 Kompaniya OKR"}
-                                                    </span>
-                                                    {okr.cycle?.title && (
-                                                        <span className="text-[11px] font-bold text-slate-400">
-                                                            • {okr.cycle.title}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <h3 className="text-base font-black text-slate-900">{okr.title}</h3>
-                                                {okr.description && <p className="text-xs text-slate-500 font-medium leading-relaxed">{okr.description}</p>}
-                                            </div>
-                                            <div className="flex items-center gap-3 shrink-0">
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-2xl font-black text-slate-900">{Math.round(okr.progress)}%</span>
-                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Umumiy ijro</span>
-                                                </div>
-                                                <CircularProgress value={okr.progress} size={48} strokeWidth={4.5} color="#9327FF" />
-                                            </div>
-                                        </div>
-
-                                        {okr.keyResults?.length > 0 && (
-                                            <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
-                                                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                                    Asosiy Natijalar (Key Results)
-                                                </span>
-                                                {okr.keyResults.map((kr: any) => {
-                                                    const latestCheckIn = kr.checkIns?.[0];
-                                                    const isPending = latestCheckIn?.status === "PENDING";
-                                                    const isRejected = latestCheckIn?.status === "REJECTED";
-                                                    const isCompleted = (kr.progress || 0) >= 100;
-
-                                                    return (
-                                                        <div key={kr.id} className="p-4 bg-slate-50/70 rounded-xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                                            <div className="flex flex-col gap-1.5 flex-1">
-                                                                <span className="text-xs font-bold text-slate-900">{kr.title}</span>
-                                                                <div className="flex items-center gap-3 w-full max-w-md">
-                                                                    <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                                                        <div 
-                                                                            className={`h-full transition-all duration-300 rounded-full ${isCompleted ? "bg-emerald-500" : isPending ? "bg-amber-500" : isRejected ? "bg-rose-500" : "bg-[#9327FF]"}`} 
-                                                                            style={{ width: `${Math.min(100, Math.max(0, kr.progress))}%` }} 
-                                                                        />
-                                                                    </div>
-                                                                    <span className="text-xs font-mono font-bold text-slate-700 whitespace-nowrap">
-                                                                        {kr.currentValue} / {kr.targetValue} {kr.unit || ""} ({Math.round(kr.progress)}%)
-                                                                    </span>
-                                                                </div>
-                                                                {latestCheckIn?.comment && (
-                                                                    <div className="text-[11px] text-slate-500 italic mt-0.5">
-                                                                        Topshirilgan hisobot: "{latestCheckIn.comment}"
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex items-center gap-2 shrink-0">
-                                                                {isPending ? (
-                                                                    <span className="px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-1.5">
-                                                                        <span>⏳</span> Kutilmoqda
-                                                                    </span>
-                                                                ) : isCompleted ? (
-                                                                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-1.5">
-                                                                        <span>✓</span> Tugallangan
-                                                                    </span>
-                                                                ) : isRejected ? (
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setCheckInKr(kr);
-                                                                            setCheckInProgress(100);
-                                                                            setCheckInComment("");
-                                                                            setCheckInFile(null);
-                                                                        }}
-                                                                        className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer"
-                                                                    >
-                                                                        🔄 Qayta topshirish
-                                                                    </button>
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setCheckInKr(kr);
-                                                                            setCheckInProgress(100);
-                                                                            setCheckInComment("");
-                                                                            setCheckInFile(null);
-                                                                        }}
-                                                                        className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer shadow-xs"
-                                                                    >
-                                                                        {kr.progress > 0 ? "⚡ Natijani yangilash" : "🚀 Topshirish"}
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
+                                activeOkrs.map((okr: any) => (
+                                    <OkrCard
+                                        key={okr.id}
+                                        okr={okr}
+                                        onOpenCheckIn={(kr) => {
+                                            setCheckInKr(kr);
+                                            setCheckInProgress(100);
+                                            setCheckInComment("");
+                                            setCheckInFile(null);
+                                        }}
+                                    />
                                 ))
                             )}
+
+                            <div className="flex flex-col gap-5 pt-2">
+                                <button
+                                    onClick={() => setShowHistory((prev) => !prev)}
+                                    className="w-fit text-purple-600 border border-purple-200 bg-purple-50 hover:bg-purple-100 rounded-md py-2 px-4 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-2"
+                                >
+                                    <span>
+                                        {showHistory
+                                            ? "Tarixni yashirish"
+                                            : "Tarixni ko'rish"}
+                                    </span>
+                                </button>
+
+                                {showHistory && (
+                                    <div className="flex flex-col gap-5">
+                                        {completedOkrs.length === 0 ? (
+                                            <div className="p-8 border border-dashed border-slate-200 bg-white rounded-2xl text-center text-xs font-medium text-slate-400">
+                                                Hozircha yakunlangan maqsadlar mavjud emas.
+                                            </div>
+                                        ) : (
+                                            completedOkrs.map((okr: any) => (
+                                                <OkrCard
+                                                    key={okr.id}
+                                                    okr={okr}
+                                                    onOpenCheckIn={(kr) => {
+                                                        setCheckInKr(kr);
+                                                        setCheckInProgress(100);
+                                                        setCheckInComment("");
+                                                        setCheckInFile(null);
+                                                    }}
+                                                />
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1447,9 +1560,26 @@ export default function EmployeeProfilePage() {
                     </div>
                 )}
 
-                {activeTab === "payroll" && canManagePayroll && (
+                {activeTab === "payroll" && (
                     <div className="flex flex-col gap-8">
-                        <PayrollManager />
+                        {isAccountant && viewMode === "accountant" ? (
+                            <PayrollManager />
+                        ) : canManagePayroll && !isAccountant ? (
+                            <PayrollManager />
+                        ) : (
+                            <EmployeePayslipsSection />
+                        )}
+                    </div>
+                )}
+
+                {activeTab === "expenses" && isAccountant && viewMode === "accountant" && (
+                    <div className="flex flex-col gap-8">
+                        <CompanyExpensesAnalytics />
+                    </div>
+                )}
+
+                {activeTab === "reports" && isAccountant && viewMode === "accountant" && (
+                    <div className="flex flex-col gap-8">
                         <EmployeePayslipsSection />
                     </div>
                 )}

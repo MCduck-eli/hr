@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const analytics_controller_1 = require("./analytics-controller");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const analyticsRouter = (0, express_1.Router)();
+analyticsRouter.use(auth_middleware_1.authenticate);
+analyticsRouter.get("/executive-summary", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"), analytics_controller_1.analyticsController.getExecutiveSummary);
+analyticsRouter.get("/nine-box-grid", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "DIRECTOR", "HR_ADMIN"), analytics_controller_1.analyticsController.getNineBoxGrid);
+exports.default = analyticsRouter;

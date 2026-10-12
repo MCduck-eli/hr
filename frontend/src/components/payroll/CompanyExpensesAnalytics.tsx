@@ -11,6 +11,53 @@ import {
     deleteCompanyExpenseItem,
 } from "@/src/services/payroll-service";
 
+function CircularProgress({
+    value,
+    size = 52,
+    strokeWidth = 5,
+    color = "#9327FF",
+}: {
+    value: number;
+    size?: number;
+    strokeWidth?: number;
+    color?: string;
+}) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const clamped = Math.min(100, Math.max(0, value));
+    const offset = circumference - (clamped / 100) * circumference;
+
+    return (
+        <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+            <svg className="w-full h-full transform -rotate-90" viewBox={`0 0 ${size} ${size}`}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke="#E5E7EB"
+                    strokeWidth={strokeWidth}
+                    fill="transparent"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    fill="transparent"
+                    className="transition-all duration-500 ease-out"
+                />
+            </svg>
+            <span className="absolute text-[11px] font-black text-gray-900">
+                {Math.round(clamped)}%
+            </span>
+        </div>
+    );
+}
+
 export default function CompanyExpensesAnalytics() {
     const t = useTranslations("Payroll");
     const params = useParams();
@@ -483,7 +530,7 @@ export default function CompanyExpensesAnalytics() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
-                    <div className="flex items-center gap-1.5 bg-white border border-gray-300 p-1">
+                    <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg p-1">
                         <span className="text-[11px] font-bold uppercase text-gray-500 px-2">{isRu ? "Год:" : "Yil:"}</span>
                         <select
                             value={selectedYear}
@@ -500,35 +547,34 @@ export default function CompanyExpensesAnalytics() {
 
                     <button
                         onClick={() => handleOpenAddExpense(selectedMonthIndex)}
-                        className="px-3.5 py-2 bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-800 transition-colors flex items-center gap-1.5 shadow-xs"
+                        className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
                         <span>+</span> {isRu ? "Добавить расход" : "Xarajat kiritish"}
                     </button>
 
                     <button
                         onClick={() => setIsAllExpensesListModalOpen(true)}
-                        className="px-3.5 py-2 bg-indigo-50 text-indigo-900 border border-indigo-300 text-xs font-bold uppercase tracking-wider hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
+                        className="px-3.5 py-2 bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-purple-100 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                         <span>📑</span> {isRu ? "Все расходы (Список)" : "Barcha xarajatlar"}
                     </button>
 
                     <button
                         onClick={loadAnalytics}
-                        className="px-3 py-2 bg-white text-black border border-gray-300 text-xs font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center gap-1.5"
+                        className="px-3 py-2 bg-white text-gray-700 border border-gray-200 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                     >
                         <span>🔄</span> {isRu ? "Обновить" : "Yangilash"}
                     </button>
 
                     <button
                         onClick={() => handleExportMonthPdf(activeDrillMonth)}
-                        className="px-3.5 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
+                        className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
                         <span>🖨️</span> {activeDrillMonth?.monthName} (PDF)
                     </button>
                 </div>
             </div>
 
-            {/* Oylarni tanlash menyusi (Faqat kelgan oylar tanlanadi, kelajak oylar esa hisoblanmaydi) */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-gray-200">
                 {monthlyList.map((mItem: any) => {
                     const isSelected = activeDrillMonth?.month === mItem.month;
@@ -539,9 +585,9 @@ export default function CompanyExpensesAnalytics() {
                             key={mItem.month}
                             disabled={isFuture}
                             onClick={() => handleSelectMonth(mItem)}
-                            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-sm transition-all flex items-center gap-1.5 shrink-0 ${
+                            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
                                 isSelected
-                                    ? "bg-black text-white shadow-xs"
+                                    ? "bg-purple-100 text-purple-700 border border-purple-200 shadow-xs"
                                     : isFuture
                                     ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-50"
                                     : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
@@ -550,7 +596,7 @@ export default function CompanyExpensesAnalytics() {
                             <span>📅</span>
                             <span>{mItem.monthName}</span>
                             {mItem.totalExpense > 0 && (
-                                <span className={`text-[10px] px-1.5 py-0.2 rounded font-black ${isSelected ? "bg-white/20 text-white" : "bg-gray-100 text-gray-800"}`}>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded font-black ${isSelected ? "bg-purple-200/80 text-purple-800" : "bg-gray-100 text-gray-800"}`}>
                                     {Math.round(mItem.totalExpense / 1000000)}M
                                 </span>
                             )}
@@ -559,9 +605,8 @@ export default function CompanyExpensesAnalytics() {
                 })}
             </div>
 
-            {/* Active Selected Month Drilldown Section (O'sha oyga bosganda chiqadigan batafsil taqsimot) */}
             {activeDrillMonth && (
-                <div className="bg-white border-2 border-black p-6 shadow-sm flex flex-col gap-6">
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex flex-col gap-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">
                         <div>
                             <div className="flex items-center gap-2">
@@ -570,12 +615,12 @@ export default function CompanyExpensesAnalytics() {
                                     {activeDrillMonth.monthName} {selectedYear} — {isRu ? "Структура и процентное распределение расходов" : "Xarajatlarining Foizli Taqsimoti"}
                                 </h3>
                                 {data?.maxExpenseMonth?.month === activeDrillMonth.month && (
-                                    <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-bold rounded uppercase">
+                                    <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-bold rounded-lg uppercase">
                                         🔴 {isRu ? "Макс. расход" : "Eng ko'p xarajatli oy"}
                                     </span>
                                 )}
                                 {data?.minExpenseMonth?.month === activeDrillMonth.month && (
-                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold rounded uppercase">
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold rounded-lg uppercase">
                                         🟢 {isRu ? "Мин. расход" : "Eng kam xarajatli oy"}
                                     </span>
                                 )}
@@ -590,7 +635,7 @@ export default function CompanyExpensesAnalytics() {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => handleOpenAddExpense(activeDrillMonth.month)}
-                                className="px-3.5 py-1.5 bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-800 transition-colors shadow-xs"
+                                className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-xs cursor-pointer"
                             >
                                 + {isRu ? "Добавить расход в этот месяц" : "Ushbu oyga xarajat qo'shish"}
                             </button>
@@ -603,55 +648,102 @@ export default function CompanyExpensesAnalytics() {
                         </div>
                     </div>
 
-                    {/* Category Percentage Breakdown (Foizlar bo'yicha) */}
                     <div>
                         <div className="text-xs font-black uppercase tracking-wider text-gray-700 mb-3">
                             1. {isRu ? "Распределение расходов по долям (%)" : "Xarajat Turlari Bo'yicha Foizlar Taqsimoti"}
                         </div>
 
-                        {/* Visual Proportion Bar */}
-                        <div className="h-5 w-full bg-gray-100 rounded flex overflow-hidden border border-gray-200 mb-4 shadow-inner">
-                            <div
-                                style={{ width: `${activeDrillMonth.percentages?.netSalary || activeDrillMonth.percentages?.baseSalary || 0}%` }}
-                                title={`Xodimlar Sof Maoshi: ${formatMoney(activeDrillMonth.netSalary ?? activeDrillMonth.baseSalary)} (${activeDrillMonth.percentages?.netSalary || activeDrillMonth.percentages?.baseSalary || 0}%)`}
-                                className="bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold transition-all"
-                            >
-                                {(activeDrillMonth.percentages?.netSalary || activeDrillMonth.percentages?.baseSalary || 0) > 10
-                                    ? `${activeDrillMonth.percentages?.netSalary || activeDrillMonth.percentages?.baseSalary}%`
-                                    : ""}
+                        <div className="flex flex-wrap justify-around items-center gap-6 p-4 bg-gray-50/60 rounded-xl border border-gray-100 mb-4">
+                            <div className="flex flex-col items-center text-center gap-2">
+                                <CircularProgress
+                                    value={activeDrillMonth.percentages?.netSalary || activeDrillMonth.percentages?.baseSalary || 0}
+                                    color="#2563EB"
+                                    size={52}
+                                    strokeWidth={5}
+                                />
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[11px] font-bold uppercase text-gray-500">
+                                        {isRu ? "Чистые оклады" : "Xodimlar sof oyligi"}
+                                    </span>
+                                    <span className="text-xs font-black text-blue-900 mt-0.5">
+                                        {formatMoney(activeDrillMonth.netSalary ?? activeDrillMonth.baseSalary)}
+                                    </span>
+                                </div>
                             </div>
-                            <div
-                                style={{ width: `${activeDrillMonth.percentages?.taxes || 0}%` }}
-                                title={`Daromad Solig'i (12%): ${formatMoney(activeDrillMonth.taxes || 0)} (${activeDrillMonth.percentages?.taxes || 0}%)`}
-                                className="bg-amber-500 flex items-center justify-center text-[10px] text-white font-bold transition-all"
-                            >
-                                {activeDrillMonth.percentages?.taxes > 8 ? `${activeDrillMonth.percentages?.taxes}%` : ""}
+
+                            <div className="flex flex-col items-center text-center gap-2">
+                                <CircularProgress
+                                    value={activeDrillMonth.percentages?.taxes || 0}
+                                    color="#F59E0B"
+                                    size={52}
+                                    strokeWidth={5}
+                                />
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[11px] font-bold uppercase text-gray-500">
+                                        {isRu ? "Подоходный налог" : "Daromad solig'i"}
+                                    </span>
+                                    <span className="text-xs font-black text-amber-900 mt-0.5">
+                                        {formatMoney(activeDrillMonth.taxes || 0)}
+                                    </span>
+                                </div>
                             </div>
-                            <div
-                                style={{ width: `${activeDrillMonth.percentages?.bonuses || 0}%` }}
-                                title={`Bonuslar: ${formatMoney(activeDrillMonth.bonuses)} (${activeDrillMonth.percentages?.bonuses || 0}%)`}
-                                className="bg-emerald-500 flex items-center justify-center text-[10px] text-white font-bold transition-all"
-                            >
-                                {activeDrillMonth.percentages?.bonuses > 8 ? `${activeDrillMonth.percentages?.bonuses}%` : ""}
+
+                            <div className="flex flex-col items-center text-center gap-2">
+                                <CircularProgress
+                                    value={activeDrillMonth.percentages?.bonuses || 0}
+                                    color="#10B981"
+                                    size={52}
+                                    strokeWidth={5}
+                                />
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[11px] font-bold uppercase text-gray-500">
+                                        {isRu ? "Бонусы и премии" : "Bonus & Mukofotlar"}
+                                    </span>
+                                    <span className="text-xs font-black text-emerald-900 mt-0.5">
+                                        +{formatMoney(activeDrillMonth.bonuses || 0)}
+                                    </span>
+                                </div>
                             </div>
-                            <div
-                                style={{ width: `${activeDrillMonth.percentages?.advances || 0}%` }}
-                                title={`Avanslar: ${formatMoney(activeDrillMonth.advances)} (${activeDrillMonth.percentages?.advances || 0}%)`}
-                                className="bg-purple-600 flex items-center justify-center text-[10px] text-white font-bold transition-all"
-                            >
-                                {activeDrillMonth.percentages?.advances > 8 ? `${activeDrillMonth.percentages?.advances}%` : ""}
+
+                            <div className="flex flex-col items-center text-center gap-2">
+                                <CircularProgress
+                                    value={activeDrillMonth.percentages?.manualExpenses || 0}
+                                    color="#F97316"
+                                    size={52}
+                                    strokeWidth={5}
+                                />
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[11px] font-bold uppercase text-gray-500">
+                                        {isRu ? "Операционные расходы" : "Operatsion xarajatlar"}
+                                    </span>
+                                    <span className="text-xs font-black text-orange-900 mt-0.5">
+                                        {formatMoney(activeDrillMonth.manualExpenses || 0)}
+                                    </span>
+                                </div>
                             </div>
-                            <div
-                                style={{ width: `${activeDrillMonth.percentages?.manualExpenses || 0}%` }}
-                                title={`Operatsion xarajatlar: ${formatMoney(activeDrillMonth.manualExpenses || 0)} (${activeDrillMonth.percentages?.manualExpenses || 0}%)`}
-                                className="bg-orange-500 flex items-center justify-center text-[10px] text-white font-bold transition-all"
-                            >
-                                {activeDrillMonth.percentages?.manualExpenses > 8 ? `${activeDrillMonth.percentages?.manualExpenses}%` : ""}
-                            </div>
+
+                            {(activeDrillMonth.percentages?.advances || 0) > 0 && (
+                                <div className="flex flex-col items-center text-center gap-2">
+                                    <CircularProgress
+                                        value={activeDrillMonth.percentages?.advances || 0}
+                                        color="#9327FF"
+                                        size={52}
+                                        strokeWidth={5}
+                                    />
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[11px] font-bold uppercase text-gray-500">
+                                            {isRu ? "Выданные авансы" : "Berilgan avanslar"}
+                                        </span>
+                                        <span className="text-xs font-black text-purple-900 mt-0.5">
+                                            {formatMoney(activeDrillMonth.advances || 0)}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                            <div className="p-3 bg-blue-50/70 border border-blue-200 flex flex-col justify-between">
+                            <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex flex-col justify-between shadow-2xs">
                                 <div>
                                     <div className="text-[10px] font-bold uppercase text-blue-900 flex items-center justify-between">
                                         <span>💼 {isRu ? "Чистые оклады" : "Xodimlar Sof Oyligi"}</span>
@@ -668,7 +760,7 @@ export default function CompanyExpensesAnalytics() {
                                 )}
                             </div>
 
-                            <div className="p-3 bg-amber-50/70 border border-amber-200 flex flex-col justify-between">
+                            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl flex flex-col justify-between shadow-2xs">
                                 <div>
                                     <div className="text-[10px] font-bold uppercase text-amber-900 flex items-center justify-between">
                                         <span>🏛️ {isRu ? "Подоходный налог (12%)" : "Daromad Solig'i (12%)"}</span>
@@ -683,7 +775,7 @@ export default function CompanyExpensesAnalytics() {
                                 </div>
                             </div>
 
-                            <div className="p-3 bg-purple-50/70 border border-purple-200 flex flex-col justify-between">
+                            <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl flex flex-col justify-between shadow-2xs">
                                 <div>
                                     <div className="text-[10px] font-bold uppercase text-purple-900 flex items-center justify-between">
                                         <span>⚡ {isRu ? "Выданные авансы" : "Berilgan Avanslar"}</span>
@@ -698,7 +790,7 @@ export default function CompanyExpensesAnalytics() {
                                 </div>
                             </div>
 
-                            <div className="p-3 bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
+                            <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex flex-col justify-between shadow-2xs">
                                 <div>
                                     <div className="text-[10px] font-bold uppercase text-emerald-900 flex items-center justify-between">
                                         <span>🎁 {isRu ? "Бонусы и премии" : "Bonus & Mukofotlar"}</span>
@@ -713,7 +805,7 @@ export default function CompanyExpensesAnalytics() {
                                 </div>
                             </div>
 
-                            <div className="p-3 bg-orange-50/70 border border-orange-200 flex flex-col justify-between">
+                            <div className="p-3 bg-orange-50/70 border border-orange-200 rounded-xl flex flex-col justify-between shadow-2xs">
                                 <div>
                                     <div className="text-[10px] font-bold uppercase text-orange-900 flex items-center justify-between">
                                         <span>🏢 {isRu ? "Операционные расходы" : "Operatsion xarajatlar"}</span>
@@ -731,7 +823,7 @@ export default function CompanyExpensesAnalytics() {
                     </div>
 
                     {/* Section: Manual Company Operational Expenses Table in this month */}
-                    <div className="bg-gray-50/70 border border-gray-200 p-4">
+                    <div className="bg-gray-50/70 border border-gray-200 rounded-xl p-4">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                             <div>
                                 <div className="text-xs font-black uppercase tracking-wider text-gray-800 flex items-center gap-2">
@@ -749,18 +841,18 @@ export default function CompanyExpensesAnalytics() {
                                     placeholder={isRu ? "Поиск по расходам..." : "Xarajatlar bo'yicha qidirish..."}
                                     value={manualExpenseSearch}
                                     onChange={(e) => setManualExpenseSearch(e.target.value)}
-                                    className="p-1.5 border border-gray-300 text-xs bg-white outline-none focus:border-black w-48"
+                                    className="p-1.5 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600/20 w-48"
                                 />
                                 <button
                                     onClick={() => handleOpenAddExpense(activeDrillMonth.month)}
-                                    className="px-3 py-1.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors shrink-0"
+                                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shrink-0 shadow-xs cursor-pointer"
                                 >
                                     + {isRu ? "Добавить" : "Qo'shish"}
                                 </button>
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto border border-gray-200 bg-white">
+                        <div className="overflow-x-auto border border-gray-200 rounded-xl bg-white shadow-2xs">
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
@@ -856,11 +948,11 @@ export default function CompanyExpensesAnalytics() {
                                 placeholder={isRu ? "Поиск по сотрудникам..." : "Xodim ismi yoki bo'limi bo'yicha qidirish..."}
                                 value={employeeSearch}
                                 onChange={(e) => setEmployeeSearch(e.target.value)}
-                                className="p-2 border border-gray-300 text-xs bg-white outline-none focus:border-black w-full sm:w-72"
+                                className="p-2 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600/20 w-full sm:w-72"
                             />
                         </div>
 
-                        <div className="overflow-x-auto border border-gray-200">
+                        <div className="overflow-x-auto border border-gray-200 rounded-xl bg-white shadow-2xs">
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-black uppercase tracking-wider text-gray-500">
@@ -888,10 +980,25 @@ export default function CompanyExpensesAnalytics() {
                                                     {eIdx + 1}
                                                 </td>
                                                 <td className="py-2.5 px-3 font-bold text-black">
-                                                    <div>{emp.name}</div>
-                                                    {emp.email && (
-                                                        <div className="text-[10px] text-gray-400 font-normal">{emp.email}</div>
-                                                    )}
+                                                    <div className="flex items-center gap-3">
+                                                        {emp.avatar || emp.image || emp.profilePhoto ? (
+                                                            <img
+                                                                src={emp.avatar || emp.image || emp.profilePhoto}
+                                                                alt="avatar"
+                                                                className="w-10 h-10 rounded-full object-cover shrink-0"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm uppercase shrink-0 border border-purple-200">
+                                                                {(emp.name || "?").trim().charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <div>{emp.name}</div>
+                                                            {emp.email && (
+                                                                <div className="text-[10px] text-gray-400 font-normal">{emp.email}</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td className="py-2.5 px-3 text-gray-600">
                                                     <div>{emp.department}</div>
@@ -925,10 +1032,10 @@ export default function CompanyExpensesAnalytics() {
             {/* Modal: Add or Edit Manual Company Expense */}
             {isAddExpenseModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-150">
-                    <div className="bg-white border border-gray-300 w-full max-w-lg shadow-2xl p-6 relative">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg shadow-2xl p-6 relative">
                         <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
                             <div>
-                                <h3 className="text-sm font-black uppercase tracking-wider text-black flex items-center gap-2">
+                                <h3 className="text-sm font-black uppercase tracking-wider text-gray-900 flex items-center gap-2">
                                     <span>{editingExpense ? "✏️" : "➕"}</span>
                                     <span>{editingExpense ? (isRu ? "Редактировать расход" : "Xarajatni tahrirlash") : (isRu ? "Добавить расход компании" : "Kompaniya xarajatini kiritish")}</span>
                                 </h3>
@@ -938,7 +1045,7 @@ export default function CompanyExpensesAnalytics() {
                             </div>
                             <button
                                 onClick={() => setIsAddExpenseModalOpen(false)}
-                                className="text-gray-400 hover:text-black font-bold text-lg leading-none p-1"
+                                className="text-gray-400 hover:text-black font-bold text-lg leading-none p-1 cursor-pointer"
                             >
                                 ✕
                             </button>
@@ -955,7 +1062,7 @@ export default function CompanyExpensesAnalytics() {
                                     placeholder={isRu ? "Например: Аренда офиса за сентябрь, покупка монитора..." : "Masalan: Sentyabr oyi ofis ijarasi, server to'lovi, kanselyariya..."}
                                     value={expenseForm.title}
                                     onChange={(e) => setExpenseForm({ ...expenseForm, title: e.target.value })}
-                                    className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black font-medium"
+                                    className="w-full p-2.5 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600/20 font-medium"
                                 />
                             </div>
 
@@ -967,7 +1074,7 @@ export default function CompanyExpensesAnalytics() {
                                     <select
                                         value={expenseForm.category}
                                         onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                                        className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black font-semibold"
+                                        className="w-full p-2.5 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600/20 font-semibold"
                                     >
                                         {categoryOptions.map((cat) => (
                                             <option key={cat.code} value={cat.code}>
@@ -989,7 +1096,7 @@ export default function CompanyExpensesAnalytics() {
                                         placeholder="1 000 000"
                                         value={expenseForm.amount}
                                         onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                                        className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black font-black text-rose-600"
+                                        className="w-full p-2.5 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600/20 font-black text-rose-600"
                                     />
                                 </div>
                             </div>
@@ -1014,7 +1121,7 @@ export default function CompanyExpensesAnalytics() {
                                                 setExpenseForm({ ...expenseForm, date: d });
                                             }
                                         }}
-                                        className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black font-medium"
+                                        className="w-full p-2.5 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600/20 font-medium"
                                     />
                                 </div>
 
@@ -1025,7 +1132,7 @@ export default function CompanyExpensesAnalytics() {
                                     <select
                                         value={expenseForm.paymentMethod}
                                         onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
-                                        className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black"
+                                        className="w-full p-2.5 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600/20"
                                     >
                                         <option value="BANK_TRANSFER">{isRu ? "Банковский перевод (Hisob raqam)" : "Bank o'tkazmasi (Hisob raqam)"}</option>
                                         <option value="CARD">{isRu ? "Корпоративная карта" : "Korporativ karta"}</option>
@@ -1037,19 +1144,19 @@ export default function CompanyExpensesAnalytics() {
 
                             {/* Recurrence Settings Section */}
                             {!editingExpense ? (
-                                <div className="bg-purple-50/70 border border-purple-200 p-3.5 space-y-3">
+                                <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-3.5 space-y-3">
                                     <div className="flex items-center justify-between">
                                         <span className="text-xs font-black uppercase text-purple-900 flex items-center gap-1.5">
                                             <span>🔁</span>
                                             <span>{isRu ? "Периодичность расхода" : "Xarajat takrorlanishi"}</span>
                                         </span>
-                                        <div className="flex items-center gap-1.5 bg-white p-0.5 border border-purple-200 rounded">
+                                        <div className="flex items-center gap-1.5 bg-white p-0.5 border border-purple-200 rounded-lg">
                                             <button
                                                 type="button"
                                                 onClick={() => setExpenseForm({ ...expenseForm, isRecurring: false })}
-                                                className={`px-2.5 py-1 text-[10px] font-bold uppercase transition-all rounded ${
+                                                className={`px-2.5 py-1 text-[10px] font-bold uppercase transition-all rounded-md cursor-pointer ${
                                                     !expenseForm.isRecurring
-                                                        ? "bg-black text-white shadow-xs"
+                                                        ? "bg-purple-600 text-white shadow-xs"
                                                         : "text-gray-600 hover:text-black"
                                                 }`}
                                             >
@@ -1058,7 +1165,7 @@ export default function CompanyExpensesAnalytics() {
                                             <button
                                                 type="button"
                                                 onClick={() => setExpenseForm({ ...expenseForm, isRecurring: true })}
-                                                className={`px-2.5 py-1 text-[10px] font-bold uppercase transition-all rounded ${
+                                                className={`px-2.5 py-1 text-[10px] font-bold uppercase transition-all rounded-md cursor-pointer ${
                                                     expenseForm.isRecurring
                                                         ? "bg-purple-700 text-white shadow-xs"
                                                         : "text-gray-600 hover:text-black"
@@ -1079,10 +1186,10 @@ export default function CompanyExpensesAnalytics() {
                                                     <select
                                                         value={expenseForm.recurringScope}
                                                         onChange={(e) => setExpenseForm({ ...expenseForm, recurringScope: e.target.value as any })}
-                                                        className="w-full p-2 border border-purple-300 text-xs bg-white outline-none focus:border-purple-600 font-semibold"
+                                                        className="w-full p-2 border border-purple-300 rounded-lg text-xs bg-white outline-none focus:border-purple-600 font-semibold"
                                                     >
                                                         <option value="FROM_SELECTED_MONTH">
-                                                            {isRu ? `С выбранного (${expenseForm.month}-й) месяца до конца года (Рекомендуется)` : `Tanlangan (${expenseForm.month}-oy) oydan yil oxirigacha (Tavsiya etiladi)`}
+                                                             {isRu ? `С выбранного (${expenseForm.month}-й) месяца до конца года (Рекомендуется)` : `Tanlangan (${expenseForm.month}-oy) oydan yil oxirigacha (Tavsiya etiladi)`}
                                                         </option>
                                                         <option value="ALL_YEAR">
                                                             {isRu ? `Все 12 месяцев ${selectedYear} года` : `${selectedYear}-yilning barcha 12 oyi uchun`}
@@ -1100,11 +1207,11 @@ export default function CompanyExpensesAnalytics() {
                                                         required
                                                         value={expenseForm.recurringDay}
                                                         onChange={(e) => setExpenseForm({ ...expenseForm, recurringDay: Number(e.target.value) })}
-                                                        className="w-full p-2 border border-purple-300 text-xs bg-white outline-none focus:border-purple-600 font-black text-purple-950"
+                                                        className="w-full p-2 border border-purple-300 rounded-lg text-xs bg-white outline-none focus:border-purple-600 font-black text-purple-950"
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="text-[11px] text-purple-900 leading-relaxed bg-purple-100/70 p-2.5 rounded border border-purple-200 font-medium">
+                                            <div className="text-[11px] text-purple-900 leading-relaxed bg-purple-100/70 p-2.5 rounded-lg border border-purple-200 font-medium">
                                                 ⚡ {isRu
                                                     ? `Автоматическое списание: каждый месяц ${expenseForm.recurringDay}-го числа расход будет автоматически добавляться и учитываться в ежемесячной финансовой аналитике компании.`
                                                     : `Avtomatik hisoblash: har oyning ${expenseForm.recurringDay}-sanasi kelganda, ushbu xarajat avtomatik tarzda o'sha oy hisobiga qo'shiladi va kompaniya moliyaviy tahlilida hisoblanadi.`}
@@ -1114,7 +1221,7 @@ export default function CompanyExpensesAnalytics() {
                                 </div>
                             ) : (
                                 editingExpense?.recurringGroupId ? (
-                                    <div className="bg-purple-50 border border-purple-300 p-3.5 space-y-2.5">
+                                    <div className="bg-purple-50 border border-purple-300 rounded-xl p-3.5 space-y-2.5">
                                         <div className="flex items-center gap-1.5 text-xs font-black uppercase text-purple-900">
                                             <span>🔁</span>
                                             <span>{isRu ? "Это регулярный ежемесячный расход" : "Ushbu xarajat har oylik takroriy guruhga tegishli"}</span>
@@ -1157,7 +1264,7 @@ export default function CompanyExpensesAnalytics() {
                                     placeholder={isRu ? "Укажите детали платежа, номер чека или счета..." : "To'lov tafsilotlari, chek yoki hisob-faktura ma'lumotlari..."}
                                     value={expenseForm.description}
                                     onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                                    className="w-full p-2.5 border border-gray-300 text-xs bg-white outline-none focus:border-black"
+                                    className="w-full p-2.5 border border-gray-200 rounded-lg text-xs bg-white outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600/20"
                                 />
                             </div>
 
@@ -1165,14 +1272,14 @@ export default function CompanyExpensesAnalytics() {
                                 <button
                                     type="button"
                                     onClick={() => setIsAddExpenseModalOpen(false)}
-                                    className="px-4 py-2 border border-gray-300 text-xs font-bold uppercase text-gray-700 hover:bg-gray-100"
+                                    className="px-4 py-2 border border-gray-200 text-xs font-bold uppercase text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
                                 >
                                     {isRu ? "Отмена" : "Bekor qilish"}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={actionLoading}
-                                    className="px-5 py-2 bg-black hover:bg-zinc-800 disabled:bg-zinc-400 text-white text-xs font-bold uppercase tracking-wider shadow-xs"
+                                    className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors shadow-xs cursor-pointer"
                                 >
                                     {actionLoading ? (isRu ? "Сохранение..." : "Saqlanmoqda...") : (isRu ? "Сохранить расход" : "Xarajatni saqlash")}
                                 </button>
@@ -1185,10 +1292,10 @@ export default function CompanyExpensesAnalytics() {
             {/* Modal: All Company Expenses List View */}
             {isAllExpensesListModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-150">
-                    <div className="bg-white border border-gray-300 w-full max-w-4xl shadow-2xl p-6 relative max-h-[90vh] flex flex-col">
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-4xl shadow-2xl p-6 relative max-h-[90vh] flex flex-col">
                         <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4 shrink-0">
                             <div>
-                                <h3 className="text-base font-black uppercase tracking-wider text-black flex items-center gap-2">
+                                <h3 className="text-base font-black uppercase tracking-wider text-gray-900 flex items-center gap-2">
                                     <span>📑</span>
                                     <span>{isRu ? "Все операционные расходы компании" : "Kompaniyaning barcha qo'lda kiritilgan xarajatlari"}</span>
                                 </h3>
@@ -1198,19 +1305,19 @@ export default function CompanyExpensesAnalytics() {
                             </div>
                             <button
                                 onClick={() => setIsAllExpensesListModalOpen(false)}
-                                className="text-gray-400 hover:text-black font-bold text-lg leading-none p-1"
+                                className="text-gray-400 hover:text-black font-bold text-lg leading-none p-1 cursor-pointer"
                             >
                                 ✕
                             </button>
                         </div>
 
                         {/* Filters & Actions */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 bg-gray-50 p-3 border border-gray-200 shrink-0">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 bg-gray-50/70 p-3 border border-gray-200 rounded-xl shrink-0">
                             <div className="flex flex-wrap items-center gap-2">
                                 <select
                                     value={allExpensesMonthFilter}
                                     onChange={(e) => setAllExpensesMonthFilter(e.target.value)}
-                                    className="p-1.5 border border-gray-300 text-xs bg-white font-bold"
+                                    className="p-1.5 border border-gray-200 rounded-lg text-xs bg-white font-bold"
                                 >
                                     <option value="ALL">{isRu ? "Все месяцы" : "Barcha oylar"}</option>
                                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
@@ -1223,7 +1330,7 @@ export default function CompanyExpensesAnalytics() {
                                 <select
                                     value={allExpensesCategoryFilter}
                                     onChange={(e) => setAllExpensesCategoryFilter(e.target.value)}
-                                    className="p-1.5 border border-gray-300 text-xs bg-white font-bold"
+                                    className="p-1.5 border border-gray-200 rounded-lg text-xs bg-white font-bold"
                                 >
                                     <option value="ALL">{isRu ? "Все категории" : "Barcha toifalar"}</option>
                                     {categoryOptions.map((c) => (
@@ -1236,14 +1343,14 @@ export default function CompanyExpensesAnalytics() {
 
                             <button
                                 onClick={() => handleOpenAddExpense()}
-                                className="px-3 py-1.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-zinc-800"
+                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer shadow-xs"
                             >
                                 + {isRu ? "Новый расход" : "Yangi xarajat"}
                             </button>
                         </div>
 
                         {/* Scrollable Table */}
-                        <div className="overflow-y-auto flex-1 border border-gray-200">
+                        <div className="overflow-y-auto flex-1 border border-gray-200 rounded-xl">
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead className="sticky top-0 bg-gray-100 z-10">
                                     <tr className="border-b border-gray-200 text-[10px] font-black uppercase tracking-wider text-gray-600">
@@ -1306,13 +1413,13 @@ export default function CompanyExpensesAnalytics() {
                                                     <div className="flex items-center justify-center gap-1.5">
                                                         <button
                                                             onClick={() => handleOpenEditExpense(exp)}
-                                                            className="px-2 py-1 text-[11px] font-bold uppercase bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                                                            className="px-2 py-1 text-[11px] font-bold uppercase bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded"
                                                         >
                                                             ✏️
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteExpense(exp)}
-                                                            className="px-2 py-1 text-[11px] font-bold uppercase bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200"
+                                                            className="px-2 py-1 text-[11px] font-bold uppercase bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded"
                                                         >
                                                             🗑️
                                                         </button>
@@ -1331,7 +1438,7 @@ export default function CompanyExpensesAnalytics() {
                             </div>
                             <button
                                 onClick={() => setIsAllExpensesListModalOpen(false)}
-                                className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 text-black text-xs font-bold uppercase"
+                                className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
                             >
                                 {isRu ? "Закрыть" : "Yopish"}
                             </button>

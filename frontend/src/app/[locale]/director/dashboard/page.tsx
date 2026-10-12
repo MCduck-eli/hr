@@ -195,7 +195,7 @@ export default function DirectorDashboard() {
                 invalidateQuery("director");
                 loadData(true);
             } catch (err: any) {
-                alert(err.message || "Error");
+                showToast(err.message || "Ushbu email bilan foydalanuvchi allaqachon mavjud", "error");
             } finally {
                 setFormLoading(false);
             }
@@ -211,7 +211,7 @@ export default function DirectorDashboard() {
             loadData(true);
             showToast("Muvaffaqiyatli yaratildi", "success");
         } catch (err: any) {
-            alert(err.message || "Error");
+            showToast(err.message || "Ushbu email bilan foydalanuvchi allaqachon mavjud", "error");
         } finally {
             setFormLoading(false);
         }
@@ -243,7 +243,7 @@ export default function DirectorDashboard() {
             invalidateQuery("director");
             loadData(true);
         } catch (err: any) {
-            alert(err.message || "Error");
+            showToast(err.message || "Error", "error");
         }
     };
 
@@ -254,7 +254,7 @@ export default function DirectorDashboard() {
             invalidateQuery("director");
             loadData(true);
         } catch (err: any) {
-            alert(err.message || "Error");
+            showToast(err.message || "Error", "error");
         }
     };
 
@@ -1132,7 +1132,7 @@ export default function DirectorDashboard() {
             />
 
             {toast && (
-                <div className="fixed top-6 right-6 z-50 transition-all duration-300 transform translate-y-0">
+                <div className="fixed top-6 right-6 z-[9999] transition-all duration-300 transform translate-y-0">
                     <div
                         className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium ${
                             toast.type === "success"

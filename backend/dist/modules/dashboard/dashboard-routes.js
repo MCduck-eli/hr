@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const dashboard_controller_1 = require("./dashboard-controller");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const validate_middleware_1 = require("../../middlewares/validate-middleware");
+const dashboard_validation_1 = require("./dashboard-validation");
+const dashboardRouter = (0, express_1.Router)();
+dashboardRouter.use(auth_middleware_1.authenticate);
+dashboardRouter.get("/dashboard", (0, validate_middleware_1.validate)(dashboard_validation_1.getDashboardSchema), dashboard_controller_1.dashboardController.getEmployeeDashboard);
+dashboardRouter.get("/hr-activities", dashboard_controller_1.dashboardController.getHRDashboardActivities);
+dashboardRouter.get("/hr-summary", dashboard_controller_1.dashboardController.getHRDashboardSummary);
+dashboardRouter.patch("/progress", dashboard_controller_1.dashboardController.updateProgress);
+exports.default = dashboardRouter;

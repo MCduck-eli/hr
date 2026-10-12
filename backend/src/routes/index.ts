@@ -24,6 +24,7 @@ import employeeStatusRouter from "../modules/employee-status/employee-status-rou
 import roleRouter from "../modules/roles/role-route";
 import analyticsRouter from "../modules/analytics/analytics-route";
 import enpsRouter from "../modules/enps/enps-route";
+import trialRouter from "../modules/trials/trial-route";
 
 const mainRouter = Router();
 
@@ -54,5 +55,7 @@ mainRouter.use("/v1/employee-statuses", employeeStatusRouter);
 mainRouter.use("/v1/roles", roleRouter);
 mainRouter.use("/v1/analytics", analyticsRouter);
 mainRouter.use("/roles", roleRouter);
+mainRouter.use("/v1/trials", trialRouter);
+mainRouter.use("/trials", trialRouter);
 
 export default mainRouter;

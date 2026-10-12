@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../middlewares/auth-middleware");
+const performance_controller_1 = require("./performance-controller");
+const validate_middleware_1 = require("../../middlewares/validate-middleware");
+const performance_validation_1 = require("./performance-validation");
+const performanceRouter = (0, express_1.Router)();
+performanceRouter.use(auth_middleware_1.authenticate);
+performanceRouter.get("/my", performance_controller_1.performanceController.getMyReviews);
+performanceRouter.post("/", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"), (0, validate_middleware_1.validate)(performance_validation_1.createPerformanceReviewSchema), performance_controller_1.performanceController.create);
+performanceRouter.get("/employee/:employeeId", (0, auth_middleware_1.authorize)("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"), performance_controller_1.performanceController.getEmployeeReviews);
+exports.default = performanceRouter;

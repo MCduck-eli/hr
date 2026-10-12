@@ -43,7 +43,8 @@ export default function OkrManager() {
     const [rejectingCheckInId, setRejectingCheckInId] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState("");
     const [isReviewing, setIsReviewing] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState<"ALL" | "DEPARTMENT" | "INDIVIDUAL" | "HISTORY">("ALL");
+    const [selectedCategory, setSelectedCategory] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
+    const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<string>("");
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -595,9 +596,7 @@ export default function OkrManager() {
                             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">{t("allOkrs")}</h2>
                             <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl">
                                 {[
-                                    { id: "ALL", label: "Barcha OKR lar" },
-                                    { id: "DEPARTMENT", label: "Bo'limlar" },
-                                    { id: "INDIVIDUAL", label: "Shaxsiy" },
+                                    { id: "ACTIVE", label: "Faol OKR lar" },
                                     { id: "HISTORY", label: "Tarix" }
                                 ].map((tab) => (
                                     <button
@@ -627,21 +626,190 @@ export default function OkrManager() {
                                 if (selectedCategory === "HISTORY") {
                                     return isCompleted;
                                 }
-                                if (selectedCategory === "DEPARTMENT") {
-                                    return okr.level === "DEPARTMENT";
-                                }
-                                if (selectedCategory === "INDIVIDUAL") {
-                                    return okr.level === "INDIVIDUAL";
-                                }
-                                return true;
+                                return !isCompleted;
                             });
 
                             const isHr = userRole === "HR_ADMIN" || userRole === "SUPER_ADMIN" || userRole === "DIRECTOR";
 
+                            if (selectedCategory === "HISTORY") {
+                                return (
+                                    <div>
+                                        {displayedObjectives.length === 0 ? (
+                                            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center gap-2 text-center">
+                                                <div className="w-10 h-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center text-xl">
+                                                    🎯
+                                                </div>
+                                                <span className="text-sm text-gray-400 font-medium">
+                                                    Yakunlangan OKR lar mavjud emas
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="overflow-x-auto bg-white rounded-2xl border border-gray-100 shadow-sm">
+                                                <table className="w-full text-left border-collapse text-sm">
+                                                    <thead>
+                                                        <tr className="bg-gray-50/80 text-gray-500 text-[11px] uppercase tracking-wider font-semibold border-b border-gray-100">
+                                                            <th className="p-4">Maqsad nomi</th>
+                                                            <th className="p-4">Kimga / Bo'lim</th>
+                                                            <th className="p-4">Bajarilgan vaqti</th>
+                                                            <th className="p-4">Progress</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {displayedObjectives.map((okr: any) => {
+                                                            const isExpanded = expandedRowId === okr.id;
+                                                            const assignee = okr.employee
+                                                                ? `${okr.employee.firstName} ${okr.employee.lastName}`
+                                                                : okr.department
+                                                                ? okr.department.name
+                                                                : "Kompaniya";
+                                                            const completedDate = okr.updatedAt
+                                                                ? new Date(okr.updatedAt).toLocaleDateString("ru-RU")
+                                                                : okr.endDate
+                                                                ? new Date(okr.endDate).toLocaleDateString("ru-RU")
+                                                                : "-";
+                                                            const apiOrigin = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:5001";
+                                                            const fileRaw =
+                                                                okr.fileUrl ||
+                                                                okr.document ||
+                                                                okr.documentUrl ||
+                                                                okr.imageUrl ||
+                                                                okr.attachment ||
+                                                                okr.attachmentUrl ||
+                                                                okr.proofUrl ||
+                                                                okr.keyResults?.find((kr: any) => kr.checkIns?.[0]?.imageUrl || kr.checkIns?.[0]?.fileUrl || kr.imageUrl || kr.fileUrl)?.checkIns?.[0]?.imageUrl ||
+                                                                okr.keyResults?.find((kr: any) => kr.checkIns?.[0]?.imageUrl || kr.checkIns?.[0]?.fileUrl || kr.imageUrl || kr.fileUrl)?.checkIns?.[0]?.fileUrl ||
+                                                                okr.keyResults?.find((kr: any) => kr.imageUrl || kr.fileUrl)?.imageUrl ||
+                                                                okr.keyResults?.find((kr: any) => kr.imageUrl || kr.fileUrl)?.fileUrl;
+
+                                                            const fileHref = fileRaw
+                                                                ? fileRaw.startsWith("http") || fileRaw.startsWith("data:") || fileRaw.startsWith("blob:")
+                                                                    ? fileRaw
+                                                                    : `${apiOrigin}${fileRaw.startsWith("/") ? "" : "/"}${fileRaw}`
+                                                                : null;
+
+                                                            return (
+                                                                <React.Fragment key={okr.id}>
+                                                                    <tr
+                                                                        onClick={() => setExpandedRowId(isExpanded ? null : okr.id)}
+                                                                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                                                    >
+                                                                        <td className="p-4">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <svg
+                                                                                    className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                                                                                    fill="none"
+                                                                                    viewBox="0 0 24 24"
+                                                                                    stroke="currentColor"
+                                                                                >
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                                                </svg>
+                                                                                <span className="font-bold text-gray-900">{okr.title}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="p-4 text-gray-600 font-medium">
+                                                                            {assignee}
+                                                                        </td>
+                                                                        <td className="p-4 text-gray-500 font-mono text-xs">
+                                                                            {completedDate}
+                                                                        </td>
+                                                                        <td className="p-4">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                                                    <div
+                                                                                        className="h-full bg-emerald-500 rounded-full"
+                                                                                        style={{ width: `${Math.min(100, Math.round(okr.progress || 0))}%` }}
+                                                                                    />
+                                                                                </div>
+                                                                                <span className="font-mono font-bold text-emerald-600">
+                                                                                    {Math.round(okr.progress || 0)}%
+                                                                                </span>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                    {isExpanded && (
+                                                                        <tr className="bg-gray-50/80 border-b border-gray-100">
+                                                                            <td colSpan={4} className="p-4 sm:p-6">
+                                                                                <div className="flex flex-col gap-4">
+                                                                                    {okr.description && (
+                                                                                        <div className="text-xs text-gray-600">
+                                                                                            <span className="font-bold text-gray-800 uppercase tracking-wider text-[10px] block mb-1">
+                                                                                                Izoh / Maqsad tavsifi:
+                                                                                            </span>
+                                                                                            <p className="leading-relaxed">{okr.description}</p>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    {fileHref && (
+                                                                                        <div className="flex flex-col gap-1.5">
+                                                                                            <span className="font-bold text-gray-800 uppercase tracking-wider text-[10px]">
+                                                                                                Biriktirilgan fayl:
+                                                                                            </span>
+                                                                                            <a
+                                                                                                href={fileHref}
+                                                                                                target="_blank"
+                                                                                                rel="noopener noreferrer"
+                                                                                                className="w-fit px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+                                                                                            >
+                                                                                                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                                                </svg>
+                                                                                                <span>Ko'rish</span>
+                                                                                            </a>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    {okr.keyResults?.length > 0 ? (
+                                                                                        <div className="flex flex-col gap-2.5">
+                                                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                                                                                Asosiy natijalar (Key Results)
+                                                                                            </span>
+                                                                                            <div className="grid grid-cols-1 gap-2">
+                                                                                                {okr.keyResults.map((kr: any) => (
+                                                                                                    <div
+                                                                                                        key={kr.id}
+                                                                                                        className="p-3 bg-white rounded-xl border border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs"
+                                                                                                    >
+                                                                                                        <span className="text-xs font-semibold text-gray-800">
+                                                                                                            {kr.title}
+                                                                                                        </span>
+                                                                                                        <div className="flex items-center gap-3 w-full sm:w-1/3">
+                                                                                                            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                                                                                <div
+                                                                                                                    className="h-full bg-emerald-500 rounded-full"
+                                                                                                                    style={{ width: `${Math.min(100, Math.round(kr.progress || 0))}%` }}
+                                                                                                                />
+                                                                                                            </div>
+                                                                                                            <span className="text-xs font-mono font-bold text-gray-700 whitespace-nowrap">
+                                                                                                                {kr.currentValue} / {kr.targetValue} {kr.unit || ""} ({Math.round(kr.progress || 0)}%)
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                ))}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <span className="text-xs text-gray-400 italic">
+                                                                                            Asosiy natijalar mavjud emas
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    )}
+                                                                </React.Fragment>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }
+
                             return (
                                 <div className="grid grid-cols-1 gap-4">
                                     {displayedObjectives.map((okr: any) => {
-                                        const isReadOnly = selectedCategory === "HISTORY" && !isHr;
+                                        const isReadOnly = false;
 
                                         return (
                                             <div key={okr.id} className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col gap-6 hover:shadow-md transition-all relative group">
@@ -714,7 +882,7 @@ export default function OkrManager() {
                                                 🎯
                                             </div>
                                             <span className="text-sm text-gray-400 font-medium">
-                                                {selectedCategory === "HISTORY" ? "Yakunlangan OKR lar mavjud emas" : t("noOkrsInCycle")}
+                                                {t("noOkrsInCycle")}
                                             </span>
                                         </div>
                                     )}

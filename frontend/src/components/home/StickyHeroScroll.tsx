@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { createTrialRequest } from "@/src/services/trial-service";
 
 export interface FloatingCardItem {
     id: string;
@@ -33,6 +34,43 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
     const locale = (params?.locale as string) || "uz";
     const containerRef = useRef<HTMLDivElement>(null);
     const [progress, setProgress] = useState(0);
+    const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            setIsSubmitting(true);
+            await createTrialRequest(formData);
+            setToast({
+                message: "Ma'lumotlaringiz qabul qilindi, tez orada sizga bog'lanamiz",
+                type: "success",
+            });
+            setTimeout(() => setToast(null), 4000);
+            setFormData({
+                firstName: "",
+                lastName: "",
+                phone: "",
+                email: "",
+            });
+            setIsDemoModalOpen(false);
+        } catch (err: any) {
+            setToast({
+                message: err.message || "Xatolik yuz berdi, qayta urinib ko'ring",
+                type: "error",
+            });
+            setTimeout(() => setToast(null), 4000);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
 
     useEffect(() => {
@@ -300,6 +338,7 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
 
                         <button
                             type="button"
+                            onClick={() => setIsDemoModalOpen(true)}
                             className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium rounded-xl px-6 py-3 text-sm md:text-base transition-all duration-200 shadow-sm flex items-center gap-2 cursor-pointer"
                         >
                             <svg className="w-5 h-5 text-[#9327FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -389,6 +428,200 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
                     })}
                 </div>
             </div>
+
+            {isDemoModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative animate-in fade-in zoom-in-95 duration-150">
+                        <button
+                            type="button"
+                            onClick={() => setIsDemoModalOpen(false)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 rounded-lg cursor-pointer transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-3 shadow-xs">
+                                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                                    <path d="M5 3v4" />
+                                    <path d="M19 17v4" />
+                                    <path d="M3 5h4" />
+                                    <path d="M17 19h4" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 text-center">
+                                {t("tryFreeBtn")}
+                            </h3>
+                            <p className="text-gray-500 text-sm mt-2 mb-6 text-center leading-relaxed">
+                                Ma'lumotlaringizni qoldiring. Kiritgan elektron pochtangizga tizimga kirish uchun maxsus parol va yo'riqnoma yuboriladi.
+                            </p>
+                        </div>
+
+                        {toast && toast.type === "error" && (
+                            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                                <svg className="w-4 h-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span>{toast.message}</span>
+                            </div>
+                        )}
+
+                        <form
+                            onSubmit={handleSubmit}
+                            className="space-y-3.5"
+                        >
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700">
+                                    Ism
+                                </label>
+                                <div className="relative mt-1">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.firstName}
+                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                        placeholder="Ismingizni kiriting"
+                                        className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700">
+                                    Familiya
+                                </label>
+                                <div className="relative mt-1">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.lastName}
+                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                        placeholder="Familiyangizni kiriting"
+                                        className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700">
+                                    Telefon raqam
+                                </label>
+                                <div className="relative mt-1">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        type="tel"
+                                        required
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder="+998 90 123 45 67"
+                                        className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700">
+                                    Email
+                                </label>
+                                <div className="relative mt-1">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        placeholder="misol@kompaniya.uz"
+                                        className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2.5 pt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDemoModalOpen(false)}
+                                    className="bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium px-4 py-2 rounded-lg text-sm transition-colors cursor-pointer"
+                                >
+                                    Bekor qilish
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="bg-purple-600 text-white hover:bg-purple-700 font-medium px-5 py-2 rounded-lg text-sm transition-all cursor-pointer shadow-md shadow-purple-500/30 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <svg className="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                            </svg>
+                                            <span>Yuborilmoqda...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Yuborish</span>
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                            </svg>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div className="fixed top-6 right-6 z-[9999] animate-in fade-in slide-in-from-top-4 duration-200">
+                    <div
+                        className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border text-xs font-semibold ${
+                            toast.type === "success"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : "bg-rose-50 text-rose-800 border-rose-200"
+                        }`}
+                    >
+                        {toast.type === "success" ? (
+                            <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        ) : (
+                            <svg className="w-4 h-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        )}
+                        <span>{toast.message}</span>
+                        <button
+                            type="button"
+                            onClick={() => setToast(null)}
+                            className="ml-2 text-slate-400 hover:text-slate-600 font-bold"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

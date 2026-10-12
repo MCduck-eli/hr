@@ -689,36 +689,24 @@ export default function HRAdminDashboard() {
                     <DashboardSkeleton />
                 ) : (
                     <>
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200/80">
-                            <div className="flex flex-col gap-1.5">
-                                <div className="flex items-center gap-2.5">
-                                    <span className="px-2.5 py-1 bg-purple-50 text-[#9327FF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-[#9327FF]"></span>
-                                        HR Admin Kabineti
+                        <div className="flex flex-col gap-1.5 pb-6 border-b border-slate-200/80">
+                            <div className="flex items-center gap-2.5">
+                                <span className="px-2.5 py-1 bg-purple-50 text-[#9327FF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#9327FF]"></span>
+                                    HR Admin Kabineti
+                                </span>
+                                {companyName && (
+                                    <span className="text-xs font-semibold text-slate-500">
+                                        • {companyName}
                                     </span>
-                                    {companyName && (
-                                        <span className="text-xs font-semibold text-slate-500">
-                                            • {companyName}
-                                        </span>
-                                    )}
-                                </div>
-                                <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-                                    {t("title")}
-                                </h1>
-                                <p className="text-slate-500 text-xs md:text-sm font-medium">
-                                    {t("welcome")}
-                                </p>
+                                )}
                             </div>
-
-                            <div className="flex flex-wrap items-center gap-3">
-                                <Link
-                                    href={`/${locale}/profile`}
-                                    className="bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 font-medium rounded-xl px-4 py-2.5 transition-all duration-200 shadow-sm flex items-center gap-2 text-xs md:text-sm"
-                                >
-                                    <span>👤</span>
-                                    <span>Mening Profilim</span>
-                                </Link>
-                            </div>
+                            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                                {t("title")}
+                            </h1>
+                            <p className="text-slate-500 text-xs md:text-sm font-medium">
+                                {t("welcome")}
+                            </p>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
