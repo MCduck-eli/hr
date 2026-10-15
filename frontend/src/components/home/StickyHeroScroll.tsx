@@ -261,14 +261,13 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
     const cardList = customCards && customCards.length > 0 ? customCards : defaultCards;
 
     return (
-        <div ref={containerRef} className="relative h-[480vh] w-full bg-[#f8f8f8]">
-            <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center bg-gradient-to-b from-[#f8f8f8] via-slate-50/50 to-[#f8f8f8]">
+        <div ref={containerRef} className="relative h-[480vh] w-full bg-white">
+            <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center bg-white">
                 <div
-                    className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+                    className="absolute inset-0 -z-10 pointer-events-none bg-repeat opacity-20"
                     style={{
-                        opacity: 0.15 + ep * 0.2,
-                        backgroundImage: "radial-gradient(#9333ea 1px, transparent 1px)",
-                        backgroundSize: "32px 32px",
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23C5A059' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z'/%3E%3Cpath d='M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z'/%3E%3Ccircle cx='120' cy='120' r='10'/%3E%3Cpath d='M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180'/%3E%3Cpath d='M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216'/%3E%3Cpath d='M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230'/%3E%3Cpath d='M120 0V60M120 180V240M0 120H60M180 120H240'/%3E%3Cpath d='M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240'/%3E%3Cpath d='M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198'/%3E%3Cpath d='M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60'/%3E%3Cpath d='M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90'/%3E%3C/g%3E%3C/svg%3E")`,
+                        backgroundSize: "240px 240px",
                     }}
                 />
 
@@ -489,7 +488,7 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
                                         value={formData.firstName}
                                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                         placeholder="Ismingizni kiriting"
-                                        className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                        className="bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2 w-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                                     />
                                 </div>
                             </div>
@@ -510,7 +509,7 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
                                         value={formData.lastName}
                                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                                         placeholder="Familiyangizni kiriting"
-                                        className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                        className="bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2 w-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                                     />
                                 </div>
                             </div>
@@ -531,7 +530,7 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
                                         value={formData.phone}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                         placeholder="+998 90 123 45 67"
-                                        className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                        className="bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2 w-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                                     />
                                 </div>
                             </div>
@@ -552,7 +551,7 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                         placeholder="misol@kompaniya.uz"
-                                        className="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                        className="bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2 w-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                                     />
                                 </div>
                             </div>
@@ -568,7 +567,7 @@ export default function StickyHeroScroll({ customCards }: StickyHeroScrollProps)
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="bg-purple-600 text-white hover:bg-purple-700 font-medium px-5 py-2 rounded-lg text-sm transition-all cursor-pointer shadow-md shadow-purple-500/30 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition-all cursor-pointer shadow-md shadow-purple-500/30 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                                 >
                                     {isSubmitting ? (
                                         <>

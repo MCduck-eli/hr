@@ -4,13 +4,47 @@ import { hashPassword } from "../../utils/password";
 import { employeeStatusService } from "../employee-status/employee-status-service";
 
 export class UserService {
+    private async resolveCompany(currentUser?: any): Promise<string | null> {
+        if (!currentUser) return null;
+        if (currentUser.companyId) return currentUser.companyId;
+        if (currentUser.companyName) {
+            currentUser.companyId = currentUser.companyName;
+            return currentUser.companyName;
+        }
+        if (currentUser.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { companyName: true },
+            });
+            if (caller?.companyName) {
+                currentUser.companyId = caller.companyName;
+                currentUser.companyName = caller.companyName;
+                return caller.companyName;
+            }
+        }
+        return null;
+    }
+
     async getAllUsers(currentUser?: any) {
+        if (!currentUser) {
+            throw new AppError("Forbidden", 403);
+        }
+
+        const callerCompany = await this.resolveCompany(currentUser);
+        const resolvedCompanyId = currentUser.companyId || callerCompany;
+        if (currentUser.role !== "SUPER_ADMIN" && (!resolvedCompanyId || resolvedCompanyId.trim() === "")) {
+            throw new AppError("Forbidden: companyId topilmadi", 403);
+        }
+
         await employeeStatusService.checkAndTransitionEmployeeStatuses();
 
         const completedOffboardings = await prisma.employee.findMany({
             where: {
                 status: { not: "TERMINATED" },
                 offboarding: { status: "COMPLETED" },
+                ...(currentUser.role !== "SUPER_ADMIN"
+                    ? { user: { companyName: resolvedCompanyId } }
+                    : (callerCompany ? { user: { companyName: callerCompany } } : {})),
             },
             include: { user: true },
         });
@@ -35,17 +69,6 @@ export class UserService {
             }
         }
 
-        let companyNameFilter: string | null = null;
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller && caller.role !== "SUPER_ADMIN") {
-                companyNameFilter = caller.companyName || null;
-            }
-        }
-
         const whereClause: any = {
             OR: [
                 { employee: null },
@@ -60,9 +83,11 @@ export class UserService {
                 },
             ],
         };
-        if (companyNameFilter) {
-            whereClause.companyName = companyNameFilter;
+        if (currentUser.role !== "SUPER_ADMIN") {
+            whereClause.companyName = resolvedCompanyId;
             whereClause.role = { not: "SUPER_ADMIN" };
+        } else if (callerCompany) {
+            whereClause.companyName = callerCompany;
         }
 
         const users = await prisma.user.findMany({
@@ -152,7 +177,7 @@ export class UserService {
         });
     }
 
-    async getUserById(id: string) {
+    async getUserById(id: string, currentUser?: any) {
         const user = await prisma.user.findUnique({
             where: { id },
             select: {
@@ -179,10 +204,25 @@ export class UserService {
             throw new AppError("User not found", 404);
         }
 
+        const callerCompany = await this.resolveCompany(currentUser);
+        if (currentUser && currentUser.role !== "SUPER_ADMIN" && callerCompany && user.companyName && user.companyName !== callerCompany) {
+            throw new AppError("User not found", 404);
+        }
+
         return user;
     }
 
     async createUser(payload: any, currentUser?: any) {
+        if (!currentUser) {
+            throw new AppError("Forbidden", 403);
+        }
+
+        const callerCompany = await this.resolveCompany(currentUser);
+        const resolvedCompanyId = currentUser.companyId || callerCompany;
+        if (currentUser.role !== "SUPER_ADMIN" && (!resolvedCompanyId || resolvedCompanyId.trim() === "")) {
+            throw new AppError("Forbidden: companyId topilmadi", 403);
+        }
+
         const {
             email,
             password,
@@ -191,6 +231,7 @@ export class UserService {
             firstName,
             lastName,
             companyName,
+            companyId,
             phone,
             avatar,
             image,
@@ -202,21 +243,11 @@ export class UserService {
         } = payload;
 
         const resolvedAvatar = avatar || image || null;
-
-        let finalCompanyName = companyName || null;
-        let callerRole = "";
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller) {
-                callerRole = caller.role;
-                if (caller.role !== "SUPER_ADMIN") {
-                    finalCompanyName = caller.companyName || null;
-                }
-            }
-        }
+        const callerRole = currentUser.role || "";
+        const finalCompanyName =
+            currentUser.role === "SUPER_ADMIN"
+                ? (resolvedCompanyId || companyId || companyName || null)
+                : resolvedCompanyId;
 
         const existingUser = await prisma.user.findUnique({
             where: { email },
@@ -450,24 +481,15 @@ export class UserService {
             throw new AppError("User not found", 404);
         }
 
-        let callerRole = "";
-        let callerCompany = "";
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller) {
-                callerRole = caller.role;
-                callerCompany = caller.companyName || "";
+        const callerRole = currentUser?.role || "";
+        const callerCompany = await this.resolveCompany(currentUser);
+        if (currentUser && callerRole !== "SUPER_ADMIN") {
+            if (!callerCompany || (userExists.companyName && userExists.companyName !== callerCompany)) {
+                throw new AppError("Boshqa kompaniya foydalanuvchisini o'zgartirish huquqi yo'q", 403);
             }
         }
 
-        if (callerRole !== "SUPER_ADMIN" && callerCompany && userExists.companyName && userExists.companyName !== callerCompany) {
-            throw new AppError("Boshqa kompaniya foydalanuvchisini o'zgartirish huquqi yo'q", 403);
-        }
-
-        const finalCompanyName = callerRole === "SUPER_ADMIN" ? (payload.companyName !== undefined ? payload.companyName : userExists.companyName) : userExists.companyName;
+        const finalCompanyName = callerRole === "SUPER_ADMIN" ? (payload.companyName !== undefined ? payload.companyName : userExists.companyName) : (callerCompany || userExists.companyName);
 
         const {
             email,
@@ -486,7 +508,12 @@ export class UserService {
             permissions,
         } = payload;
 
-        const isDirectorOrAdmin = callerRole === "DIRECTOR" || callerRole === "SUPER_ADMIN";
+        const isDirectorOrAdmin =
+            callerRole === "DIRECTOR" ||
+            callerRole === "SUPER_ADMIN" ||
+            currentUser?.role === "DIRECTOR" ||
+            currentUser?.role === "SUPER_ADMIN" ||
+            !currentUser;
         let resolvedPermissions: string[] | undefined = undefined;
         if (permissions !== undefined) {
             if (!isDirectorOrAdmin) {
@@ -734,12 +761,9 @@ export class UserService {
             throw new AppError("User not found", 404);
         }
 
-        if (currentUser?.id) {
-            const caller = await prisma.user.findUnique({
-                where: { id: currentUser.id },
-                select: { role: true, companyName: true },
-            });
-            if (caller && caller.role !== "SUPER_ADMIN" && caller.companyName && userExists.companyName && userExists.companyName !== caller.companyName) {
+        const callerCompany = await this.resolveCompany(currentUser);
+        if (currentUser && currentUser.role !== "SUPER_ADMIN") {
+            if (!callerCompany || (userExists.companyName && userExists.companyName !== callerCompany)) {
                 throw new AppError("Boshqa kompaniya foydalanuvchisini o'chirish huquqi yo'q", 403);
             }
         }

@@ -20,7 +20,7 @@ export class UserController {
         next: NextFunction,
     ) {
         try {
-            const result = await userService.getUserById(req.params.id);
+            const result = await userService.getUserById(req.params.id, req.user);
             res.status(200).json({
                 status: "success",
                 data: result,

@@ -369,9 +369,7 @@ export default function EmployeeForm({
 
         delete payload.avatarPreview;
 
-        if (currentUserRole !== "DIRECTOR" && currentUserRole !== "SUPER_ADMIN") {
-            delete payload.permissions;
-        }
+        payload.permissions = Array.isArray(form.permissions) ? form.permissions : [];
 
         if (form.avatar instanceof File) {
             payload.avatar = form.avatar;

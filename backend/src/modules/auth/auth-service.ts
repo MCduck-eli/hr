@@ -135,6 +135,7 @@ export class AuthService {
             email: user.email,
             role: user.role,
             companyName: user.companyName,
+            companyId: user.companyName,
             permissions: user.permissions || [],
         });
 
@@ -146,6 +147,7 @@ export class AuthService {
                 role: user.role,
                 customRoleId: user.customRoleId,
                 companyName: user.companyName,
+                companyId: user.companyName,
                 phone: user.phone,
                 avatar: user.avatar,
                 permissions: user.permissions || [],

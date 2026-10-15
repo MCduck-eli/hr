@@ -20,6 +20,21 @@ export default function HRAcademyManagementPage() {
     const [employees, setEmployees] = useState<any[]>([]);
     const [targetDepartmentId, setTargetDepartmentId] = useState<string>("");
     const [targetEmployeeId, setTargetEmployeeId] = useState<string>("");
+    const [toastMessage, setToastMessage] = useState<{
+        message: string;
+        type: "success" | "error";
+    } | null>(null);
+
+    const toast = {
+        success: (msg: string) => {
+            setToastMessage({ message: msg, type: "success" });
+            setTimeout(() => setToastMessage(null), 3000);
+        },
+        error: (msg: string) => {
+            setToastMessage({ message: msg, type: "error" });
+            setTimeout(() => setToastMessage(null), 3000);
+        },
+    };
 
     const fetchDropdownData = async () => {
         try {
@@ -89,7 +104,10 @@ export default function HRAcademyManagementPage() {
     }, []);
 
     const handleSubmit = async () => {
-        if (!title.trim()) return;
+        if (!title.trim()) {
+            toast.error(t("titlePlaceholder") || "Kurs nomini kiriting");
+            return;
+        }
 
         setLoading(true);
         try {
@@ -135,10 +153,10 @@ export default function HRAcademyManagementPage() {
             setEditingId(null);
             setTargetDepartmentId("");
             setTargetEmployeeId("");
-            alert(editingId ? t("successUpdate") : t("successAdd"));
-        } catch (err) {
+            toast.success(editingId ? (t("successUpdate") || "Kurs muvaffaqiyatli yangilandi!") : (t("successAdd") || "Kurs muvaffaqiyatli qo'shildi!"));
+        } catch (err: any) {
             console.error(err);
-            alert(t("errorDefault"));
+            toast.error(err?.message || t("errorDefault") || "Xatolik yuz berdi");
         } finally {
             setLoading(false);
         }
@@ -179,10 +197,10 @@ export default function HRAcademyManagementPage() {
             }
 
             fetchCourses();
-            alert(t("successDelete"));
-        } catch (err) {
+            toast.success(t("successDelete") || "Kurs muvaffaqiyatli o'chirildi!");
+        } catch (err: any) {
             console.error(err);
-            alert(t("errorDefault"));
+            toast.error(err?.message || t("errorDefault") || "Xatolik yuz berdi");
         }
     };
 
@@ -410,6 +428,36 @@ export default function HRAcademyManagementPage() {
                     )}
                 </div>
             </div>
+
+            {toastMessage && (
+                <div className="fixed top-5 right-5 z-50 bg-white rounded-xl shadow-lg border border-gray-100 p-4 flex items-center gap-3 transform transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+                    {toastMessage.type === "error" ? (
+                        <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    )}
+                    <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-900">
+                            {toastMessage.message}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setToastMessage(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs ml-2 cursor-pointer"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

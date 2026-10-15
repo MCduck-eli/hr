@@ -11,6 +11,8 @@ import CompanyExpensesAnalytics from "@/src/components/payroll/CompanyExpensesAn
 import EmployeeTestModal from "@/src/components/profile/EmployeeTestModal";
 import EmployeeEnpsModal from "@/src/components/profile/EmployeeEnpsModal";
 import AbsenceReasonModal from "@/src/components/hr/attendance/absence-reason-modal";
+import LeaveRequestModal from "@/src/components/profile/LeaveRequestModal";
+import { getMyLeaveRequests, LeaveRequestItem } from "@/src/services/leave-service";
 import { fetchMyPendingTasks, fetchTargetReport, fetchCycles } from "@/src/services/feedback360-service";
 import { fetchMyLatestEnps } from "@/src/services/enps-service";
 import { checkInKeyResult } from "@/src/services/okr-service";
@@ -20,7 +22,30 @@ import EmployeeResignationModal from "@/src/components/offboarding/EmployeeResig
 import Skeleton from "@/src/components/ui/Skeleton";
 import OkrCard from "@/src/components/profile/OkrCard";
 
-type ProfileTab = "overview" | "career" | "okr" | "assessments" | "offboarding" | "payroll" | "expenses" | "reports" | "attendance" | "regulations" | "academy";
+const LEAVE_TYPE_MAP: Record<string, string> = {
+    ANNUAL: "Yillik mehnat ta'tili",
+    SICK: "Kasallik ta'tili",
+    UNPAID: "O'z hisobidan ta'til",
+    MATERNITY: "Homiladorlik ta'tili",
+    OTHER: "Boshqa ta'til",
+};
+
+function formatLeaveDate(dateStr: string) {
+    if (!dateStr) return "";
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr.slice(0, 10);
+        return d.toLocaleDateString("uz-UZ", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        });
+    } catch {
+        return dateStr.slice(0, 10);
+    }
+}
+
+type ProfileTab = "overview" | "career" | "okr" | "assessments" | "offboarding" | "payroll" | "expenses" | "reports" | "attendance" | "regulations" | "academy" | "hr_dashboard" | "employees" | "org_chart" | "analytics" | "recruiting" | "onboarding" | "ejm" | "disc" | "feedback360" | "grading";
 
 function CircularProgress({ value, size = 48, strokeWidth = 4, color = "#9327FF" }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
     const radius = (size - strokeWidth) / 2;
@@ -68,7 +93,7 @@ export default function EmployeeProfilePage() {
     const [loading, setLoading] = useState(true);
 
     const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
-    const [viewMode, setViewMode] = useState<"employee" | "accountant">("accountant");
+    const [viewMode, setViewMode] = useState<"employee" | "accountant">("employee");
 
     const [checkInKr, setCheckInKr] = useState<any>(null);
     const [checkInProgress, setCheckInProgress] = useState<number | string>(100);
@@ -91,6 +116,38 @@ export default function EmployeeProfilePage() {
     const [isEnpsModalOpen, setIsEnpsModalOpen] = useState(false);
     const [latestEnps, setLatestEnps] = useState<any>(null);
     const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
+    const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+    const [myLeaves, setMyLeaves] = useState<LeaveRequestItem[]>([]);
+    const [leavesLoading, setLeavesLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        const loadMyLeaves = async () => {
+            try {
+                const data = await getMyLeaveRequests();
+                if (isMounted) {
+                    setMyLeaves(Array.isArray(data) ? data : []);
+                }
+            } catch {
+            } finally {
+                if (isMounted) {
+                    setLeavesLoading(false);
+                }
+            }
+        };
+        loadMyLeaves();
+        return () => {
+            isMounted = false;
+        };
+    }, [refreshKey]);
+
+    const showToast = (message: string, type: "success" | "error" = "success") => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast((current) => (current?.message === message ? null : current));
+        }, 4000);
+    };
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -345,58 +402,20 @@ export default function EmployeeProfilePage() {
         return description;
     };
 
-    if (!currentUser || loading) {
-        return (
-            <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)] bg-slate-50/60">
-                <div className="w-full lg:w-72 bg-white border-r border-slate-200/80 p-6 space-y-6 shrink-0">
-                    <div className="flex items-center gap-4">
-                        <Skeleton className="w-14 h-14 rounded-2xl shrink-0" />
-                        <div className="space-y-2 flex-1">
-                            <Skeleton className="w-3/4 h-5 rounded-lg" />
-                            <Skeleton className="w-1/2 h-3 rounded-md" />
-                        </div>
-                    </div>
-                    <div className="space-y-2 pt-4 border-t border-slate-100">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                            <Skeleton key={i} className="w-full h-10 rounded-xl" />
-                        ))}
-                    </div>
-                </div>
-                <div className="flex-1 p-6 md:p-10 space-y-8">
-                    <div className="flex justify-between items-center pb-6 border-b border-slate-200">
-                        <div className="space-y-2">
-                            <Skeleton className="w-64 h-8 rounded-xl" />
-                            <Skeleton className="w-40 h-4 rounded-md" />
-                        </div>
-                        <Skeleton className="w-32 h-10 rounded-xl" />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                            <div key={i} className="p-6 bg-white rounded-2xl shadow-sm border border-slate-100 space-y-3">
-                                <Skeleton className="w-24 h-4 rounded" />
-                                <Skeleton className="w-16 h-8 rounded-lg" />
-                                <Skeleton className="w-28 h-3 rounded" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     const firstName =
         dashboardData?.user?.firstName ||
-        currentUser.employee?.firstName ||
-        currentUser.email.split("@")[0];
+        currentUser?.employee?.firstName ||
+        currentUser?.email?.split("@")[0] ||
+        "";
 
     const lastName =
         dashboardData?.user?.lastName ||
-        currentUser.employee?.lastName ||
+        currentUser?.employee?.lastName ||
         "";
 
     const fullName = `${firstName} ${lastName}`.trim();
 
-    const roleData = dashboardData?.user?.role || currentUser.role;
+    const roleData = dashboardData?.user?.role || currentUser?.role;
     let tokenPermissions: string[] = [];
     try {
         const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -411,19 +430,25 @@ export default function EmployeeProfilePage() {
         }
     } catch (e) {}
 
-    const userPermissions: string[] = Array.from(new Set([
+    const permissions: string[] = Array.from(new Set([
         ...(Array.isArray(dashboardData?.user?.permissions) ? dashboardData.user.permissions : []),
+        ...(Array.isArray(dashboardData?.permissions) ? dashboardData.permissions : []),
         ...(Array.isArray(currentUser?.permissions) ? currentUser.permissions : []),
+        ...(Array.isArray(currentUser?.employee?.user?.permissions) ? currentUser.employee.user.permissions : []),
+        ...(Array.isArray(currentUser?.employee?.permissions) ? currentUser.employee.permissions : []),
         ...tokenPermissions,
     ]));
+    const userPermissions: string[] = permissions;
+
+    const isEmployeeRole = roleData === "EMPLOYEE" || currentUser?.role === "EMPLOYEE";
 
     const isAccountant =
-        roleData === "ACCOUNTANT" ||
+        roleData !== "EMPLOYEE" &&
+        (roleData === "ACCOUNTANT" ||
         currentUser?.role === "ACCOUNTANT" ||
         currentUser?.customRole?.baseRole === "ACCOUNTANT" ||
         dashboardData?.user?.customRole?.baseRole === "ACCOUNTANT" ||
-        userPermissions.includes("payroll") ||
-        userPermissions.includes("accounting");
+        userPermissions.includes("accounting"));
 
     const isDirector =
         roleData === "DIRECTOR" ||
@@ -433,11 +458,11 @@ export default function EmployeeProfilePage() {
         currentUser?.customRole?.baseRole === "DIRECTOR";
 
     const isHrAdmin =
-        roleData === "HR_ADMIN" ||
+        roleData !== "EMPLOYEE" &&
+        (roleData === "HR_ADMIN" ||
         currentUser?.role === "HR_ADMIN" ||
         currentUser?.customRole?.baseRole === "HR_ADMIN" ||
-        userPermissions.includes("hr_dashboard") ||
-        userPermissions.includes("hr");
+        userPermissions.includes("hr"));
 
     const canManagePayroll = isAccountant || isDirector;
     const roleName = roleData === "EMPLOYEE" ? t("roleEmployee") : roleData === "ACCOUNTANT" ? "Bugalter / Hisobchi" : roleData === "HR_ADMIN" ? "HR Admin" : roleData;
@@ -509,57 +534,58 @@ export default function EmployeeProfilePage() {
         },
     ];
 
-    const allEmployeeMenuItems = [
+    const allMenuItems = [
         {
-            id: "overview" as ProfileTab,
+            id: "hr_dashboard",
+            tabId: "overview" as ProfileTab,
             label: "Umumiy ko'rinish",
+            isBase: true,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
             ),
-            permission: null,
         },
         {
-            id: "attendance" as ProfileTab,
+            id: "attendance",
             label: "Davomat",
+            isBase: false,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             ),
-            permission: "attendance",
             href: `/${locale}/hr/attendance`,
         },
         {
-            id: "career" as ProfileTab,
+            id: "grading",
+            tabId: "career" as ProfileTab,
             label: "Karyera va Greyd",
+            isBase: true,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
             ),
             badge: grade ? `L${grade.level}` : undefined,
-            permission: "grading",
         },
         {
-            id: "okr" as ProfileTab,
+            id: "okr",
+            tabId: "okr" as ProfileTab,
             label: "Maqsadlar (OKR)",
+            isBase: true,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             ),
             badge: okrs.length > 0 ? `${okrs.length}` : undefined,
-            permission: "okr",
         },
         {
-            id: "assessments" as ProfileTab,
-            label: userPermissions.includes("disc") && !userPermissions.includes("feedback360")
-                ? "DISC Modeli"
-                : !userPermissions.includes("disc") && userPermissions.includes("feedback360")
-                ? "360° Baholash"
-                : "Baholash & Testlar",
+            id: "disc",
+            tabId: "assessments" as ProfileTab,
+            label: "DISC Modeli",
+            isBase: false,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
@@ -567,23 +593,34 @@ export default function EmployeeProfilePage() {
             ),
             badge: pendingTasks.length > 0 ? `${pendingTasks.length} ta vazifa` : undefined,
             badgeColor: "bg-amber-100 text-amber-800",
-            permission: "assessments",
         },
         {
-            id: "payroll" as ProfileTab,
+            id: "feedback360",
+            tabId: "assessments" as ProfileTab,
+            label: "360° Baholash",
+            isBase: false,
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+                </svg>
+            ),
+        },
+        {
+            id: "payroll",
+            tabId: "payroll" as ProfileTab,
             label: "Shaxsiy ish haqi",
+            isBase: false,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             ),
-            badge: undefined,
-            badgeColor: undefined,
-            permission: "payroll",
         },
         {
-            id: "offboarding" as ProfileTab,
+            id: "offboarding",
+            tabId: "offboarding" as ProfileTab,
             label: "Offboarding",
+            isBase: true,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -591,45 +628,115 @@ export default function EmployeeProfilePage() {
             ),
             badge: offboardingData && offboardingData.status !== "CANCELLED" ? "Faol" : undefined,
             badgeColor: offboardingData?.status === "COMPLETED" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800",
-            permission: "offboarding",
         },
         {
-            id: "regulations" as ProfileTab,
+            id: "regulations",
             label: "Ichki nizomlar",
+            isBase: false,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
             ),
-            permission: "regulations",
             href: `/${locale}/regulations`,
         },
         {
-            id: "academy" as ProfileTab,
+            id: "academy",
             label: "Akademiya",
+            isBase: false,
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
             ),
-            permission: "academy",
             href: `/${locale}/academy`,
+        },
+        {
+            id: "employees",
+            label: "Xodimlar ro'yxati",
+            isBase: false,
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+            ),
+            href: `/${locale}/hr/employees`,
+        },
+        {
+            id: "leaves",
+            label: "Ta'til So'rovlari",
+            isBase: false,
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            ),
+            href: `/${locale}/hr/leaves`,
+        },
+        {
+            id: "org_chart",
+            label: "Tashkiliy tuzilma",
+            isBase: false,
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            ),
+            href: `/${locale}/hr/org-chart`,
+        },
+        {
+            id: "analytics",
+            label: "BI & 9-Box Analitika",
+            isBase: false,
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+            ),
+            href: `/${locale}/hr/analytics`,
+        },
+        {
+            id: "recruiting",
+            label: "Rekruting",
+            isBase: false,
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+            ),
+            href: `/${locale}/hr/recruiting`,
+        },
+        {
+            id: "onboarding",
+            label: "Onboarding",
+            isBase: false,
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+            ),
+            href: `/${locale}/hr/onboarding`,
+        },
+        {
+            id: "ejm",
+            label: "EJM Roadmap",
+            isBase: false,
+            icon: (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+            ),
+            href: `/${locale}/hr/ejm`,
         },
     ];
 
-    const employeeMenuItems = roleData === "EMPLOYEE"
-        ? allEmployeeMenuItems.filter((item) => {
-            if (!item.permission) return true;
-            if (item.permission === "assessments") {
-                return userPermissions.includes("disc") || userPermissions.includes("feedback360");
-            }
-            return userPermissions.includes(item.permission);
-        })
-        : allEmployeeMenuItems;
+    const allEmployeeMenuItems = allMenuItems;
+    const employeeMenuItems = allMenuItems.filter((item) => (item as any).isBase || permissions.includes(item.id));
 
     const accountantMenuItems = [
         {
-            id: "payroll" as ProfileTab,
+            id: "payroll",
+            tabId: "payroll" as ProfileTab,
             label: "Kompaniya maoshlari",
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -640,7 +747,8 @@ export default function EmployeeProfilePage() {
             badgeColor: undefined,
         },
         {
-            id: "expenses" as ProfileTab,
+            id: "expenses",
+            tabId: "expenses" as ProfileTab,
             label: "Xarajatlar",
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -651,7 +759,8 @@ export default function EmployeeProfilePage() {
             badgeColor: undefined,
         },
         {
-            id: "reports" as ProfileTab,
+            id: "reports",
+            tabId: "reports" as ProfileTab,
             label: "Hisobotlar",
             icon: (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -663,7 +772,7 @@ export default function EmployeeProfilePage() {
         },
     ];
 
-    const menuItems = isAccountant && viewMode === "accountant" ? accountantMenuItems : employeeMenuItems;
+    const menuItems = !isEmployeeRole && isAccountant && viewMode === "accountant" ? accountantMenuItems : employeeMenuItems;
 
     const allQuickSidebarActions = [
         {
@@ -681,14 +790,8 @@ export default function EmployeeProfilePage() {
         {
             label: "Ta'til so'rovi",
             icon: "🏖️",
-            action: () => router.push(`/${locale}/hr/attendance`),
+            action: () => setIsLeaveModalOpen(true),
             permission: "attendance",
-        },
-        {
-            label: "OKR progressini yangilash",
-            icon: "🎯",
-            action: () => setActiveTab("okr"),
-            permission: "okr",
         },
         {
             label: "eNPS bahosini berish",
@@ -698,23 +801,59 @@ export default function EmployeeProfilePage() {
         },
     ];
 
-    const quickSidebarActions = roleData === "EMPLOYEE"
-        ? allQuickSidebarActions.filter((qa) => {
-            if (qa.permission === "feedback360") {
-                return userPermissions.includes("feedback360") || userPermissions.includes("disc");
-            }
-            return userPermissions.includes(qa.permission);
-        })
-        : allQuickSidebarActions;
+    const quickSidebarActions = allQuickSidebarActions;
 
     useEffect(() => {
-        if (roleData === "EMPLOYEE" && menuItems.length > 0) {
-            const isTabAllowed = menuItems.some((item) => item.id === activeTab);
+        if (isEmployeeRole && menuItems.length > 0) {
+            const isTabAllowed = menuItems.some((item) => ((item as any).tabId ? (item as any).tabId === activeTab : item.id === activeTab));
             if (!isTabAllowed) {
-                setActiveTab(menuItems[0].id);
+                const firstInternalTab = menuItems.find((item) => !(item as any).href);
+                if (firstInternalTab) {
+                    const nextTab = (firstInternalTab as any).tabId || firstInternalTab.id;
+                    setActiveTab(nextTab as ProfileTab);
+                }
             }
         }
-    }, [activeTab, menuItems, roleData]);
+    }, [activeTab, menuItems, isEmployeeRole]);
+
+    if (!currentUser || loading) {
+        return (
+            <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)] bg-slate-50/60">
+                <div className="w-full lg:w-72 bg-white border-r border-slate-200/80 p-6 space-y-6 shrink-0">
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="w-14 h-14 rounded-2xl shrink-0" />
+                        <div className="space-y-2 flex-1">
+                            <Skeleton className="w-3/4 h-5 rounded-lg" />
+                            <Skeleton className="w-1/2 h-3 rounded-md" />
+                        </div>
+                    </div>
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <Skeleton key={i} className="w-full h-10 rounded-xl" />
+                        ))}
+                    </div>
+                </div>
+                <div className="flex-1 p-6 md:p-10 space-y-8">
+                    <div className="flex justify-between items-center pb-6 border-b border-slate-200">
+                        <div className="space-y-2">
+                            <Skeleton className="w-64 h-8 rounded-xl" />
+                            <Skeleton className="w-40 h-4 rounded-md" />
+                        </div>
+                        <Skeleton className="w-32 h-10 rounded-xl" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="p-6 bg-white rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                                <Skeleton className="w-24 h-4 rounded" />
+                                <Skeleton className="w-16 h-8 rounded-lg" />
+                                <Skeleton className="w-28 h-3 rounded" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)] bg-slate-50/60 font-sans">
@@ -743,44 +882,52 @@ export default function EmployeeProfilePage() {
                         <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                             {isAccountant && viewMode === "accountant" ? "Bugalteriya Menyusi" : "Shaxsiy Kabinet"}
                         </span>
-                        {menuItems.map((item) => {
-                            const isActive = activeTab === item.id;
-                            return (
-                                <button
-                                    key={item.id}
-                                    onClick={() => {
-                                        if ((item as any).href) {
-                                            router.push((item as any).href);
-                                        } else {
-                                            setActiveTab(item.id);
-                                        }
-                                    }}
-                                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                                        isActive
-                                            ? "bg-[#9327FF] text-white shadow-xs"
-                                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-2.5">
-                                        <span className={isActive ? "text-white" : "text-slate-400"}>
-                                            {item.icon}
-                                        </span>
-                                        <span>{item.label}</span>
-                                    </div>
-                                    {item.badge && (
-                                        <span
-                                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                isActive
-                                                    ? "bg-white/20 text-white"
-                                                    : item.badgeColor || "bg-slate-100 text-slate-600"
-                                            }`}
-                                        >
-                                            {item.badge}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
+                        {menuItems.length === 0 ? (
+                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-400 font-medium">
+                                Ruxsatlar mavjud emas
+                            </div>
+                        ) : (
+                            menuItems.map((item) => {
+                                const targetTab = (item as any).tabId || item.id;
+                                const isActive = (item as any).tabId ? activeTab === (item as any).tabId : activeTab === item.id;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => {
+                                            if ((item as any).href) {
+                                                router.push((item as any).href);
+                                            } else {
+                                                setActiveTab(targetTab as ProfileTab);
+                                                router.push(`/${locale}/profile?tab=${targetTab}`);
+                                            }
+                                        }}
+                                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                                            isActive
+                                                ? "bg-[#9327FF] text-white shadow-xs"
+                                                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <span className={isActive ? "text-white" : "text-slate-400"}>
+                                                {item.icon}
+                                            </span>
+                                            <span>{item.label}</span>
+                                        </div>
+                                        {item.badge && (
+                                            <span
+                                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                    isActive
+                                                        ? "bg-white/20 text-white"
+                                                        : item.badgeColor || "bg-slate-100 text-slate-600"
+                                                }`}
+                                            >
+                                                {item.badge}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })
+                        )}
                     </div>
 
                     {(!isAccountant || viewMode !== "accountant") && quickSidebarActions.length > 0 && (
@@ -906,7 +1053,7 @@ export default function EmployeeProfilePage() {
                     )}
                 </div>
 
-                {activeTab === "overview" && (
+                {(activeTab === "overview" || activeTab === "hr_dashboard") && (
                     <div className="flex flex-col gap-8">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
                             {statsCards.map((st, idx) => (
@@ -1093,10 +1240,82 @@ export default function EmployeeProfilePage() {
                                 </div>
                             </div>
                         </div>
+
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-5">
+                            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                                <div className="flex items-center gap-2.5">
+                                    <span className="text-xl">🏖️</span>
+                                    <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                                        Mening ta&apos;til so&apos;rovlarim
+                                    </h2>
+                                </div>
+                                <button
+                                    onClick={() => setIsLeaveModalOpen(true)}
+                                    className="text-xs font-bold text-[#9327FF] hover:underline cursor-pointer flex items-center gap-1"
+                                >
+                                    <span>+</span> Yangi so&apos;rov
+                                </button>
+                            </div>
+
+                            {leavesLoading ? (
+                                <div className="flex flex-col gap-3">
+                                    {[1, 2].map((i) => (
+                                        <div key={i} className="p-4 bg-slate-50/70 rounded-xl border border-slate-100 animate-pulse h-16" />
+                                    ))}
+                                </div>
+                            ) : myLeaves.length === 0 ? (
+                                <p className="text-xs text-slate-400 font-medium py-8 text-center">
+                                    Hozircha ta&apos;til so&apos;rovlari mavjud emas
+                                </p>
+                            ) : (
+                                <div className="flex flex-col gap-3">
+                                    {myLeaves.map((leave) => {
+                                        const typeLabel = LEAVE_TYPE_MAP[leave.type] || leave.type;
+                                        return (
+                                            <div
+                                                key={leave.id}
+                                                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50/70 rounded-xl border border-slate-100 gap-3"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-xl bg-purple-50 text-[#9327FF] flex items-center justify-center font-bold text-sm shrink-0">
+                                                        🌴
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-bold text-slate-900">
+                                                            {typeLabel}
+                                                        </span>
+                                                        <span className="text-[11px] font-semibold text-slate-500">
+                                                            {formatLeaveDate(leave.startDate)} &mdash; {formatLeaveDate(leave.endDate)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 self-end sm:self-center">
+                                                    {leave.status === "APPROVED" && (
+                                                        <span className="bg-green-100 text-green-800 rounded-full px-3 py-1 text-xs font-medium">
+                                                            Tasdiqlandi
+                                                        </span>
+                                                    )}
+                                                    {leave.status === "REJECTED" && (
+                                                        <span className="bg-red-100 text-red-800 rounded-full px-3 py-1 text-xs font-medium">
+                                                            Rad etildi
+                                                        </span>
+                                                    )}
+                                                    {leave.status !== "APPROVED" && leave.status !== "REJECTED" && (
+                                                        <span className="bg-yellow-100 text-yellow-800 rounded-full px-3 py-1 text-xs font-medium">
+                                                            Kutilmoqda
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
-                {activeTab === "career" && (
+                {(activeTab === "career" || activeTab === "grading") && (
                     <div className="flex flex-col gap-8">
                         {grade && (
                             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -1222,7 +1441,7 @@ export default function EmployeeProfilePage() {
                     </div>
                 )}
 
-                {activeTab === "assessments" && (
+                {(activeTab === "assessments" || activeTab === "disc" || activeTab === "feedback360") && (
                     <div className="flex flex-col gap-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-2xs flex flex-col gap-4">
@@ -1633,6 +1852,13 @@ export default function EmployeeProfilePage() {
                 onSaved={() => setRefreshKey((k) => k + 1)}
             />
 
+            <LeaveRequestModal
+                isOpen={isLeaveModalOpen}
+                onClose={() => setIsLeaveModalOpen(false)}
+                showToast={showToast}
+                onSuccess={() => setRefreshKey((k) => k + 1)}
+            />
+
             {checkInKr && (
                 <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
                     <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
@@ -1751,6 +1977,36 @@ export default function EmployeeProfilePage() {
                             </div>
                         </form>
                     </div>
+                </div>
+            )}
+
+            {toast && (
+                <div className="fixed top-5 right-5 z-50 bg-white rounded-xl shadow-lg border border-slate-100 p-4 flex items-center gap-3 transform transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+                    {toast.type === "error" ? (
+                        <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    )}
+                    <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-900">
+                            {toast.message}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setToast(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs ml-2 cursor-pointer"
+                    >
+                        ✕
+                    </button>
                 </div>
             )}
         </div>

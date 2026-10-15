@@ -3,12 +3,16 @@ import { AppError } from "../../utils/appError";
 
 export class DepartmentService {
     async createDepartment(
-        payload: { name: string; parentId?: string; companyName?: string },
+        payload: { name: string; parentId?: string; companyName?: string; companyId?: string },
         currentUser?: any,
     ) {
-        let companyName = payload.companyName;
-        if (!companyName && currentUser?.companyName) {
-            companyName = currentUser.companyName;
+        let companyName = currentUser?.companyId || currentUser?.companyName;
+        if (currentUser && currentUser.role !== "SUPER_ADMIN") {
+            if (!companyName) {
+                throw new AppError("Forbidden: companyId topilmadi", 403);
+            }
+        } else if (!companyName) {
+            companyName = payload.companyId || payload.companyName;
         }
 
         if (payload.parentId) {
@@ -31,8 +35,9 @@ export class DepartmentService {
 
     async getAllDepartments(currentUser?: any) {
         const where: any = {};
-        if (currentUser && currentUser.role !== "SUPER_ADMIN" && currentUser.companyName) {
-            where.companyName = currentUser.companyName;
+        const companyId = currentUser?.companyId || currentUser?.companyName;
+        if (currentUser && currentUser.role !== "SUPER_ADMIN") {
+            where.companyName = companyId || "__NO_COMPANY__";
         }
 
         return prisma.department.findMany({
@@ -40,6 +45,11 @@ export class DepartmentService {
             include: {
                 children: true,
                 employees: {
+                    where: {
+                        ...(companyId && currentUser?.role !== "SUPER_ADMIN"
+                            ? { user: { companyName: companyId } }
+                            : {}),
+                    },
                     include: {
                         user: {
                             select: {

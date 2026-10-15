@@ -33,7 +33,7 @@ export class LeaveController {
     async getAllLeaves(req: Request, res: Response, next: NextFunction) {
         try {
             const status = req.query.status as LeaveStatus | undefined;
-            const result = await leaveService.getAllLeaveRequests(status);
+            const result = await leaveService.getAllLeaveRequests(status, req.user);
             res.status(200).json({
                 status: "success",
                 data: result,
@@ -53,6 +53,7 @@ export class LeaveController {
                 req.params.id,
                 req.body.status,
                 req.user!.id,
+                req.user,
             );
             res.status(200).json({
                 status: "success",

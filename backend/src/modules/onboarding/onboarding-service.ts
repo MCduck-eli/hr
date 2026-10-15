@@ -23,7 +23,10 @@ export class OnboardingService {
                 where: { id: currentUser.id },
                 select: { role: true, companyName: true },
             });
-            if (caller?.companyName) {
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                if (!caller.companyName) {
+                    throw new AppError("Forbidden", 403);
+                }
                 companyName = caller.companyName;
             }
         }
@@ -98,6 +101,7 @@ export class OnboardingService {
                     ? { status: targetStatus }
                     : {}),
                 ...(payload.departmentId ? { departmentId: payload.departmentId } : {}),
+                ...(companyName ? { user: { companyName } } : {}),
             },
             select: { id: true },
         });
@@ -386,6 +390,7 @@ export class OnboardingService {
         }
 
         const templates = await prisma.onboardingTemplate.findMany({
+            where: companyFilter ? { companyName: companyFilter } : {},
             include: {
                 tasks: true,
                 courses: true,

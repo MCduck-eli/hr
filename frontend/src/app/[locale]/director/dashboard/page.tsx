@@ -110,10 +110,21 @@ export default function DirectorDashboard() {
     }, [locale, router]);
 
     const loadData = async (isBackground = false) => {
-        const hasCachedUsers = getQueryData<any[]>("director:users");
-        const hasCachedDepts = getQueryData<any[]>("director:departments");
+        let currentCompany = companyName;
+        if (!currentCompany) {
+            try {
+                const u = JSON.parse(localStorage.getItem("user") || "{}");
+                currentCompany = u.companyName || u.companyId || u.employee?.companyName || "";
+            } catch {}
+        }
+
+        const usersCacheKey = currentCompany ? `director:${currentCompany}:users` : "director:users";
+        const deptsCacheKey = currentCompany ? `director:${currentCompany}:departments` : "director:departments";
+
+        const hasCachedUsers = getQueryData<any[]>(usersCacheKey);
+        const hasCachedDepts = getQueryData<any[]>(deptsCacheKey);
         const hasCache = Boolean(hasCachedUsers && hasCachedDepts);
-        const isStale = isQueryStale("director:users") || isQueryStale("director:departments");
+        const isStale = isQueryStale(usersCacheKey) || isQueryStale(deptsCacheKey);
 
         if (!hasCache && !isBackground) {
             setLoading(true);
@@ -134,12 +145,15 @@ export default function DirectorDashboard() {
             ]);
 
             const filteredUsers = (usersData || []).filter(
-                (u: any) => u.role !== "SUPER_ADMIN" && u.role !== "DIRECTOR",
+                (u: any) =>
+                    u.role !== "SUPER_ADMIN" &&
+                    u.role !== "DIRECTOR" &&
+                    (!currentCompany || u.companyName === currentCompany),
             );
             setUsers(filteredUsers);
             setDepartments(deptsData || []);
-            setQueryData("director:users", filteredUsers);
-            setQueryData("director:departments", deptsData || []);
+            setQueryData(usersCacheKey, filteredUsers);
+            setQueryData(deptsCacheKey, deptsData || []);
         } catch (err) {
             console.error(err);
         } finally {
@@ -150,7 +164,7 @@ export default function DirectorDashboard() {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [companyName]);
 
     const handleLoginAs = (targetUser: any) => {
         const currentUser = localStorage.getItem("user");
@@ -182,10 +196,21 @@ export default function DirectorDashboard() {
     };
 
     const handleEmployeeSubmit = async (formData: any) => {
+        let userCompany = companyName;
+        if (!userCompany) {
+            try {
+                const u = JSON.parse(localStorage.getItem("user") || "{}");
+                userCompany = u.companyName || u.companyId || u.employee?.companyName || "";
+            } catch {}
+        }
+
         if (editingUser) {
             setFormLoading(true);
             try {
-                const payload = { ...formData };
+                const payload = {
+                    ...formData,
+                    ...(userCompany ? { companyId: userCompany, companyName: userCompany } : {}),
+                };
                 if (!payload.password) {
                     delete payload.password;
                 }
@@ -204,7 +229,11 @@ export default function DirectorDashboard() {
 
         setFormLoading(true);
         try {
-            await createUser(formData);
+            const payload = {
+                ...formData,
+                ...(userCompany ? { companyId: userCompany, companyName: userCompany } : {}),
+            };
+            await createUser(payload);
             setIsEmployeeModalOpen(false);
             setEditingUser(null);
             invalidateQuery("director");

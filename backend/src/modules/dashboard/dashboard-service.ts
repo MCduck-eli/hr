@@ -8,6 +8,7 @@ export class DashboardService {
             email: true,
             role: true,
             companyName: true,
+            permissions: true,
             employee: {
                 select: {
                     id: true,
@@ -668,6 +669,7 @@ export class DashboardService {
                 role: currentUser.role,
                 email: currentUser.email,
                 companyName: currentUser.companyName,
+                permissions: currentUser.permissions || [],
                 employee: {
                     id: employee.id,
                     department: employee.department?.name || null,

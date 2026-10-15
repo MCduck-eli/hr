@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../utils/jwt";
+import prisma from "../config/db";
 
 export type Role =
     | "SUPER_ADMIN"
@@ -18,12 +19,14 @@ declare global {
                 id: string;
                 email: string;
                 role: Role;
+                companyId?: string;
+                companyName?: string;
             };
         }
     }
 }
 
-export const authenticate = (
+export const authenticate = async (
     req: Request,
     res: Response,
     next: NextFunction,
@@ -41,6 +44,21 @@ export const authenticate = (
 
     try {
         const decoded = verifyToken(token);
+        if (decoded) {
+            if (!decoded.companyId && decoded.companyName) {
+                decoded.companyId = decoded.companyName;
+            }
+            if (!decoded.companyId && decoded.id) {
+                const dbUser = await prisma.user.findUnique({
+                    where: { id: decoded.id },
+                    select: { companyName: true },
+                });
+                if (dbUser?.companyName) {
+                    decoded.companyId = dbUser.companyName;
+                    decoded.companyName = dbUser.companyName;
+                }
+            }
+        }
         req.user = decoded;
         next();
     } catch (error) {

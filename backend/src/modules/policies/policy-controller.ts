@@ -1,9 +1,37 @@
 import { Request, Response, NextFunction } from "express";
 import { policyService } from "./policy-service";
+import prisma from "../../config/db";
+
+const getCompanyId = async (req: Request): Promise<string | null> => {
+    const user = (req as any).user;
+    if (!user) return null;
+    let companyId = user.companyId || user.companyName;
+    if (!companyId && user.id) {
+        const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { companyName: true },
+        });
+        companyId = (dbUser as any)?.companyId || dbUser?.companyName;
+    }
+    return companyId || null;
+};
 
 export class PolicyController {
     async create(req: Request, res: Response, next: NextFunction) {
         try {
+            const currentUser = (req as any).user;
+            if (!currentUser) {
+                return res.status(401).json({ status: "fail", message: "Unauthorized access" });
+            }
+
+            const companyId = await getCompanyId(req);
+            if (!companyId) {
+                return res.status(403).json({
+                    status: "fail",
+                    message: "Kompaniya identifikatori topilmadi",
+                });
+            }
+
             let documentUrl = req.body.documentUrl;
             if (req.file) {
                 documentUrl = `/uploads/${req.file.filename}`;
@@ -14,7 +42,7 @@ export class PolicyController {
                     ? req.body.isRequired === "true" || req.body.isRequired === true
                     : true;
 
-            const loggedInUserId = (req as any).user?.id;
+            const loggedInUserId = currentUser.id;
 
             const result = await policyService.createPolicy(
                 {
@@ -26,6 +54,7 @@ export class PolicyController {
                     parentId: req.body.parentId,
                 },
                 loggedInUserId,
+                companyId,
             );
 
             res.status(201).json({ status: "success", data: result });
@@ -36,8 +65,21 @@ export class PolicyController {
 
     async update(req: Request, res: Response, next: NextFunction) {
         try {
-            const { policyId } = req.params;
-            const loggedInUserId = (req as any).user?.id;
+            const currentUser = (req as any).user;
+            if (!currentUser) {
+                return res.status(401).json({ status: "fail", message: "Unauthorized access" });
+            }
+
+            const companyId = await getCompanyId(req);
+            if (!companyId) {
+                return res.status(403).json({
+                    status: "fail",
+                    message: "Kompaniya identifikatori topilmadi",
+                });
+            }
+
+            const policyId = String(req.params.policyId);
+            const loggedInUserId = currentUser.id;
             let documentUrl = req.body.documentUrl;
             if (req.file) {
                 documentUrl = `/uploads/${req.file.filename}`;
@@ -57,6 +99,7 @@ export class PolicyController {
                 policyId,
                 payload,
                 loggedInUserId,
+                companyId,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -66,8 +109,21 @@ export class PolicyController {
 
     async delete(req: Request, res: Response, next: NextFunction) {
         try {
-            const { policyId } = req.params;
-            await policyService.deletePolicy(policyId);
+            const currentUser = (req as any).user;
+            if (!currentUser) {
+                return res.status(401).json({ status: "fail", message: "Unauthorized access" });
+            }
+
+            const companyId = await getCompanyId(req);
+            if (!companyId) {
+                return res.status(403).json({
+                    status: "fail",
+                    message: "Kompaniya identifikatori topilmadi",
+                });
+            }
+
+            const policyId = String(req.params.policyId);
+            await policyService.deletePolicy(policyId, companyId);
             res.status(200).json({
                 status: "success",
                 message: "Nizom muvaffaqiyatli o'chirildi",
@@ -79,10 +135,23 @@ export class PolicyController {
 
     async getById(req: Request, res: Response, next: NextFunction) {
         try {
-            const loggedInUserId = (req as any).user?.id;
+            const currentUser = (req as any).user;
+            if (!currentUser) {
+                return res.status(401).json({ status: "fail", message: "Unauthorized access" });
+            }
+
+            const companyId = await getCompanyId(req);
+            if (!companyId) {
+                return res.status(403).json({
+                    status: "fail",
+                    message: "Kompaniya identifikatori topilmadi",
+                });
+            }
+
+            const loggedInUserId = currentUser.id;
             const targetUserId = req.query.userId ? String(req.query.userId) : loggedInUserId;
-            const { policyId } = req.params;
-            const result = await policyService.getPolicyById(policyId, targetUserId);
+            const policyId = String(req.params.policyId);
+            const result = await policyService.getPolicyById(policyId, targetUserId, companyId);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -91,11 +160,24 @@ export class PolicyController {
 
     async getAll(req: Request, res: Response, next: NextFunction) {
         try {
-            const loggedInUserId = (req as any).user.id;
-            const role = (req as any).user.role;
+            const currentUser = (req as any).user;
+            if (!currentUser) {
+                return res.status(401).json({ status: "fail", message: "Unauthorized access" });
+            }
+
+            const companyId = await getCompanyId(req);
+            if (!companyId) {
+                return res.status(403).json({
+                    status: "fail",
+                    message: "Kompaniya identifikatori topilmadi",
+                });
+            }
+
+            const loggedInUserId = currentUser.id;
+            const role = currentUser.role;
             const targetUserId = req.query.userId ? String(req.query.userId) : loggedInUserId;
             const search = req.query.search ? String(req.query.search) : undefined;
-            const result = await policyService.getAllPolicies(targetUserId, role, search);
+            const result = await policyService.getAllPolicies(targetUserId, role, search, companyId);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -108,11 +190,26 @@ export class PolicyController {
         next: NextFunction,
     ) {
         try {
-            const loggedInUserId = (req as any).user.id;
+            const currentUser = (req as any).user;
+            if (!currentUser) {
+                return res.status(401).json({ status: "fail", message: "Unauthorized access" });
+            }
+
+            const companyId = await getCompanyId(req);
+            if (!companyId) {
+                return res.status(403).json({
+                    status: "fail",
+                    message: "Kompaniya identifikatori topilmadi",
+                });
+            }
+
+            const loggedInUserId = currentUser.id;
             const targetUserId = req.body.userId ? String(req.body.userId) : loggedInUserId;
+            const policyId = String(req.params.policyId);
             const result = await policyService.signPolicy(
                 targetUserId,
-                req.params.policyId,
+                policyId,
+                companyId,
             );
             res.status(200).json({ status: "success", data: result });
         } catch (error) {

@@ -72,8 +72,22 @@ export default function HREmployeesPage() {
     }, [error]);
 
     const loadUsers = async () => {
-        const cached = getQueryData<any[]>("hr:users");
-        const isStale = isQueryStale("hr:users");
+        let currentUserId = "";
+        let currentUserRole = "";
+        let currentCompany = "";
+        try {
+            const userStr = localStorage.getItem("user");
+            if (userStr) {
+                const parsed = JSON.parse(userStr);
+                currentUserId = parsed.id || "";
+                currentUserRole = parsed.role || "";
+                currentCompany = parsed.companyName || parsed.companyId || parsed.employee?.companyName || "";
+            }
+        } catch (e) {}
+
+        const cacheKey = currentCompany ? `hr:${currentCompany}:users` : "hr:users";
+        const cached = getQueryData<any[]>(cacheKey);
+        const isStale = isQueryStale(cacheKey);
 
         if (cached) {
             setUsers(cached);
@@ -88,27 +102,18 @@ export default function HREmployeesPage() {
 
         try {
             const data = await fetchAllUsers();
-            let currentUserId = "";
-            let currentUserRole = "";
-            try {
-                const userStr = localStorage.getItem("user");
-                if (userStr) {
-                    const parsed = JSON.parse(userStr);
-                    currentUserId = parsed.id;
-                    currentUserRole = parsed.role;
-                }
-            } catch (e) {}
 
             const filteredUsers = (data || []).filter(
                 (user: any) =>
                     user.role !== "SUPER_ADMIN" &&
                     user.role !== "DIRECTOR" &&
                     user.id !== currentUserId &&
+                    (!currentCompany || user.companyName === currentCompany) &&
                     user.employee?.status !== "TERMINATED" &&
                     user.employee?.offboarding?.status !== "COMPLETED",
             );
             setUsers(filteredUsers);
-            setQueryData("hr:users", filteredUsers);
+            setQueryData(cacheKey, filteredUsers);
         } catch (err: any) {
             console.error(err);
         } finally {
@@ -123,10 +128,22 @@ export default function HREmployeesPage() {
     const handleSubmit = async (formData: any) => {
         setError("");
 
+        let currentCompany = "";
+        try {
+            const userStr = localStorage.getItem("user");
+            if (userStr) {
+                const parsed = JSON.parse(userStr);
+                currentCompany = parsed.companyName || parsed.companyId || parsed.employee?.companyName || "";
+            }
+        } catch (e) {}
+
         if (editingUser) {
             setLoading(true);
             try {
-                const payload = { ...formData };
+                const payload = {
+                    ...formData,
+                    ...(currentCompany ? { companyId: currentCompany, companyName: currentCompany } : {}),
+                };
                 if (!payload.password) {
                     delete payload.password;
                 }
@@ -147,7 +164,11 @@ export default function HREmployeesPage() {
 
         setLoading(true);
         try {
-            await createUser(formData);
+            const payload = {
+                ...formData,
+                ...(currentCompany ? { companyId: currentCompany, companyName: currentCompany } : {}),
+            };
+            await createUser(payload);
             if (candidateData) {
                 setCandidateData(null);
                 router.replace(window.location.pathname);
@@ -159,7 +180,7 @@ export default function HREmployeesPage() {
             showToast("Xodim muvaffaqiyatli yaratildi!", "success");
         } catch (err: any) {
             setError(err.message);
-            showToast("Xatolik yuz berdi, qayta urinib ko'ring", "error");
+            showToast(err.message || "Xatolik yuz berdi, qayta urinib ko'ring", "error");
         } finally {
             setLoading(false);
         }

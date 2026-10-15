@@ -88,7 +88,7 @@ export default function TrialNotificationDropdown({ locale }: TrialNotificationD
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/80 shadow-xs text-slate-700 hover:text-purple-600 transition-all cursor-pointer flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                className="relative p-2.5 rounded-2xl bg-[#E0E5EC] shadow-[5px_5px_10px_#a3b1c6,-5px_-5px_10px_#ffffff] active:shadow-[inset_3px_3px_6px_#a3b1c6,inset_-3px_-3px_6px_#ffffff] text-slate-700 hover:text-purple-600 transition-all duration-200 cursor-pointer flex items-center justify-center focus:outline-none"
                 aria-label="Sinov so'rovlari"
             >
                 <svg className="w-5 h-5 text-slate-700 hover:text-purple-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">

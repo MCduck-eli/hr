@@ -54,8 +54,48 @@ export class LeaveService {
         });
     }
 
-    async getAllLeaveRequests(status?: LeaveStatus) {
-        const where = status ? { status } : {};
+    private async resolveCallerCompany(currentUser?: any): Promise<string | null> {
+        if (!currentUser) return null;
+        if (currentUser.role === "SUPER_ADMIN" && !currentUser.companyName && !currentUser.companyId) return null;
+        if (currentUser.companyId) return currentUser.companyId;
+        if (currentUser.companyName) return currentUser.companyName;
+
+        if (currentUser.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+
+            if (caller) {
+                if (caller.role === "SUPER_ADMIN" && !caller.companyName) {
+                    return null;
+                }
+                return caller.companyName || null;
+            }
+        }
+        return null;
+    }
+
+    async getAllLeaveRequests(status?: LeaveStatus, currentUser?: any) {
+        const callerCompany = await this.resolveCallerCompany(currentUser);
+
+        const where: any = {
+            ...(status ? { status } : {}),
+        };
+
+        if (currentUser && currentUser.role !== "SUPER_ADMIN") {
+            where.employee = {
+                user: {
+                    companyName: callerCompany || "__NO_COMPANY__",
+                },
+            };
+        } else if (callerCompany) {
+            where.employee = {
+                user: {
+                    companyName: callerCompany,
+                },
+            };
+        }
 
         return prisma.leaveRequest.findMany({
             where,
@@ -77,9 +117,23 @@ export class LeaveService {
         id: string,
         status: LeaveStatus,
         managerUserId: string,
+        currentUser?: any,
     ) {
-        const leaveRequest = await prisma.leaveRequest.findUnique({
-            where: { id },
+        const callerCompany = await this.resolveCallerCompany(currentUser);
+
+        const leaveRequest = await prisma.leaveRequest.findFirst({
+            where: {
+                id,
+                ...(callerCompany && currentUser?.role !== "SUPER_ADMIN"
+                    ? {
+                          employee: {
+                              user: {
+                                  companyName: callerCompany,
+                              },
+                          },
+                      }
+                    : {}),
+            },
         });
 
         if (!leaveRequest) {

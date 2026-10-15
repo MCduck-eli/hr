@@ -52,7 +52,7 @@ export default function TrialClientsTable({ trials, isLoading, onApproveSuccess 
 
     if (isLoading) {
         return (
-            <div className="w-full bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
+            <div className="w-full bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] relative overflow-hidden">
                 <div className="p-6 space-y-4">
                     {[1, 2, 3, 4, 5].map((i) => (
                         <div key={i} className="h-12 bg-slate-100 animate-pulse rounded-xl" />
@@ -64,23 +64,39 @@ export default function TrialClientsTable({ trials, isLoading, onApproveSuccess 
 
     if (!trials || trials.length === 0) {
         return (
-            <div className="w-full bg-white rounded-2xl border border-slate-100 shadow-xs p-12 text-center">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4">
-                    <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                    </svg>
+            <div className="w-full bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] relative overflow-hidden p-12 text-center">
+                <div
+                    className="absolute inset-0 z-0 pointer-events-none bg-repeat opacity-[0.05]"
+                    style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23C5A059' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z'/%3E%3Cpath d='M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z'/%3E%3Ccircle cx='120' cy='120' r='10'/%3E%3Cpath d='M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180'/%3E%3Cpath d='M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216'/%3E%3Cpath d='M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230'/%3E%3Cpath d='M120 0V60M120 180V240M0 120H60M180 120H240'/%3E%3Cpath d='M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240'/%3E%3Cpath d='M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198'/%3E%3Cpath d='M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60'/%3E%3Cpath d='M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90'/%3E%3C/g%3E%3C/svg%3E")`,
+                        backgroundSize: "240px 240px",
+                    }}
+                />
+                <div className="relative z-10">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4">
+                        <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-800">Hozircha hech qanday sinov so'rovi yo'q</h3>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                        Landing page orqali bepul sinab ko'rish uchun yuborilgan arizalar shu yerda ko'rinadi.
+                    </p>
                 </div>
-                <h3 className="text-base font-bold text-slate-800">Hozircha hech qanday sinov so'rovi yo'q</h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                    Landing page orqali bepul sinab ko'rish uchun yuborilgan arizalar shu yerda ko'rinadi.
-                </p>
             </div>
         );
     }
 
     return (
-        <div className="w-full bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+        <div className="w-full bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] relative overflow-hidden">
+            <div
+                className="absolute inset-0 z-0 pointer-events-none bg-repeat opacity-[0.05]"
+                style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23C5A059' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z'/%3E%3Cpath d='M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z'/%3E%3Ccircle cx='120' cy='120' r='10'/%3E%3Cpath d='M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180'/%3E%3Cpath d='M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216'/%3E%3Cpath d='M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230'/%3E%3Cpath d='M120 0V60M120 180V240M0 120H60M180 120H240'/%3E%3Cpath d='M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240'/%3E%3Cpath d='M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198'/%3E%3Cpath d='M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60'/%3E%3Cpath d='M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90'/%3E%3C/g%3E%3C/svg%3E")`,
+                    backgroundSize: "240px 240px",
+                }}
+            />
+            <div className="relative z-10 overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr className="border-b border-slate-100 bg-slate-50/75 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
@@ -197,7 +213,7 @@ export default function TrialClientsTable({ trials, isLoading, onApproveSuccess 
                                                     type="button"
                                                     onClick={() => handleApprove(item.id)}
                                                     disabled={!!actionLoadingId}
-                                                    className="bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg px-3 py-1.5 font-medium text-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                                                    className="bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg px-3 py-1.5 font-medium text-xs inline-flex items-center gap-1.5 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 cursor-pointer"
                                                 >
                                                     {actionLoadingId === `${item.id}-approve` ? (
                                                         <>
@@ -220,7 +236,7 @@ export default function TrialClientsTable({ trials, isLoading, onApproveSuccess 
                                                     type="button"
                                                     onClick={() => setRejectModalTrial(item)}
                                                     disabled={!!actionLoadingId}
-                                                    className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 font-medium text-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                                                    className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 font-medium text-xs inline-flex items-center gap-1.5 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 cursor-pointer"
                                                 >
                                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -239,45 +255,54 @@ export default function TrialClientsTable({ trials, isLoading, onApproveSuccess 
 
             {rejectModalTrial && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-                    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md w-full p-6">
-                        <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-base font-bold text-slate-900 mb-1">
-                            Sinov so'rovini rad etish
-                        </h3>
-                        <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                            Haqiqatan ham <strong className="text-slate-800">{rejectModalTrial.firstName} {rejectModalTrial.lastName}</strong> ({rejectModalTrial.email}) ning sinov so'rovini rad etmoqchimisiz?
-                        </p>
-                        <div className="flex items-center justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setRejectModalTrial(null)}
-                                disabled={!!actionLoadingId}
-                                className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors disabled:opacity-60 cursor-pointer"
-                            >
-                                Bekor qilish
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleReject(rejectModalTrial.id)}
-                                disabled={!!actionLoadingId}
-                                className="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors disabled:opacity-60 inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
-                            >
-                                {actionLoadingId === `${rejectModalTrial.id}-reject` ? (
-                                    <>
-                                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                        </svg>
-                                        <span>Rad etilmoqda...</span>
-                                    </>
-                                ) : (
-                                    <span>Rad etish</span>
-                                )}
-                            </button>
+                    <div className="bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] max-w-md w-full p-6 relative overflow-hidden">
+                        <div
+                            className="absolute inset-0 z-0 pointer-events-none bg-repeat opacity-[0.05]"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23C5A059' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z'/%3E%3Cpath d='M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z'/%3E%3Ccircle cx='120' cy='120' r='10'/%3E%3Cpath d='M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180'/%3E%3Cpath d='M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216'/%3E%3Cpath d='M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230'/%3E%3Cpath d='M120 0V60M120 180V240M0 120H60M180 120H240'/%3E%3Cpath d='M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240'/%3E%3Cpath d='M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198'/%3E%3Cpath d='M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60'/%3E%3Cpath d='M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90'/%3E%3C/g%3E%3C/svg%3E")`,
+                                backgroundSize: "240px 240px",
+                            }}
+                        />
+                        <div className="relative z-10">
+                            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-base font-bold text-slate-900 mb-1">
+                                Sinov so'rovini rad etish
+                            </h3>
+                            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+                                Haqiqatan ham <strong className="text-slate-800">{rejectModalTrial.firstName} {rejectModalTrial.lastName}</strong> ({rejectModalTrial.email}) ning sinov so'rovini rad etmoqchimisiz?
+                            </p>
+                            <div className="flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setRejectModalTrial(null)}
+                                    disabled={!!actionLoadingId}
+                                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 disabled:opacity-60 cursor-pointer"
+                                >
+                                    Bekor qilish
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleReject(rejectModalTrial.id)}
+                                    disabled={!!actionLoadingId}
+                                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 disabled:opacity-60 inline-flex items-center gap-1.5 cursor-pointer"
+                                >
+                                    {actionLoadingId === `${rejectModalTrial.id}-reject` ? (
+                                        <>
+                                            <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                            </svg>
+                                            <span>Rad etilmoqda...</span>
+                                        </>
+                                    ) : (
+                                        <span>Rad etish</span>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

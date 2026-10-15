@@ -35,7 +35,7 @@ userRouter.get(
 
 userRouter.post(
     "/",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     upload.fields([
         { name: "avatar", maxCount: 1 },
         { name: "image", maxCount: 1 },
@@ -49,7 +49,7 @@ userRouter.get("/:id", userController.getOne);
 
 userRouter.patch(
     "/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     upload.fields([
         { name: "avatar", maxCount: 1 },
         { name: "image", maxCount: 1 },
@@ -62,7 +62,7 @@ userRouter.patch(
 
 userRouter.delete(
     "/:id",
-    authorize("SUPER_ADMIN", "HR_ADMIN"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"),
     userController.delete,
 );
 

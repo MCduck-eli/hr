@@ -85,57 +85,57 @@ export default function EmployeeEnpsModal({
     };
 
     const getScoreCategory = (val: number) => {
-        if (val >= 9) return { label: "Targ'ibotchi (Promoter)", color: "text-emerald-700 bg-emerald-50 border-emerald-500" };
-        if (val >= 7) return { label: "Neytral (Passive)", color: "text-amber-700 bg-amber-50 border-amber-500" };
-        return { label: "Tanqidchi (Detractor)", color: "text-rose-700 bg-rose-50 border-rose-500" };
+        if (val >= 9) return { label: "Targ'ibotchi (Promoter)", color: "text-emerald-700 bg-emerald-50 border-emerald-200" };
+        if (val >= 7) return { label: "Neytral (Passive)", color: "text-amber-700 bg-amber-50 border-amber-200" };
+        return { label: "Tanqidchi (Detractor)", color: "text-rose-700 bg-rose-50 border-rose-200" };
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 overflow-y-auto">
-            <div className="bg-white border-2 border-black max-w-xl w-full p-6 md:p-8 flex flex-col gap-6 shadow-2xl my-8">
-                <div className="flex items-center justify-between border-b-2 border-black pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl border border-gray-100 max-w-xl w-full p-6 md:p-8 flex flex-col gap-6 shadow-2xl my-8">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-purple-600">
                             Xodimlar Qoniqishi & Sadoqati
                         </span>
-                        <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-black">
+                        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-gray-900">
                             💬 eNPS So'rovnomasi
                         </h2>
                     </div>
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 border border-black bg-white hover:bg-black hover:text-white transition-colors flex items-center justify-center font-bold text-sm"
+                        className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex items-center justify-center font-medium text-sm"
                     >
                         ✕
                     </button>
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs font-medium flex items-center justify-between">
                         <span>{error}</span>
-                        <button onClick={() => setError(null)} className="text-xs font-bold">✕</button>
+                        <button onClick={() => setError(null)} className="text-xs font-bold hover:opacity-75">✕</button>
                     </div>
                 )}
 
                 {loadingQuestions ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-3">
-                        <div className="w-8 h-8 border-3 border-black border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs font-bold uppercase text-gray-500">So'rovnoma yuklanmoqda...</span>
+                        <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-medium text-gray-500">So'rovnoma yuklanmoqda...</span>
                     </div>
                 ) : submitted ? (
                     <div className="py-8 flex flex-col items-center justify-center gap-4 text-center">
-                        <div className="w-14 h-14 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center text-2xl font-black border-2 border-emerald-500">
+                        <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-2xl font-bold border border-purple-100">
                             ✓
                         </div>
-                        <h3 className="text-xl font-black text-black">
+                        <h3 className="text-xl font-bold text-gray-900">
                             Rahmat! Sizning bahoyingiz muvaffaqiyatli qabul qilindi.
                         </h3>
-                        <p className="text-xs font-medium text-gray-600 max-w-md">
+                        <p className="text-xs font-medium text-gray-500 max-w-md">
                             Sizning fikringiz kompaniyamizdagi ish muhitini yanada yaxshilash va rivojlantirish uchun juda muhim.
                         </p>
                         <button
                             onClick={onClose}
-                            className="mt-2 px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                            className="mt-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition-colors"
                         >
                             Yopish
                         </button>
@@ -152,10 +152,10 @@ export default function EmployeeEnpsModal({
                                             setActiveQuestionIndex(idx);
                                             setScore(null);
                                         }}
-                                        className={`px-3 py-1.5 text-xs font-bold uppercase border transition-colors ${
+                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                                             activeQuestionIndex === idx
-                                                ? "border-black bg-black text-white"
-                                                : "border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-400"
+                                                ? "border-purple-600 bg-purple-600 text-white"
+                                                : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-purple-50 hover:text-purple-700"
                                         }`}
                                     >
                                         Savol #{idx + 1}
@@ -164,8 +164,8 @@ export default function EmployeeEnpsModal({
                             </div>
                         )}
 
-                        <div className="flex flex-col gap-2 bg-gray-50 p-4 border border-gray-200">
-                            <span className="text-sm font-bold text-black leading-snug">
+                        <div className="flex flex-col gap-2 bg-purple-50/50 p-4 rounded-xl border border-purple-100/80">
+                            <span className="text-sm font-semibold text-gray-900 leading-snug">
                                 {currentQuestion.question}
                             </span>
                             {currentQuestion.description && (
@@ -176,14 +176,12 @@ export default function EmployeeEnpsModal({
                         </div>
 
                         <div className="flex flex-col gap-3">
-                            <div className={`grid gap-1 sm:gap-1.5 ${scaleButtons.length > 10 ? "grid-cols-11" : "grid-cols-5 sm:grid-cols-10"}`}>
+                            <div className={`grid gap-1.5 sm:gap-2 ${scaleButtons.length > 10 ? "grid-cols-11" : "grid-cols-5 sm:grid-cols-10"}`}>
                                 {scaleButtons.map((num) => {
                                     const isSelected = score === num;
-                                    let btnColor = "border-gray-300 bg-white text-black hover:border-black";
+                                    let btnColor = "border border-gray-200 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-700 hover:border-purple-300";
                                     if (isSelected) {
-                                        if (num >= 9) btnColor = "border-emerald-600 bg-emerald-600 text-white font-black shadow-md";
-                                        else if (num >= 7) btnColor = "border-amber-500 bg-amber-500 text-white font-black shadow-md";
-                                        else btnColor = "border-rose-600 bg-rose-600 text-white font-black shadow-md";
+                                        btnColor = "bg-purple-600 text-white border-purple-600 shadow-sm font-bold";
                                     }
 
                                     return (
@@ -191,7 +189,7 @@ export default function EmployeeEnpsModal({
                                             key={num}
                                             type="button"
                                             onClick={() => setScore(num)}
-                                            className={`h-11 border-2 text-xs sm:text-sm font-bold flex items-center justify-center transition-all ${btnColor}`}
+                                            className={`h-11 rounded-lg border text-xs sm:text-sm font-medium flex items-center justify-center transition-all ${btnColor}`}
                                         >
                                             {num}
                                         </button>
@@ -199,13 +197,13 @@ export default function EmployeeEnpsModal({
                                 })}
                             </div>
 
-                            <div className="flex items-center justify-between text-[10px] font-bold text-gray-500 uppercase tracking-wider px-1">
+                            <div className="flex items-center justify-between text-[11px] font-medium text-gray-400 px-1">
                                 <span>{minScale} — {currentQuestion.minLabel || "Tavsiya qilmayman"}</span>
                                 <span>{maxScale} — {currentQuestion.maxLabel || "Albatta tavsiya qilaman"}</span>
                             </div>
 
                             {score !== null && (
-                                <div className={`p-3 border text-xs font-bold flex items-center justify-between ${getScoreCategory(score).color}`}>
+                                <div className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between ${getScoreCategory(score).color}`}>
                                     <span>Tanlangan baho: {score} ball</span>
                                     <span>{getScoreCategory(score).label}</span>
                                 </div>
@@ -213,7 +211,7 @@ export default function EmployeeEnpsModal({
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                            <label className="text-xs font-medium text-gray-700">
                                 Izoh yoki taklifingiz (Ixtiyoriy):
                             </label>
                             <textarea
@@ -221,24 +219,24 @@ export default function EmployeeEnpsModal({
                                 onChange={(e) => setComment(e.target.value)}
                                 placeholder="Ish muhitini qanday yaxshilashimiz mumkin? Fikringizni yozib qoldiring..."
                                 rows={3}
-                                className="w-full border-2 border-gray-300 p-3 text-xs focus:border-black focus:outline-none resize-none"
+                                className="w-full border border-gray-200 rounded-xl p-3 text-xs focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none resize-none transition-all placeholder:text-gray-400"
                             />
                         </div>
 
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                        <div className="flex justify-end items-center gap-3 pt-4 border-t border-gray-100">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-5 py-2.5 border border-black bg-white text-black text-xs font-bold uppercase tracking-wider hover:bg-gray-100 transition-colors"
+                                className="px-5 py-2.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
                             >
                                 Bekor qilish
                             </button>
                             <button
                                 type="submit"
                                 disabled={submitting || score === null}
-                                className="px-6 py-2.5 bg-black text-white text-xs font-black uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-lg font-medium transition-colors disabled:opacity-50"
                             >
-                                {submitting ? "Yuborilmoqda..." : "✓ Bahoni Yuborish"}
+                                {submitting ? "Yuborilmoqda..." : "Bahoni yuborish"}
                             </button>
                         </div>
                     </form>

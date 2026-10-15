@@ -13,7 +13,12 @@ export class PolicyService {
             parentId?: string;
         },
         creatorUserId?: string,
+        companyId?: string,
     ) {
+        if (!companyId) {
+            throw new AppError("Kompaniya identifikatori topilmadi", 403);
+        }
+
         const policy = await prisma.companyPolicy.create({
             data: {
                 title: payload.title,
@@ -22,6 +27,7 @@ export class PolicyService {
                 documentUrl: payload.documentUrl,
                 isRequired: payload.isRequired ?? true,
                 parentId: payload.parentId,
+                companyName: companyId,
             },
         });
 
@@ -32,6 +38,7 @@ export class PolicyService {
                 type: "GENERAL",
                 excludeUserId: creatorUserId,
                 excludeRoles: ["SUPER_ADMIN", "HR_ADMIN"],
+                companyName: companyId,
                 metadata: {
                     type: "REGULATION",
                     policyId: policy.id,
@@ -53,9 +60,17 @@ export class PolicyService {
             isRequired?: boolean;
         },
         updaterUserId?: string,
+        companyId?: string,
     ) {
-        const existing = await prisma.companyPolicy.findUnique({
-            where: { id: policyId },
+        if (!companyId) {
+            throw new AppError("Kompaniya identifikatori topilmadi", 403);
+        }
+
+        const existing = await prisma.companyPolicy.findFirst({
+            where: {
+                id: policyId,
+                companyName: companyId,
+            },
         });
 
         if (!existing) {
@@ -85,6 +100,7 @@ export class PolicyService {
                     type: "GENERAL",
                     excludeUserId: updaterUserId,
                     excludeRoles: ["SUPER_ADMIN", "HR_ADMIN"],
+                    companyName: companyId,
                     metadata: {
                         type: "REGULATION",
                         policyId: updated.id,
@@ -97,9 +113,16 @@ export class PolicyService {
         return updated;
     }
 
-    async deletePolicy(policyId: string) {
-        const existing = await prisma.companyPolicy.findUnique({
-            where: { id: policyId },
+    async deletePolicy(policyId: string, companyId?: string) {
+        if (!companyId) {
+            throw new AppError("Kompaniya identifikatori topilmadi", 403);
+        }
+
+        const existing = await prisma.companyPolicy.findFirst({
+            where: {
+                id: policyId,
+                companyName: companyId,
+            },
         });
 
         if (!existing) {
@@ -111,9 +134,16 @@ export class PolicyService {
         });
     }
 
-    async getPolicyById(policyId: string, userId?: string) {
-        const policy = await prisma.companyPolicy.findUnique({
-            where: { id: policyId },
+    async getPolicyById(policyId: string, userId?: string, companyId?: string) {
+        if (!companyId) {
+            throw new AppError("Kompaniya identifikatori topilmadi", 403);
+        }
+
+        const policy = await prisma.companyPolicy.findFirst({
+            where: {
+                id: policyId,
+                companyName: companyId,
+            },
             include: {
                 signatures: {
                     include: {
@@ -172,14 +202,25 @@ export class PolicyService {
         };
     }
 
-    async getAllPolicies(userId: string, role?: string, search?: string) {
-        const where: any = { parentId: null };
+    async getAllPolicies(userId: string, role?: string, search?: string, companyId?: string) {
+        if (!companyId) {
+            throw new AppError("Kompaniya identifikatori topilmadi", 403);
+        }
+
+        const where: any = {
+            parentId: null,
+            companyName: companyId,
+        };
 
         if (search) {
-            where.OR = [
-                { title: { contains: search, mode: "insensitive" } },
-                { description: { contains: search, mode: "insensitive" } },
-                { content: { contains: search, mode: "insensitive" } },
+            where.AND = [
+                {
+                    OR: [
+                        { title: { contains: search, mode: "insensitive" } },
+                        { description: { contains: search, mode: "insensitive" } },
+                        { content: { contains: search, mode: "insensitive" } },
+                    ],
+                },
             ];
         }
 
@@ -235,6 +276,7 @@ export class PolicyService {
             prisma.employee.count({
                 where: {
                     user: {
+                        companyName: companyId,
                         role: {
                             not: "SUPER_ADMIN",
                         },
@@ -298,7 +340,11 @@ export class PolicyService {
         });
     }
 
-    async signPolicy(userId: string, policyId: string) {
+    async signPolicy(userId: string, policyId: string, companyId?: string) {
+        if (!companyId) {
+            throw new AppError("Kompaniya identifikatori topilmadi", 403);
+        }
+
         let employee = await prisma.employee.findFirst({
             where: {
                 OR: [{ userId }, { id: userId }],
@@ -320,8 +366,11 @@ export class PolicyService {
             });
         }
 
-        const policy = await prisma.companyPolicy.findUnique({
-            where: { id: policyId },
+        const policy = await prisma.companyPolicy.findFirst({
+            where: {
+                id: policyId,
+                companyName: companyId,
+            },
         });
 
         if (!policy) {

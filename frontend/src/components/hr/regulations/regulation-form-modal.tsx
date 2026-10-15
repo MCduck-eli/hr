@@ -63,7 +63,7 @@ export default function RegulationFormModal({
             await onSubmit(formData, editingPolicy?.id);
             onClose();
         } catch (err: any) {
-            alert(err.message || "Xatolik yuz berdi");
+            console.error(err);
         } finally {
             setLoading(false);
         }

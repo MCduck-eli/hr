@@ -28,7 +28,7 @@ function DirectorAvatar({ user }: { user: any }) {
 
     if (avatarSrc) {
         return (
-            <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-900 shrink-0 shadow-xs border border-slate-100">
+            <div className="w-9 h-9 rounded-xl overflow-hidden bg-white shrink-0 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] border border-gray-100">
                 <img
                     src={avatarSrc}
                     alt={user.employee?.firstName || user.firstName || "Director"}
@@ -40,7 +40,7 @@ function DirectorAvatar({ user }: { user: any }) {
     }
 
     return (
-        <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-xs">
+        <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff]">
             {first}
             {last}
         </div>
@@ -430,7 +430,7 @@ export default function SuperAdminDashboard() {
 
                     <div className="flex items-center gap-3">
                         <TrialNotificationDropdown locale={locale} />
-                        <div className="bg-white border border-slate-200/80 px-4 py-2 rounded-2xl shadow-sm text-xs font-bold text-slate-700 flex items-center gap-2.5 w-fit">
+                        <div className="bg-white border border-gray-100 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] px-4 py-2 rounded-2xl text-xs font-bold text-slate-700 flex items-center gap-2.5 w-fit">
                             <span className="text-slate-400 font-medium uppercase">{t("totalCompanies")}:</span>
                             <span className="font-mono text-sm font-black text-slate-950">{directors.length}</span>
                         </div>
@@ -438,8 +438,16 @@ export default function SuperAdminDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                    <div className="lg:col-span-5 bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                    <div className="lg:col-span-5 bg-white p-6 md:p-8 rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] relative overflow-hidden">
+                        <div
+                            className="absolute inset-0 z-0 pointer-events-none bg-repeat opacity-[0.08]"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23C5A059' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z'/%3E%3Cpath d='M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z'/%3E%3Ccircle cx='120' cy='120' r='10'/%3E%3Cpath d='M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180'/%3E%3Cpath d='M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216'/%3E%3Cpath d='M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230'/%3E%3Cpath d='M120 0V60M120 180V240M0 120H60M180 120H240'/%3E%3Cpath d='M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240'/%3E%3Cpath d='M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198'/%3E%3Cpath d='M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60'/%3E%3Cpath d='M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90'/%3E%3C/g%3E%3C/svg%3E")`,
+                                backgroundSize: "240px 240px",
+                            }}
+                        />
+                        <div className="relative z-10 flex flex-col">
+                            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-300/40">
                             <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
                                 <span>{editingUserId ? "✏️" : "➕"}</span>
                                 <span>{editingUserId ? t("editDirector") : t("addDirector")}</span>
@@ -448,7 +456,7 @@ export default function SuperAdminDashboard() {
                                 <button
                                     type="button"
                                     onClick={generateCredentials}
-                                    className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium rounded-xl px-3.5 py-1.5 text-xs transition-all duration-200 shadow-sm flex items-center gap-1.5 cursor-pointer"
+                                    className="bg-white hover:bg-slate-50 text-slate-700 border border-gray-200 font-medium rounded-xl px-3.5 py-1.5 text-xs shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
                                 >
                                     <span>⚡</span>
                                     <span>{t("generate")}</span>
@@ -466,10 +474,10 @@ export default function SuperAdminDashboard() {
                         )}
 
                         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-                            <div className="flex items-center gap-4 p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                            <div className="flex items-center gap-4 p-3.5 bg-slate-50/70 border border-gray-200/80 rounded-2xl shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff]">
                                 <div className="relative">
                                     {form.avatarPreview && !avatarError ? (
-                                        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 shadow-xs relative group">
+                                        <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] border border-gray-100 relative group">
                                             <img
                                                 src={form.avatarPreview}
                                                 alt="Preview"
@@ -478,7 +486,7 @@ export default function SuperAdminDashboard() {
                                             />
                                         </div>
                                     ) : (
-                                        <div className="w-14 h-14 rounded-2xl bg-purple-50 border border-dashed border-purple-200 flex items-center justify-center">
+                                        <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] flex items-center justify-center">
                                             {form.firstName ? (
                                                 <span className="text-base font-bold text-[#9327FF] uppercase">
                                                     {form.firstName[0]}
@@ -499,7 +507,7 @@ export default function SuperAdminDashboard() {
                                         PNG, JPG yoki WEBP formatda (ixtiyoriy)
                                     </p>
                                     <div className="flex items-center gap-2">
-                                        <label className="px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-[#9327FF] text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1.5">
+                                        <label className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-gray-200 text-[#9327FF] text-xs font-semibold rounded-xl shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 cursor-pointer inline-flex items-center gap-1.5">
                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                             </svg>
@@ -515,7 +523,7 @@ export default function SuperAdminDashboard() {
                                             <button
                                                 type="button"
                                                 onClick={handleRemoveAvatar}
-                                                className="px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                                className="px-2.5 py-1.5 text-xs font-medium text-rose-600 bg-white hover:bg-rose-50 border border-rose-200 rounded-lg shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 cursor-pointer"
                                             >
                                                 O'chirish
                                             </button>
@@ -545,11 +553,7 @@ export default function SuperAdminDashboard() {
                                         }
                                     }}
                                     placeholder={t("companyNamePlaceholder")}
-                                    className={`w-full px-4 py-3 rounded-xl border ${
-                                        formErrors.companyName
-                                            ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                                            : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
-                                    } bg-slate-50/50 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                    className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-200"
                                 />
                                 {formErrors.companyName && (
                                     <span className="text-[11px] font-semibold text-red-500 mt-0.5">
@@ -579,11 +583,7 @@ export default function SuperAdminDashboard() {
                                                 }));
                                             }
                                         }}
-                                        className={`w-full px-4 py-3 rounded-xl border ${
-                                            formErrors.firstName
-                                                ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                                                : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
-                                        } bg-slate-50/50 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                        className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-200"
                                     />
                                     {formErrors.firstName && (
                                         <span className="text-[11px] font-semibold text-red-500 mt-0.5">
@@ -611,11 +611,7 @@ export default function SuperAdminDashboard() {
                                                 }));
                                             }
                                         }}
-                                        className={`w-full px-4 py-3 rounded-xl border ${
-                                            formErrors.lastName
-                                                ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                                                : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
-                                        } bg-slate-50/50 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                        className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-200"
                                     />
                                     {formErrors.lastName && (
                                         <span className="text-[11px] font-semibold text-red-500 mt-0.5">
@@ -642,11 +638,7 @@ export default function SuperAdminDashboard() {
                                             }));
                                         }
                                     }}
-                                    className={`w-full px-4 py-3 rounded-xl border ${
-                                        formErrors.email
-                                            ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                                            : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
-                                    } bg-slate-50/50 text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                    className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-200"
                                 />
                                 {formErrors.email && (
                                     <span className="text-[11px] font-semibold text-red-500 mt-0.5">
@@ -666,7 +658,7 @@ export default function SuperAdminDashboard() {
                                         setForm({ ...form, phone: e.target.value })
                                     }
                                     placeholder={t("phonePlaceholder")}
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#9327FF]/20 focus:border-[#9327FF] focus:bg-white transition-all duration-200"
+                                    className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-200"
                                 />
                             </div>
 
@@ -695,11 +687,7 @@ export default function SuperAdminDashboard() {
                                             }));
                                         }
                                     }}
-                                    className={`w-full px-4 py-3 rounded-xl border ${
-                                        formErrors.password
-                                            ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                                            : "border-slate-200 focus:ring-[#9327FF]/20 focus:border-[#9327FF]"
-                                    } bg-slate-50/50 text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200`}
+                                    className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] text-sm font-mono font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all duration-200"
                                 />
                                 {formErrors.password && (
                                     <span className="text-[11px] font-semibold text-red-500 mt-0.5">
@@ -708,11 +696,11 @@ export default function SuperAdminDashboard() {
                                 )}
                             </div>
 
-                            <div className="flex gap-3 mt-3 pt-3 border-t border-slate-100">
+                            <div className="flex gap-3 mt-3 pt-3 border-t border-slate-300/40">
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="flex-1 py-3 px-6 bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl text-xs md:text-sm uppercase tracking-wider transition-all duration-200 shadow-sm disabled:opacity-50 cursor-pointer"
+                                    className="flex-1 py-3 px-6 bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl text-xs md:text-sm uppercase tracking-wider transition-all duration-200 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] disabled:opacity-50 cursor-pointer"
                                 >
                                     {loading
                                         ? t("loading")
@@ -724,17 +712,26 @@ export default function SuperAdminDashboard() {
                                     <button
                                         type="button"
                                         onClick={resetForm}
-                                        className="px-5 py-3 bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium rounded-xl text-xs uppercase tracking-wider transition-all duration-200 shadow-sm cursor-pointer"
+                                        className="px-5 py-3 bg-white hover:bg-slate-50 border border-gray-200 text-gray-700 font-medium rounded-xl text-xs uppercase tracking-wider transition-all duration-200 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] cursor-pointer"
                                     >
                                         {t("cancel")}
                                     </button>
                                 )}
                             </div>
                         </form>
+                        </div>
                     </div>
 
-                    <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col">
-                        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                    <div className="lg:col-span-7 bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] relative overflow-hidden flex flex-col">
+                        <div
+                            className="absolute inset-0 z-0 pointer-events-none bg-repeat opacity-[0.08]"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23C5A059' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z'/%3E%3Cpath d='M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z'/%3E%3Ccircle cx='120' cy='120' r='10'/%3E%3Cpath d='M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180'/%3E%3Cpath d='M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216'/%3E%3Cpath d='M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230'/%3E%3Cpath d='M120 0V60M120 180V240M0 120H60M180 120H240'/%3E%3Cpath d='M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240'/%3E%3Cpath d='M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198'/%3E%3Cpath d='M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60'/%3E%3Cpath d='M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90'/%3E%3C/g%3E%3C/svg%3E")`,
+                                backgroundSize: "240px 240px",
+                            }}
+                        />
+                        <div className="relative z-10 flex flex-col flex-1">
+                            <div className="p-6 border-b border-slate-300/40 flex items-center justify-between">
                             <h2 className="text-sm font-black uppercase tracking-wider text-slate-900">
                                 {t("directorList")} ({directors.length})
                             </h2>
@@ -743,17 +740,17 @@ export default function SuperAdminDashboard() {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead>
-                                    <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] text-slate-500 uppercase tracking-wider font-bold">
+                                    <tr className="border-b border-slate-300/40 text-[11px] text-slate-500 uppercase tracking-wider font-bold">
                                         <th className="p-4 pl-6">{t("colCompany")}</th>
                                         <th className="p-4">{t("colDirector")}</th>
                                         <th className="p-4">{t("colContacts")}</th>
                                         <th className="p-4 pr-6 text-right">{t("colActions")}</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-slate-300/30">
                                     {isTableLoading ? (
                                         Array.from({ length: 5 }).map((_, index) => (
-                                            <tr key={index} className="border-b border-slate-100">
+                                            <tr key={index} className="border-b border-slate-300/30">
                                                 <td className="p-4 pl-6">
                                                     <div className="flex flex-col gap-2">
                                                         <Skeleton className="h-4 w-32 rounded-lg" />
@@ -796,7 +793,7 @@ export default function SuperAdminDashboard() {
                                         directors.map((u) => (
                                             <tr
                                                 key={u.id}
-                                                className="hover:bg-slate-50/80 transition-colors duration-150"
+                                                className="hover:bg-slate-300/20 transition-colors duration-150"
                                             >
                                                 <td className="p-4 pl-6">
                                                     <div className="flex flex-col gap-1.5">
@@ -838,13 +835,13 @@ export default function SuperAdminDashboard() {
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button
                                                             onClick={() => handleEditDirector(u)}
-                                                            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                                                            className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-gray-200 text-slate-700 text-xs font-medium shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 cursor-pointer"
                                                         >
                                                             {t("edit")}
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteDirector(u)}
-                                                            className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-xs font-medium transition-colors cursor-pointer"
+                                                            className="px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 hover:text-rose-700 text-xs font-medium shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 cursor-pointer"
                                                         >
                                                             {t("delete")}
                                                         </button>
@@ -856,46 +853,56 @@ export default function SuperAdminDashboard() {
                                 </tbody>
                             </table>
                         </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {deleteModalUser && (
                 <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full flex flex-col gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-lg shrink-0">
-                                ⚠️
+                    <div className="bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] p-6 max-w-md w-full relative overflow-hidden">
+                        <div
+                            className="absolute inset-0 z-0 pointer-events-none bg-repeat opacity-[0.08]"
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23C5A059' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z'/%3E%3Cpath d='M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z'/%3E%3Ccircle cx='120' cy='120' r='10'/%3E%3Cpath d='M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180'/%3E%3Cpath d='M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216'/%3E%3Cpath d='M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230'/%3E%3Cpath d='M120 0V60M120 180V240M0 120H60M180 120H240'/%3E%3Cpath d='M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240'/%3E%3Cpath d='M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198'/%3E%3Cpath d='M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60'/%3E%3Cpath d='M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90'/%3E%3C/g%3E%3C/svg%3E")`,
+                                backgroundSize: "240px 240px",
+                            }}
+                        />
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-lg shrink-0 shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff]">
+                                    ⚠️
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-slate-900">{t("deleteModalTitle")}</h3>
+                                    <p className="text-xs text-slate-500">
+                                        {deleteModalUser.companyName || deleteModalUser.employee?.companyName || deleteModalUser.email}
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-base font-bold text-slate-900">{t("deleteModalTitle")}</h3>
-                                <p className="text-xs text-slate-500">
-                                    {deleteModalUser.companyName || deleteModalUser.employee?.companyName || deleteModalUser.email}
-                                </p>
+
+                            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                {t("deleteModalText")}
+                            </p>
+
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={() => setDeleteModalUser(null)}
+                                    className="bg-white hover:bg-slate-50 border border-gray-200 text-slate-700 rounded-xl px-5 py-2 text-xs sm:text-sm font-medium shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 cursor-pointer disabled:opacity-50"
+                                >
+                                    {t("cancelBtn")}
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={confirmDeleteDirector}
+                                    className="bg-red-500 hover:bg-red-600 text-white rounded-xl px-5 py-2 text-xs sm:text-sm font-medium shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_4px_#e2e8f0,inset_-2px_-2px_4px_#ffffff] transition-all duration-200 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                                >
+                                    {isDeleting ? t("deletingBtn") : t("deleteConfirmBtn")}
+                                </button>
                             </div>
-                        </div>
-
-                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                            {t("deleteModalText")}
-                        </p>
-
-                        <div className="flex items-center justify-end gap-3 pt-2">
-                            <button
-                                type="button"
-                                disabled={isDeleting}
-                                onClick={() => setDeleteModalUser(null)}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl px-5 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                                {t("cancelBtn")}
-                            </button>
-                            <button
-                                type="button"
-                                disabled={isDeleting}
-                                onClick={confirmDeleteDirector}
-                                className="bg-red-500 hover:bg-red-600 text-white rounded-xl px-5 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                            >
-                                {isDeleting ? t("deletingBtn") : t("deleteConfirmBtn")}
-                            </button>
                         </div>
                     </div>
                 </div>

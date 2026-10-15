@@ -74,6 +74,16 @@ export default function HRRegulationsPage() {
 
     const [viewingPolicy, setViewingPolicy] = useState<PolicyItem | null>(null);
     const [signaturesPolicy, setSignaturesPolicy] = useState<PolicyItem | null>(null);
+    const [deletingPolicyId, setDeletingPolicyId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+    const showToast = (message: string, type: "success" | "error" = "success") => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast(null);
+        }, 3500);
+    };
 
     const loadPolicies = async () => {
         try {
@@ -91,21 +101,36 @@ export default function HRRegulationsPage() {
     }, [search]);
 
     const handleCreateOrUpdate = async (formData: FormData, editingId?: string) => {
-        if (editingId) {
-            await updatePolicy(editingId, formData);
-        } else {
-            await createPolicy(formData);
-        }
-        await loadPolicies();
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!confirm(t("deleteConfirm"))) return;
         try {
-            await deletePolicy(id);
+            if (editingId) {
+                await updatePolicy(editingId, formData);
+                showToast("Nizom muvaffaqiyatli yangilandi", "success");
+            } else {
+                await createPolicy(formData);
+                showToast("Nizom muvaffaqiyatli yaratildi", "success");
+            }
             await loadPolicies();
         } catch (err: any) {
-            alert(err.message || "Xatolik yuz berdi");
+            showToast(err.message || "Xatolik yuz berdi", "error");
+        }
+    };
+
+    const handleDelete = (id: string) => {
+        setDeletingPolicyId(id);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingPolicyId) return;
+        setIsDeleting(true);
+        try {
+            await deletePolicy(deletingPolicyId);
+            setDeletingPolicyId(null);
+            await loadPolicies();
+            showToast("Nizom muvaffaqiyatli o'chirildi", "success");
+        } catch (err: any) {
+            showToast(err.message || "Xatolik yuz berdi", "error");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -272,6 +297,74 @@ export default function HRRegulationsPage() {
                 onClose={() => setViewingPolicy(null)}
                 isEmployeeView={false}
             />
+
+            {deletingPolicyId && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all scale-100">
+                        <div className="flex items-center gap-3.5 mb-2">
+                            <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Nizomni o'chirish
+                            </h3>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">
+                            Ushbu nizomni o'chirib tashlamoqchimisiz?
+                        </p>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={() => setDeletingPolicyId(null)}
+                                className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={confirmDelete}
+                                className="px-5 py-2.5 rounded-xl bg-rose-500 text-white font-medium hover:bg-rose-600 transition-colors cursor-pointer disabled:opacity-50 shadow-sm"
+                            >
+                                {isDeleting ? "O'chirilmoqda..." : "O'chirish"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div className="fixed top-5 right-5 z-50 bg-white rounded-xl shadow-lg border border-gray-100 p-4 flex items-center gap-3 transform transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+                    {toast.type === "error" ? (
+                        <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    )}
+                    <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-900">
+                            {toast.message}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setToast(null)}
+                        className="text-slate-400 hover:text-slate-600 text-xs ml-2 cursor-pointer"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
