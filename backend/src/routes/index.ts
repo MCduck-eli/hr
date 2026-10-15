@@ -25,6 +25,7 @@ import roleRouter from "../modules/roles/role-route";
 import analyticsRouter from "../modules/analytics/analytics-route";
 import enpsRouter from "../modules/enps/enps-route";
 import trialRouter from "../modules/trials/trial-route";
+import backupRouter from "../modules/backup/backup-route";
 
 const mainRouter = Router();
 
@@ -57,5 +58,7 @@ mainRouter.use("/v1/analytics", analyticsRouter);
 mainRouter.use("/roles", roleRouter);
 mainRouter.use("/v1/trials", trialRouter);
 mainRouter.use("/trials", trialRouter);
+mainRouter.use("/v1/backup", backupRouter);
+mainRouter.use("/backup", backupRouter);
 
 export default mainRouter;

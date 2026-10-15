@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Skeleton from "@/src/components/ui/Skeleton";
 import { createUser, updateUser } from "@/src/services/user-service";
-import TrialNotificationDropdown from "@/src/components/super-admin/TrialNotificationDropdown";
 
 function DirectorAvatar({ user }: { user: any }) {
     const [imageError, setImageError] = useState(false);
@@ -415,7 +414,7 @@ export default function SuperAdminDashboard() {
     };
 
     return (
-        <div className="min-h-[calc(100vh-64px)] bg-slate-50/60 p-4 md:p-8">
+        <div className="min-h-full">
             <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
                     <div>
@@ -429,7 +428,6 @@ export default function SuperAdminDashboard() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <TrialNotificationDropdown locale={locale} />
                         <div className="bg-white border border-gray-100 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] px-4 py-2 rounded-2xl text-xs font-bold text-slate-700 flex items-center gap-2.5 w-fit">
                             <span className="text-slate-400 font-medium uppercase">{t("totalCompanies")}:</span>
                             <span className="font-mono text-sm font-black text-slate-950">{directors.length}</span>
