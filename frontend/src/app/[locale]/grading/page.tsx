@@ -7,6 +7,8 @@ import GradingManager from "@/src/components/grading/GradingManager";
 
 import Skeleton from "@/src/components/ui/Skeleton";
 
+import { motion } from "framer-motion";
+
 export default function GradingPage() {
     const t = useTranslations("Grading");
     const router = useRouter();
@@ -55,7 +57,12 @@ export default function GradingPage() {
         <div className="min-h-screen bg-[#fafafa] text-gray-900 pb-20 font-sans">
             <div className="border-b border-gray-100 bg-white">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
                         <div>
                             <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">
                                 <span>{t("breadcrumbParent")}</span>
@@ -69,7 +76,7 @@ export default function GradingPage() {
                                 {t("pageSubtitle")}
                             </p>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 

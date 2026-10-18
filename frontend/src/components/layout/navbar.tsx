@@ -188,7 +188,7 @@ export default function Navbar() {
                 <div className="hidden md:flex items-center gap-5">
                     <LanguageSwitcher />
 
-                    {isLoggedIn && userRole !== "SUPER_ADMIN" && <NotificationBell />}
+                    {isLoggedIn && userRole !== "SUPER_ADMIN" && userRole !== "DIRECTOR" && <NotificationBell />}
 
                     {isLoadingUser ? (
                         <div className="flex items-center gap-2 animate-pulse">

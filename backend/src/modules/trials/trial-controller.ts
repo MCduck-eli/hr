@@ -53,6 +53,21 @@ export class TrialController {
             next(error);
         }
     }
+
+    async extend(req: Request, res: Response, next: NextFunction) {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const { newEndDate } = req.body;
+            const result = await trialService.extendTrialRequest(id, newEndDate);
+            res.status(200).json({
+                status: "success",
+                message: "Sinov muddati muvaffaqiyatli uzaytirildi",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const trialController = new TrialController();

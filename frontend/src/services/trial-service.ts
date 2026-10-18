@@ -84,3 +84,18 @@ export const rejectTrialRequest = async (id: string): Promise<any> => {
 
     return data;
 };
+
+export const extendTrialRequest = async (id: string, newEndDate: string): Promise<any> => {
+    const res = await fetch(`${API_URL}/trials/${id}/extend`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({ newEndDate }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+        throw new Error(data.message || "Muddatni uzaytirishda xatolik yuz berdi");
+    }
+
+    return data;
+};

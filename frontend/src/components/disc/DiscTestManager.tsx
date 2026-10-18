@@ -16,6 +16,7 @@ import {
 } from "@/src/services/disc-service";
 import Skeleton from "@/src/components/ui/Skeleton";
 import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
+import { motion } from "framer-motion";
 
 interface DiscTestManagerProps {
     locale?: string;
@@ -365,7 +366,12 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
 
     return (
         <div className="flex flex-col gap-8 max-w-[1400px] mx-auto py-8 px-4 md:px-8 font-sans">
-            <div className="flex flex-col gap-2 border-b border-gray-100 pb-6">
+            <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col gap-2 border-b border-gray-100 pb-6"
+            >
                 <div className="text-xs font-bold uppercase tracking-widest text-[#9327FF]">
                     {t("badge")}
                 </div>
@@ -412,7 +418,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                         )}
                     </div>
                 </div>
-            </div>
+            </motion.div>
 
             {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 p-4 text-xs font-bold uppercase tracking-wider rounded-2xl flex items-center justify-between">
@@ -548,7 +554,12 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                             )}
                         </>
                     ) : (
-                        <div className="rounded-3xl border border-gray-100 bg-white p-16 text-center flex flex-col items-center gap-6 shadow-sm">
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="rounded-3xl border border-gray-100 bg-white p-16 text-center flex flex-col items-center gap-6 shadow-sm"
+                        >
                             <div className="w-16 h-16 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center text-3xl font-black">
                                 🎯
                             </div>
@@ -566,13 +577,18 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                             >
                                 {t("startTest", { count: questions.length })}
                             </button>
-                        </div>
+                        </motion.div>
                     )}
                 </div>
             )}
 
             {activeTab === "test" && (
-                <div className="max-w-3xl mx-auto w-full bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-8">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="max-w-3xl mx-auto w-full bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-8"
+                >
                     <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                         <div>
                             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
@@ -596,36 +612,48 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                     </div>
 
                     {currentQ && (
-                        <div className="space-y-6">
-                            <h3 className="text-base md:text-lg font-semibold text-gray-900 leading-snug">
+                        <div key={currentQ.id} className="space-y-6">
+                            <motion.h3
+                                key={`title-${currentQ.id}`}
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25 }}
+                                className="text-base md:text-lg font-semibold text-gray-900 leading-snug"
+                            >
                                 {currentQ.order}. {currentQ.text}
-                            </h3>
+                            </motion.h3>
 
                             <div className="space-y-3">
-                                {currentQ.options.map((option) => {
+                                {currentQ.options.map((option, index) => {
                                     const isSelected = answers[currentQ.id] === option.id;
                                     return (
-                                        <button
-                                            key={option.id}
-                                            type="button"
-                                            onClick={() => handleSelectOption(currentQ.id, option.id)}
-                                            className={`w-full text-left p-4 rounded-xl border cursor-pointer transition-all duration-200 flex items-start gap-3.5 ${
-                                                isSelected
-                                                    ? "border-violet-500 bg-violet-50 ring-1 ring-violet-500 shadow-xs font-medium text-gray-900"
-                                                    : "border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50 text-gray-800"
-                                            }`}
+                                        <motion.div
+                                            key={`${currentQ.id}-${option.id}`}
+                                            initial={{ opacity: 0, y: 15 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.25, delay: index * 0.1 }}
                                         >
-                                            <div
-                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 mt-0.5 ${
-                                                    isSelected ? "bg-violet-600 text-white font-bold" : "border border-gray-300 bg-white"
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSelectOption(currentQ.id, option.id)}
+                                                className={`w-full text-left p-4 rounded-xl border cursor-pointer transition-all duration-200 flex items-start gap-3.5 ${
+                                                    isSelected
+                                                        ? "border-violet-500 bg-violet-50 ring-1 ring-violet-500 shadow-xs font-medium text-gray-900"
+                                                        : "border-gray-200 bg-white hover:border-violet-300 hover:bg-violet-50 text-gray-800"
                                                 }`}
                                             >
-                                                {isSelected ? "✓" : ""}
-                                            </div>
-                                            <span className="text-xs md:text-sm leading-relaxed">
-                                                {option.text}
-                                            </span>
-                                        </button>
+                                                <div
+                                                    className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 mt-0.5 ${
+                                                        isSelected ? "bg-violet-600 text-white font-bold" : "border border-gray-300 bg-white"
+                                                    }`}
+                                                >
+                                                    {isSelected ? "✓" : ""}
+                                                </div>
+                                                <span className="text-xs md:text-sm leading-relaxed">
+                                                    {option.text}
+                                                </span>
+                                            </button>
+                                        </motion.div>
                                     );
                                 })}
                             </div>
@@ -661,7 +689,7 @@ export default function DiscTestManager({ locale = "uz" }: DiscTestManagerProps)
                             </button>
                         )}
                     </div>
-                </div>
+                </motion.div>
             )}
 
             {activeTab === "team" && canViewTeamAnalytics && (

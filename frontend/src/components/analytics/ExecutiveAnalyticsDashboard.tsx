@@ -10,6 +10,8 @@ import AnalyticsExport from "./AnalyticsExport";
 import EnpsQuestionManagerModal from "./EnpsQuestionManagerModal";
 import Skeleton from "@/src/components/ui/Skeleton";
 import { getQueryData, setQueryData, isQueryStale } from "@/src/utils/query-cache";
+import { motion } from "framer-motion";
+import AnimatedNumber from "@/src/components/ui/AnimatedNumber";
 
 interface ExecutiveAnalyticsDashboardProps {
     initialDepartmentId?: string;
@@ -26,6 +28,11 @@ export default function ExecutiveAnalyticsDashboard({
     const [data, setData] = useState<ExecutiveSummaryResponse | null>(() => getQueryData<ExecutiveSummaryResponse>(`analytics:${initialDepartmentId || ""}:year`));
     const [loading, setLoading] = useState(() => !getQueryData(`analytics:${initialDepartmentId || ""}:year`));
     const [error, setError] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const loadAnalytics = async () => {
         const cached = getQueryData<ExecutiveSummaryResponse>(cacheKey);
@@ -165,8 +172,27 @@ export default function ExecutiveAnalyticsDashboard({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+            <motion.div
+                initial="hidden"
+                animate="show"
+                variants={{
+                    hidden: { opacity: 0 },
+                    show: {
+                        opacity: 1,
+                        transition: {
+                            staggerChildren: 0.08,
+                        },
+                    },
+                }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+            >
+                <motion.div
+                    variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+                    }}
+                    className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                >
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                             Jami Xodimlar
@@ -178,10 +204,10 @@ export default function ExecutiveAnalyticsDashboard({
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col">
                             <span className="text-3xl font-black font-mono text-slate-950">
-                                {data.headcount.totalActive}
+                                <AnimatedNumber value={data.headcount.totalActive} />
                             </span>
                             <span className="text-xs font-bold text-emerald-600 mt-0.5">
-                                +{data.headcount.newHiresYear} yangi qabul
+                                <AnimatedNumber value={data.headcount.newHiresYear} prefix="+" /> yangi qabul
                             </span>
                         </div>
                         <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xs">
@@ -190,11 +216,19 @@ export default function ExecutiveAnalyticsDashboard({
                     </div>
                     <div className="text-[11px] font-medium text-slate-500 border-t border-slate-100 pt-2.5 flex items-center justify-between">
                         <span>O'rtacha staj:</span>
-                        <span className="font-bold text-slate-900">{data.headcount.avgTenureMonths} oy</span>
+                        <span className="font-bold text-slate-900">
+                            <AnimatedNumber value={data.headcount.avgTenureMonths} /> oy
+                        </span>
                     </div>
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                <motion.div
+                    variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+                    }}
+                    className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                >
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                             Turnover Rate
@@ -214,7 +248,7 @@ export default function ExecutiveAnalyticsDashboard({
                                         : "text-emerald-600"
                                 }`}
                             >
-                                {data.turnover.turnoverRate}%
+                                <AnimatedNumber value={data.turnover.turnoverRate} suffix="%" />
                             </span>
                             <span className="text-xs font-medium text-slate-400">
                                 (Yillik qo'nimsizlik)
@@ -231,14 +265,14 @@ export default function ExecutiveAnalyticsDashboard({
                                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 />
                                 <path
-                                    className={
+                                    className={`transition-all duration-1000 ease-out ${
                                         data.turnover.turnoverRate > 15
                                             ? "text-rose-500"
                                             : data.turnover.turnoverRate > 8
                                             ? "text-amber-500"
                                             : "text-emerald-500"
-                                    }
-                                    strokeDasharray={`${Math.min(100, Math.max(5, data.turnover.turnoverRate * 3))}, 100`}
+                                    }`}
+                                    strokeDasharray={`${Math.min(100, Math.max(5, (mounted ? data.turnover.turnoverRate * 3 : 0)))}, 100`}
                                     strokeWidth="3.5"
                                     strokeLinecap="round"
                                     stroke="currentColor"
@@ -247,17 +281,25 @@ export default function ExecutiveAnalyticsDashboard({
                                 />
                             </svg>
                             <span className="absolute font-mono text-[10px] font-black text-slate-800">
-                                {data.turnover.turnoverRate}%
+                                <AnimatedNumber value={data.turnover.turnoverRate} suffix="%" />
                             </span>
                         </div>
                     </div>
                     <div className="text-[11px] font-medium text-slate-500 border-t border-slate-100 pt-2.5 flex items-center justify-between">
                         <span>Retention (Saqlash):</span>
-                        <span className="font-bold text-emerald-600">{data.turnover.retentionRate}%</span>
+                        <span className="font-bold text-emerald-600">
+                            <AnimatedNumber value={data.turnover.retentionRate} suffix="%" />
+                        </span>
                     </div>
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                <motion.div
+                    variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+                    }}
+                    className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                >
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                             eNPS Sodiqlik
@@ -277,7 +319,7 @@ export default function ExecutiveAnalyticsDashboard({
                                         : "text-rose-600"
                                 }`}
                             >
-                                {data.enps.avgScore ?? 0}
+                                <AnimatedNumber value={data.enps.avgScore ?? 0} decimals={1} />
                             </span>
                             <span className="text-xs font-medium text-slate-400">
                                 / 10 o'rtacha ball
@@ -294,14 +336,14 @@ export default function ExecutiveAnalyticsDashboard({
                                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 />
                                 <path
-                                    className={
+                                    className={`transition-all duration-1000 ease-out ${
                                         (data.enps.avgScore ?? 0) >= 8
                                             ? "text-emerald-500"
                                             : (data.enps.avgScore ?? 0) >= 6
                                             ? "text-[#9327FF]"
                                             : "text-rose-500"
-                                    }
-                                    strokeDasharray={`${Math.min(100, Math.max(5, ((data.enps.avgScore ?? 0) / 10) * 100))}, 100`}
+                                    }`}
+                                    strokeDasharray={`${Math.min(100, Math.max(5, (mounted ? ((data.enps.avgScore ?? 0) / 10) * 100 : 0)))}, 100`}
                                     strokeWidth="3.5"
                                     strokeLinecap="round"
                                     stroke="currentColor"
@@ -310,17 +352,25 @@ export default function ExecutiveAnalyticsDashboard({
                                 />
                             </svg>
                             <span className="absolute font-mono text-[10px] font-black text-slate-800">
-                                {data.enps.score > 0 ? `+${data.enps.score}` : data.enps.score}
+                                <AnimatedNumber value={data.enps.score} prefix={data.enps.score > 0 ? "+" : ""} />
                             </span>
                         </div>
                     </div>
                     <div className="text-[11px] font-medium text-slate-500 border-t border-slate-100 pt-2.5 flex items-center justify-between">
                         <span>Ishtirokchilar:</span>
-                        <span className="font-bold text-slate-900">{data.enps.totalResponses} nafar</span>
+                        <span className="font-bold text-slate-900">
+                            <AnimatedNumber value={data.enps.totalResponses} /> nafar
+                        </span>
                     </div>
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                <motion.div
+                    variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+                    }}
+                    className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                >
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                             High Potentials
@@ -332,10 +382,10 @@ export default function ExecutiveAnalyticsDashboard({
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col">
                             <span className="text-3xl font-black font-mono text-[#9327FF]">
-                                {data.nineBoxSummary.highPotentialCount}
+                                <AnimatedNumber value={data.nineBoxSummary.highPotentialCount} />
                             </span>
                             <span className="text-xs font-medium text-slate-400">
-                                ({data.nineBoxSummary.highPotentialPct}% jami xodimlar)
+                                (<AnimatedNumber value={data.nineBoxSummary.highPotentialPct} suffix="%" /> jami xodimlar)
                             </span>
                         </div>
 
@@ -349,8 +399,8 @@ export default function ExecutiveAnalyticsDashboard({
                                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 />
                                 <path
-                                    className="text-[#9327FF]"
-                                    strokeDasharray={`${Math.min(100, Math.max(5, data.nineBoxSummary.highPotentialPct))}, 100`}
+                                    className="text-[#9327FF] transition-all duration-1000 ease-out"
+                                    strokeDasharray={`${Math.min(100, Math.max(5, (mounted ? data.nineBoxSummary.highPotentialPct : 0)))}, 100`}
                                     strokeWidth="3.5"
                                     strokeLinecap="round"
                                     stroke="currentColor"
@@ -359,16 +409,18 @@ export default function ExecutiveAnalyticsDashboard({
                                 />
                             </svg>
                             <span className="absolute font-mono text-[10px] font-black text-slate-800">
-                                {data.nineBoxSummary.highPotentialPct}%
+                                <AnimatedNumber value={data.nineBoxSummary.highPotentialPct} suffix="%" />
                             </span>
                         </div>
                     </div>
                     <div className="text-[11px] font-medium text-slate-500 border-t border-slate-100 pt-2.5 flex items-center justify-between">
                         <span>Xavf guruhi:</span>
-                        <span className="font-bold text-rose-600">{data.nineBoxSummary.riskCount} nafar</span>
+                        <span className="font-bold text-rose-600">
+                            <AnimatedNumber value={data.nineBoxSummary.riskCount} /> nafar
+                        </span>
                     </div>
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
@@ -410,8 +462,8 @@ export default function ExecutiveAnalyticsDashboard({
                                         </div>
                                         <div className="w-full flex items-end justify-center gap-1 h-28">
                                             <div
-                                                className="w-1/2 bg-emerald-500 hover:bg-emerald-600 rounded-t-md transition-all flex items-end justify-center"
-                                                style={{ height: `${t.hires > 0 ? hireHeight : 4}%` }}
+                                                className="w-1/2 bg-emerald-500 hover:bg-emerald-600 rounded-t-md transition-all duration-1000 ease-out flex items-end justify-center"
+                                                style={{ height: `${mounted ? (t.hires > 0 ? hireHeight : 4) : 0}%` }}
                                                 title={`Yangi qabul: ${t.hires} nafar`}
                                             >
                                                 {t.hires > 0 && (
@@ -421,8 +473,8 @@ export default function ExecutiveAnalyticsDashboard({
                                                 )}
                                             </div>
                                             <div
-                                                className="w-1/2 bg-rose-500 hover:bg-rose-600 rounded-t-md transition-all flex items-end justify-center"
-                                                style={{ height: `${t.exits > 0 ? exitHeight : 4}%` }}
+                                                className="w-1/2 bg-rose-500 hover:bg-rose-600 rounded-t-md transition-all duration-1000 ease-out flex items-end justify-center"
+                                                style={{ height: `${mounted ? (t.exits > 0 ? exitHeight : 4) : 0}%` }}
                                                 title={`Bo'shatilgan: ${t.exits} nafar`}
                                             >
                                                 {t.exits > 0 && (
@@ -487,22 +539,22 @@ export default function ExecutiveAnalyticsDashboard({
                         <div className="flex flex-col gap-1.5">
                             <div className="w-full h-7 bg-slate-100 rounded-xl flex overflow-hidden border border-slate-200/80">
                                 <div
-                                    className="bg-emerald-500 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all"
-                                    style={{ width: `${data.enps.promotersPct}%` }}
+                                    className="bg-emerald-500 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-1000 ease-out"
+                                    style={{ width: `${mounted ? data.enps.promotersPct : 0}%` }}
                                     title={`Promoters: ${data.enps.promotersPct}%`}
                                 >
                                     {data.enps.promotersPct > 10 ? `${data.enps.promotersPct}%` : ""}
                                 </div>
                                 <div
-                                    className="bg-amber-400 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all"
-                                    style={{ width: `${data.enps.passivesPct}%` }}
+                                    className="bg-amber-400 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-1000 ease-out"
+                                    style={{ width: `${mounted ? data.enps.passivesPct : 0}%` }}
                                     title={`Passives: ${data.enps.passivesPct}%`}
                                 >
                                     {data.enps.passivesPct > 10 ? `${data.enps.passivesPct}%` : ""}
                                 </div>
                                 <div
-                                    className="bg-rose-500 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all"
-                                    style={{ width: `${data.enps.detractorsPct}%` }}
+                                    className="bg-rose-500 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-1000 ease-out"
+                                    style={{ width: `${mounted ? data.enps.detractorsPct : 0}%` }}
                                     title={`Detractors: ${data.enps.detractorsPct}%`}
                                 >
                                     {data.enps.detractorsPct > 10 ? `${data.enps.detractorsPct}%` : ""}
@@ -516,10 +568,10 @@ export default function ExecutiveAnalyticsDashboard({
                                     Promoters (9-10)
                                 </span>
                                 <span className="text-xl font-black font-mono text-emerald-900 mt-1">
-                                    {data.enps.promotersPct}%
+                                    <AnimatedNumber value={data.enps.promotersPct} suffix="%" />
                                 </span>
                                 <span className="text-[10px] text-emerald-700/70">
-                                    {data.enps.promotersCount} nafar xodim
+                                    <AnimatedNumber value={data.enps.promotersCount} /> nafar xodim
                                 </span>
                             </div>
 
@@ -528,10 +580,10 @@ export default function ExecutiveAnalyticsDashboard({
                                     Passives (7-8)
                                 </span>
                                 <span className="text-xl font-black font-mono text-amber-900 mt-1">
-                                    {data.enps.passivesPct}%
+                                    <AnimatedNumber value={data.enps.passivesPct} suffix="%" />
                                 </span>
                                 <span className="text-[10px] text-amber-700/70">
-                                    {data.enps.passivesCount} nafar xodim
+                                    <AnimatedNumber value={data.enps.passivesCount} /> nafar xodim
                                 </span>
                             </div>
 
@@ -540,10 +592,10 @@ export default function ExecutiveAnalyticsDashboard({
                                     Detractors (0-6)
                                 </span>
                                 <span className="text-xl font-black font-mono text-rose-900 mt-1">
-                                    {data.enps.detractorsPct}%
+                                    <AnimatedNumber value={data.enps.detractorsPct} suffix="%" />
                                 </span>
                                 <span className="text-[10px] text-rose-700/70">
-                                    {data.enps.detractorsCount} nafar xodim
+                                    <AnimatedNumber value={data.enps.detractorsCount} /> nafar xodim
                                 </span>
                             </div>
                         </div>
@@ -636,11 +688,13 @@ export default function ExecutiveAnalyticsDashboard({
                                             <div className="flex items-center gap-2">
                                                 <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
                                                     <div
-                                                        className="h-full bg-[#9327FF] rounded-full"
-                                                        style={{ width: `${dept.headcountPercentage}%` }}
+                                                        className="h-full bg-[#9327FF] rounded-full transition-all duration-1000 ease-out"
+                                                        style={{ width: `${mounted ? dept.headcountPercentage : 0}%` }}
                                                     />
                                                 </div>
-                                                <span className="font-mono text-slate-600">{dept.headcountPercentage}%</span>
+                                                <span className="font-mono text-slate-600">
+                                                    <AnimatedNumber value={dept.headcountPercentage} suffix="%" />
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="p-3.5">

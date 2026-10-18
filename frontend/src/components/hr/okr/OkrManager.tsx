@@ -15,6 +15,7 @@ import {
 import { fetchDepartments } from "@/src/services/department-service";
 import Skeleton from "@/src/components/ui/Skeleton";
 import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
+import { motion } from "framer-motion";
 
 export default function OkrManager() {
     const t = useTranslations("HROkr");
@@ -348,7 +349,12 @@ export default function OkrManager() {
 
     return (
         <div className="p-8 max-w-6xl mx-auto font-sans">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 pb-6 border-b border-gray-100">
+            <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 pb-6 border-b border-gray-100"
+            >
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-1">{t("title")}</h1>
                     <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">{t("subtitle")}</p>
@@ -382,7 +388,7 @@ export default function OkrManager() {
                         {t("newOkr")}
                     </button>
                 </div>
-            </div>
+            </motion.div>
 
             {loading && !dashboard ? (
                 <div className="flex flex-col gap-10 animate-pulse">
@@ -441,14 +447,19 @@ export default function OkrManager() {
                     </div>
                 </div>
             ) : !dashboard ? (
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-16 flex flex-col items-center justify-center gap-3 text-center">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-3xl border border-gray-100 shadow-sm p-16 flex flex-col items-center justify-center gap-3 text-center"
+                >
                     <div className="w-12 h-12 rounded-2xl bg-gray-50 text-gray-400 flex items-center justify-center text-2xl">
                         📂
                     </div>
                     <span className="text-gray-400 font-medium text-sm">
                         {t("noData")}
                     </span>
-                </div>
+                </motion.div>
             ) : (
                 <div className="flex flex-col gap-10">
                     {pendingCheckIns.length > 0 && (
@@ -458,12 +469,18 @@ export default function OkrManager() {
                                 <span>{t("pendingTasks")} ({pendingCheckIns.length})</span>
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {pendingCheckIns.map((ci: any) => {
+                                {pendingCheckIns.map((ci: any, idx: number) => {
                                     const initialVal = ci.value !== undefined && ci.value !== null ? Number(ci.value) : 100;
                                     const currentVal = reviewProgressMap[ci.id] !== undefined ? reviewProgressMap[ci.id] : initialVal;
 
                                     return (
-                                        <div key={ci.id} className="rounded-2xl border border-orange-200 bg-orange-50/40 p-5 flex flex-col gap-4 shadow-sm">
+                                        <motion.div
+                                            key={ci.id}
+                                            initial={{ opacity: 0, y: 15 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.3, delay: idx * 0.05 }}
+                                            className="rounded-2xl border border-orange-200 bg-orange-50/40 p-5 flex flex-col gap-4 shadow-sm"
+                                        >
                                             <div className="flex justify-between items-start">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
@@ -557,7 +574,7 @@ export default function OkrManager() {
                                                     </button>
                                                 </div>
                                             )}
-                                        </div>
+                                        </motion.div>
                                     );
                                 })}
                             </div>
@@ -565,30 +582,45 @@ export default function OkrManager() {
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 relative overflow-hidden group hover:shadow-md transition-all">
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.05 }}
+                            className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 relative overflow-hidden group hover:shadow-md transition-all"
+                        >
                             <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">{t("companyProgress")}</h3>
                             <div className="flex items-end gap-2">
                                 <span className="text-4xl font-black font-mono tracking-tight text-gray-900">{Math.round(dashboard.summary?.overallCompanyProgress || 0)}</span>
                                 <span className="text-gray-400 font-bold mb-1">%</span>
                             </div>
                             <div className="absolute bottom-0 left-0 h-1.5 bg-[#9327FF] transition-all rounded-full" style={{ width: `${dashboard.summary?.overallCompanyProgress || 0}%` }} />
-                        </div>
-                        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 relative overflow-hidden group hover:shadow-md transition-all">
+                        </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
+                            className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 relative overflow-hidden group hover:shadow-md transition-all"
+                        >
                             <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">{t("departmentProgress")}</h3>
                             <div className="flex items-end gap-2">
                                 <span className="text-4xl font-black font-mono tracking-tight text-blue-600">{Math.round(dashboard.summary?.overallDepartmentProgress || 0)}</span>
                                 <span className="text-gray-400 font-bold mb-1">%</span>
                             </div>
                             <div className="absolute bottom-0 left-0 h-1.5 bg-blue-600 transition-all rounded-full" style={{ width: `${dashboard.summary?.overallDepartmentProgress || 0}%` }} />
-                        </div>
-                        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 relative overflow-hidden group hover:shadow-md transition-all">
+                        </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.15 }}
+                            className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 relative overflow-hidden group hover:shadow-md transition-all"
+                        >
                             <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">{t("employeeProgress")}</h3>
                             <div className="flex items-end gap-2">
                                 <span className="text-4xl font-black font-mono tracking-tight text-emerald-600">{Math.round(dashboard.summary?.overallIndividualProgress || 0)}</span>
                                 <span className="text-gray-400 font-bold mb-1">%</span>
                             </div>
                             <div className="absolute bottom-0 left-0 h-1.5 bg-emerald-600 transition-all rounded-full" style={{ width: `${dashboard.summary?.overallIndividualProgress || 0}%` }} />
-                        </div>
+                        </motion.div>
                     </div>
 
                     <div className="flex flex-col gap-6">
@@ -635,14 +667,19 @@ export default function OkrManager() {
                                 return (
                                     <div>
                                         {displayedObjectives.length === 0 ? (
-                                            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center gap-2 text-center">
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ duration: 0.3 }}
+                                                className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center gap-2 text-center"
+                                            >
                                                 <div className="w-10 h-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center text-xl">
                                                     🎯
                                                 </div>
                                                 <span className="text-sm text-gray-400 font-medium">
                                                     Yakunlangan OKR lar mavjud emas
                                                 </span>
-                                            </div>
+                                            </motion.div>
                                         ) : (
                                             <div className="overflow-x-auto bg-white rounded-2xl border border-gray-100 shadow-sm">
                                                 <table className="w-full text-left border-collapse text-sm">
@@ -655,7 +692,7 @@ export default function OkrManager() {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100">
-                                                        {displayedObjectives.map((okr: any) => {
+                                                        {displayedObjectives.map((okr: any, idx: number) => {
                                                             const isExpanded = expandedRowId === okr.id;
                                                             const assignee = okr.employee
                                                                 ? `${okr.employee.firstName} ${okr.employee.lastName}`
@@ -689,7 +726,10 @@ export default function OkrManager() {
 
                                                             return (
                                                                 <React.Fragment key={okr.id}>
-                                                                    <tr
+                                                                    <motion.tr
+                                                                        initial={{ opacity: 0, y: 10 }}
+                                                                        animate={{ opacity: 1, y: 0 }}
+                                                                        transition={{ duration: 0.25, delay: idx * 0.04 }}
                                                                         onClick={() => setExpandedRowId(isExpanded ? null : okr.id)}
                                                                         className="hover:bg-gray-50 cursor-pointer transition-colors"
                                                                     >
@@ -725,7 +765,7 @@ export default function OkrManager() {
                                                                                 </span>
                                                                             </div>
                                                                         </td>
-                                                                    </tr>
+                                                                    </motion.tr>
                                                                     {isExpanded && (
                                                                         <tr className="bg-gray-50/80 border-b border-gray-100">
                                                                             <td colSpan={4} className="p-4 sm:p-6">
@@ -808,11 +848,17 @@ export default function OkrManager() {
 
                             return (
                                 <div className="grid grid-cols-1 gap-4">
-                                    {displayedObjectives.map((okr: any) => {
+                                    {displayedObjectives.map((okr: any, index: number) => {
                                         const isReadOnly = false;
 
                                         return (
-                                            <div key={okr.id} className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col gap-6 hover:shadow-md transition-all relative group">
+                                            <motion.div
+                                                key={okr.id}
+                                                initial={{ opacity: 0, y: 15 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.3, delay: index * 0.05 }}
+                                                className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col gap-6 hover:shadow-md transition-all relative group"
+                                            >
                                                 <div className="flex justify-between items-start">
                                                     <div className="flex flex-col gap-2">
                                                         <div className="flex items-center gap-2.5">
@@ -873,18 +919,23 @@ export default function OkrManager() {
                                                         </div>
                                                     </div>
                                                 )}
-                                            </div>
+                                            </motion.div>
                                         );
                                     })}
                                     {displayedObjectives.length === 0 && (
-                                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center gap-2 text-center">
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center gap-2 text-center"
+                                        >
                                             <div className="w-10 h-10 rounded-xl bg-gray-50 text-gray-400 flex items-center justify-center text-xl">
                                                 🎯
                                             </div>
                                             <span className="text-sm text-gray-400 font-medium">
                                                 {t("noOkrsInCycle")}
                                             </span>
-                                        </div>
+                                        </motion.div>
                                     )}
                                 </div>
                             );
@@ -895,7 +946,12 @@ export default function OkrManager() {
 
             {isModalOpen && (
                 <div id="okr-form" className="mt-12 flex justify-center">
-                    <div className="bg-white max-w-3xl w-full rounded-3xl border border-gray-100 shadow-2xl overflow-hidden">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="bg-white max-w-3xl w-full rounded-3xl border border-gray-100 shadow-2xl overflow-hidden"
+                    >
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/60">
                             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-900">{editingObjective ? t("editOkrTitle") : t("newOkrTitle")}</h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 p-1 transition-colors cursor-pointer">
@@ -1142,13 +1198,18 @@ export default function OkrManager() {
                                 </button>
                             </div>
                         </form>
-                    </div>
+                    </motion.div>
                 </div>
             )}
 
             {isCycleModalOpen && (
                 <div id="cycle-form" className="mt-12 flex justify-center">
-                    <div className="bg-white max-w-2xl w-full rounded-3xl border border-gray-100 shadow-2xl overflow-hidden">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="bg-white max-w-2xl w-full rounded-3xl border border-gray-100 shadow-2xl overflow-hidden"
+                    >
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/60">
                             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-900">{t("createCycleTitle")}</h2>
                             <button onClick={() => setIsCycleModalOpen(false)} className="text-gray-400 hover:text-gray-900 p-1 transition-colors cursor-pointer">
@@ -1230,13 +1291,18 @@ export default function OkrManager() {
                                 </button>
                             </div>
                         </form>
-                    </div>
+                    </motion.div>
                 </div>
             )}
 
             {deleteTargetId && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-lg border border-gray-100 flex flex-col gap-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-lg border border-gray-100 flex flex-col gap-4"
+                    >
                         <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-1">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1274,7 +1340,7 @@ export default function OkrManager() {
                                 {isDeleting ? "O'chirilmoqda..." : "O'chirish"}
                             </button>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             )}
 

@@ -22,6 +22,8 @@ import RequestPromotionModal from "./RequestPromotionModal";
 import CareerHistoryModal from "./CareerHistoryModal";
 import Skeleton from "@/src/components/ui/Skeleton";
 import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
+import { motion } from "framer-motion";
+import AnimatedNumber from "@/src/components/ui/AnimatedNumber";
 
 export default function GradingManager() {
     const t = useTranslations("Grading");
@@ -57,6 +59,14 @@ export default function GradingManager() {
 
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [bannerMessage, setBannerMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const [progressMounted, setProgressMounted] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setProgressMounted(true);
+        }, 150);
+        return () => clearTimeout(timer);
+    }, []);
 
     useEffect(() => {
         const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
@@ -313,7 +323,12 @@ export default function GradingManager() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0 }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
+                >
                     <div className="flex items-center justify-between text-gray-500 mb-2">
                         <span className="text-[11px] font-bold uppercase tracking-wider">{t("totalGrades")}</span>
                         <div className="w-9 h-9 rounded-xl bg-purple-50 text-[#9327FF] flex items-center justify-center">
@@ -329,15 +344,22 @@ export default function GradingManager() {
                         </div>
                     ) : (
                         <>
-                            <div className="text-3xl font-bold text-gray-900 tracking-tight">{grades.length}</div>
+                            <div className="text-3xl font-bold text-gray-900 tracking-tight">
+                                <AnimatedNumber value={grades.length} duration={1200} />
+                            </div>
                             <div className="text-xs text-gray-500 mt-1 font-medium">
                                 {t("levelCategoriesCount", { count: Array.from(new Set(grades.map((g) => g.level))).length })}
                             </div>
                         </>
                     )}
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
+                >
                     <div className="flex items-center justify-between text-gray-500 mb-2">
                         <span className="text-[11px] font-bold uppercase tracking-wider">{t("gradedEmployees")}</span>
                         <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center">
@@ -354,16 +376,21 @@ export default function GradingManager() {
                     ) : (
                         <>
                             <div className="text-3xl font-bold text-gray-900 tracking-tight">
-                                {assignedEmployeesCount} / {employees.length}
+                                <AnimatedNumber value={assignedEmployeesCount} duration={1200} /> / <AnimatedNumber value={employees.length} duration={1200} />
                             </div>
                             <div className="text-xs text-gray-500 mt-1 font-medium">
                                 {t("employeeCoverage", { percent: employees.length > 0 ? Math.round((assignedEmployeesCount / employees.length) * 100) : 0 })}
                             </div>
                         </>
                     )}
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
+                >
                     <div className="flex items-center justify-between text-gray-500 mb-2">
                         <span className="text-[11px] font-bold uppercase tracking-wider">{t("avgSalaryRange")}</span>
                         <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
@@ -380,14 +407,19 @@ export default function GradingManager() {
                     ) : (
                         <>
                             <div className="text-base font-bold text-gray-900 tracking-tight mt-1 truncate">
-                                {avgMinSalary.toLocaleString()} - {avgMaxSalary.toLocaleString()}
+                                <AnimatedNumber value={avgMinSalary} formatThousands duration={1200} /> — <AnimatedNumber value={avgMaxSalary} formatThousands duration={1200} />
                             </div>
                             <div className="text-xs text-gray-500 mt-1 font-medium">{t("salaryRangeUnit")}</div>
                         </>
                     )}
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
+                >
                     <div className="flex items-center justify-between text-gray-500 mb-2">
                         <span className="text-[11px] font-bold uppercase tracking-wider">{t("promotionRequests")}</span>
                         <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
@@ -404,7 +436,7 @@ export default function GradingManager() {
                     ) : (
                         <>
                             <div className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                                <span>{pendingPromotionsCount}</span>
+                                <span><AnimatedNumber value={pendingPromotionsCount} duration={1200} /></span>
                                 {pendingPromotionsCount > 0 && (
                                     <span className="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider">
                                         {t("inReview")}
@@ -416,7 +448,7 @@ export default function GradingManager() {
                             </div>
                         </>
                     )}
-                </div>
+                </motion.div>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
@@ -569,12 +601,15 @@ export default function GradingManager() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                            {grades.map((grade) => {
+                            {grades.map((grade, index) => {
                                 const count = grade.employees ? grade.employees.length : 0;
                                 const lvlInfo = getLevelAccent(grade.level);
                                 return (
-                                    <div
+                                    <motion.div
                                         key={grade.id}
+                                        initial={{ opacity: 0, y: 15 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: index * 0.08 }}
                                         className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between hover:shadow-md transition-all relative"
                                     >
                                         <div>
@@ -596,10 +631,12 @@ export default function GradingManager() {
                                                     {t("salaryRange")}
                                                 </div>
                                                 <div className="text-sm font-bold text-gray-900">
-                                                    {grade.minSalary.toLocaleString()} — {grade.maxSalary.toLocaleString()} UZS
+                                                    <AnimatedNumber value={grade.minSalary} formatThousands duration={1200} /> — <AnimatedNumber value={grade.maxSalary} formatThousands duration={1200} /> UZS
                                                 </div>
                                                 <div className="w-full bg-gray-200/80 h-2 rounded-full overflow-hidden mt-2">
-                                                    <div className={`bg-gradient-to-r ${lvlInfo.progress} h-full w-full rounded-full`} />
+                                                    <div
+                                                        className={`bg-gradient-to-r ${lvlInfo.progress} h-full rounded-full transition-all duration-1000 ease-out ${progressMounted ? "w-full" : "w-0"}`}
+                                                    />
                                                 </div>
                                             </div>
 
@@ -659,7 +696,7 @@ export default function GradingManager() {
                                                 </div>
                                             )}
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 );
                             })}
                         </div>
@@ -731,7 +768,7 @@ export default function GradingManager() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredEmployees.map((emp) => {
+                                    filteredEmployees.map((emp, index) => {
                                         const salary = emp.salary || 0;
                                         const grade = emp.grade;
                                         let salaryStatus = null;
@@ -746,7 +783,13 @@ export default function GradingManager() {
                                         }
 
                                         return (
-                                            <tr key={emp.id} className="hover:bg-gray-50/60 transition-colors">
+                                            <motion.tr
+                                                key={emp.id}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.25, delay: index * 0.04 }}
+                                                className="hover:bg-gray-50/60 transition-colors"
+                                            >
                                                 <td className="p-4 font-bold text-gray-900">
                                                     <div>{emp.firstName} {emp.lastName}</div>
                                                     <div className="text-[11px] font-normal text-gray-400">{emp.user?.email}</div>
@@ -820,7 +863,7 @@ export default function GradingManager() {
                                                         </button>
                                                     </div>
                                                 </td>
-                                            </tr>
+                                            </motion.tr>
                                         );
                                     })
                                 )}
@@ -882,9 +925,12 @@ export default function GradingManager() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-4">
-                            {filteredPromotions.map((req) => (
-                                <div
+                            {filteredPromotions.map((req, index) => (
+                                <motion.div
                                     key={req.id}
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: index * 0.06 }}
                                     className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-5 transition-all"
                                 >
                                     <div className="space-y-3 flex-1">
@@ -964,7 +1010,7 @@ export default function GradingManager() {
                                             </button>
                                         </div>
                                     )}
-                                </div>
+                                </motion.div>
                             ))}
                         </div>
                     )}

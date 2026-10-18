@@ -1,5 +1,8 @@
+"use client";
+
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { motion } from "framer-motion";
 import { createCycle, updateCycle } from "@/src/services/feedback360-service";
 
 export default function CreateFeedbackCycleModal({
@@ -90,7 +93,12 @@ export default function CreateFeedbackCycleModal({
     };
 
     return (
-        <div className="mt-8 pt-6 border-t border-gray-100">
+        <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-8 pt-6 border-t border-gray-100"
+        >
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
                 <h2 className="text-lg font-bold uppercase tracking-wider text-gray-900 mb-6">
                     {t("createNewCycle") || "Yangi sikl yaratish"}
@@ -224,6 +232,6 @@ export default function CreateFeedbackCycleModal({
                     </div>
                 </form>
             </div>
-        </div>
+        </motion.div>
     );
 }

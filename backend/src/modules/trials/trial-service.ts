@@ -170,6 +170,53 @@ export class TrialService {
 
         return updatedTrial;
     }
+
+    async extendTrialRequest(id: string, newEndDate: string | Date) {
+        if (!newEndDate) {
+            throw new AppError("Yangi tugash sanasi kiritilishi shart", 400);
+        }
+
+        const parsedDate = new Date(newEndDate);
+        if (isNaN(parsedDate.getTime())) {
+            throw new AppError("Noto'g'ri sana formati", 400);
+        }
+
+        const trial = await prisma.trialRequest.findUnique({
+            where: { id },
+        });
+
+        if (!trial) {
+            throw new AppError("Sinov so'rovi topilmadi", 404);
+        }
+
+        const updatedTrial = await prisma.trialRequest.update({
+            where: { id },
+            data: {
+                trialEndDate: parsedDate,
+                status: trial.status === "REJECTED" ? "APPROVED" : trial.status || "APPROVED",
+            },
+        });
+
+        const user = await prisma.user.findFirst({
+            where: {
+                email: { equals: trial.email, mode: "insensitive" },
+            },
+            include: {
+                employee: true,
+            },
+        });
+
+        if (user?.employee && user.employee.status === "TERMINATED") {
+            await prisma.employee.update({
+                where: { id: user.employee.id },
+                data: {
+                    status: "ACTIVE",
+                },
+            });
+        }
+
+        return updatedTrial;
+    }
 }
 
 export const trialService = new TrialService();

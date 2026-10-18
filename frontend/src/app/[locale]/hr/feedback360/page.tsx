@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import FeedbackAssignmentManager from "@/src/components/hr/feedback360/FeedbackAssignmentManager";
 
 export default function HRFeedback360Page() {
@@ -10,7 +11,12 @@ export default function HRFeedback360Page() {
 
     return (
         <div className="max-w-[1400px] mx-auto p-6 sm:p-8 flex flex-col gap-6 font-sans">
-            <div className="flex flex-col gap-1.5">
+            <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col gap-1.5"
+            >
                 <button 
                     onClick={() => router.back()} 
                     className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-violet-600 transition-colors w-fit mb-2 cursor-pointer"
@@ -23,7 +29,7 @@ export default function HRFeedback360Page() {
                 <p className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                     {t("pageSubtitle")}
                 </p>
-            </div>
+            </motion.div>
 
             <FeedbackAssignmentManager />
         </div>

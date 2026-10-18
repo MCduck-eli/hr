@@ -9,6 +9,8 @@ import {
 } from "@/src/services/org-chart-service";
 import Skeleton from "@/src/components/ui/Skeleton";
 import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
+import { motion } from "framer-motion";
+import AnimatedNumber from "@/src/components/ui/AnimatedNumber";
 
 interface OrgChartTreeProps {
     initialDepartmentId?: string;
@@ -171,7 +173,12 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
         }
     };
 
-    const renderTreeNode = (node: OrgEmployeeNode, isSecondaryBranch: boolean = false) => {
+    const renderTreeNode = (
+        node: OrgEmployeeNode,
+        isSecondaryBranch: boolean = false,
+        depth: number = 0,
+        index: number = 0
+    ) => {
         const hasDirectChildren = node.children && node.children.length > 0;
         const hasSecondaryChildren = showMatrixLines && node.secondaryChildren && node.secondaryChildren.length > 0;
         const hasAnyChildren = hasDirectChildren || hasSecondaryChildren;
@@ -185,7 +192,14 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
 
         return (
             <div key={`${node.id}-${isSecondaryBranch ? "sec" : "prim"}`} className="flex flex-col items-center">
-                <div
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                        duration: 0.45,
+                        delay: Math.min(depth * 0.1 + index * 0.05, 0.6),
+                        ease: "easeOut",
+                    }}
                     onClick={() => setSelectedEmployee(node)}
                     className={`node-card relative bg-white rounded-xl border border-gray-200 shadow-sm p-4 w-64 flex flex-col gap-2.5 transition-all cursor-pointer hover:shadow-md ${
                         isSecondaryBranch
@@ -254,25 +268,25 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
                             )}
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
                 {hasAnyChildren && !isCollapsed && (
                     <div className="flex flex-col items-center">
                         <div className="w-0.5 h-6 bg-slate-300" />
                         <div className="flex items-start justify-center gap-6 relative pt-6 border-t-2 border-slate-300">
                             {hasDirectChildren &&
-                                node.children!.map((child) => (
+                                node.children!.map((child, childIdx) => (
                                     <div key={child.id} className="relative flex flex-col items-center">
                                         <div className="w-0.5 h-6 bg-slate-300 absolute -top-6" />
-                                        {renderTreeNode(child, false)}
+                                        {renderTreeNode(child, false, depth + 1, childIdx)}
                                     </div>
                                 ))}
 
                             {hasSecondaryChildren &&
-                                node.secondaryChildren!.map((secChild) => (
+                                node.secondaryChildren!.map((secChild, secIdx) => (
                                     <div key={`sec-${secChild.id}`} className="relative flex flex-col items-center">
                                         <div className="w-0.5 h-6 border-l-2 border-dashed border-purple-400 absolute -top-6" />
-                                        {renderTreeNode(secChild, true)}
+                                        {renderTreeNode(secChild, true, depth + 1, (node.children?.length || 0) + secIdx)}
                                     </div>
                                 ))}
                         </div>
@@ -424,55 +438,92 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-2">
+            <motion.div
+                initial="hidden"
+                animate="show"
+                variants={{
+                    hidden: { opacity: 0 },
+                    show: {
+                        opacity: 1,
+                        transition: {
+                            staggerChildren: 0.08,
+                        },
+                    },
+                }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            >
+                <motion.div
+                    variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
+                    }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-2"
+                >
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Jami Faol Xodimlar
                     </span>
                     <span className="text-3xl font-black font-mono text-slate-900">
-                        {data.totalEmployees}
+                        <AnimatedNumber value={data.totalEmployees} />
                     </span>
                     <span className="text-[10px] text-slate-400 border-t border-gray-50 pt-2 font-medium">
                         Kompaniya xodimlari soni
                     </span>
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-2">
+                <motion.div
+                    variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
+                    }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-2"
+                >
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Bo'limlar Soni
                     </span>
                     <span className="text-3xl font-black font-mono text-blue-600">
-                        {data.departmentsCount}
+                        <AnimatedNumber value={data.departmentsCount} />
                     </span>
                     <span className="text-[10px] text-slate-400 border-t border-gray-50 pt-2 font-medium">
                         Tashkiliy departamentlar
                     </span>
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-2">
+                <motion.div
+                    variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
+                    }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-2"
+                >
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Matritsali Boshqaruv
                     </span>
                     <span className="text-3xl font-black font-mono text-purple-600">
-                        {matrixCountTotal}
+                        <AnimatedNumber value={matrixCountTotal} />
                     </span>
                     <span className="text-[10px] text-slate-400 border-t border-gray-50 pt-2 font-medium">
                         Ikkilamchi rahbarli xodimlar
                     </span>
-                </div>
+                </motion.div>
 
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-2">
+                <motion.div
+                    variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
+                    }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-2"
+                >
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         To'g'ridan-to'g'ri Bo'ysunuv
                     </span>
                     <span className="text-3xl font-black font-mono text-emerald-600">
-                        {data.flatEmployees.filter((e) => e.managerId).length}
+                        <AnimatedNumber value={data.flatEmployees.filter((e) => e.managerId).length} />
                     </span>
                     <span className="text-[10px] text-slate-400 border-t border-gray-50 pt-2 font-medium">
                         Asosiy rahbariga biriktirilgan
                     </span>
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
 
             {viewMode === "tree" ? (
                 <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 overflow-hidden min-h-[600px] flex flex-col relative">
@@ -553,7 +604,7 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
                                 </div>
                             ) : (
                                 <div className="flex items-start justify-center gap-12">
-                                    {data.tree.map((rootNode) => renderTreeNode(rootNode, false))}
+                                    {data.tree.map((rootNode, rootIdx) => renderTreeNode(rootNode, false, 0, rootIdx))}
                                 </div>
                             )}
                         </div>
@@ -561,9 +612,12 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {departmentGroups.map((dept) => (
-                        <div
+                    {departmentGroups.map((dept, deptIdx) => (
+                        <motion.div
                             key={dept.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.45, delay: deptIdx * 0.06, ease: "easeOut" }}
                             className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow"
                         >
                             <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
@@ -636,7 +690,7 @@ export default function OrgChartTree({ initialDepartmentId }: OrgChartTreeProps)
                                     </div>
                                 )}
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
 
                     {unassignedEmployees.length > 0 && (

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import GirihPattern from "@/src/components/ui/GirihPattern";
 
 interface EmployeeProfileModalProps {
     isOpen: boolean;
@@ -70,133 +71,138 @@ export default function EmployeeProfileModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-                className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+                className="fixed inset-0 bg-slate-900/20 backdrop-blur-md transition-opacity"
                 onClick={onClose}
             />
 
-            <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200">
-                <div className="relative bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 px-6 pt-7 pb-8 text-white">
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-                        aria-label="Yopish"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+            <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200">
+                <GirihPattern className="opacity-[0.11] rounded-3xl overflow-hidden" strokeColor="#9333ea" />
 
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-xl font-bold text-white shadow-inner overflow-hidden shrink-0">
-                            {formattedAvatarSrc ? (
-                                <img
-                                    src={formattedAvatarSrc}
-                                    alt={fullName}
-                                    onError={() => setImageError(true)}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                initials
-                            )}
+                <div className="relative z-10">
+                    <div className="relative bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 px-6 pt-7 pb-8 text-white">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                            aria-label="Yopish"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-xl font-bold text-white shadow-inner overflow-hidden shrink-0">
+                                {formattedAvatarSrc ? (
+                                    <img
+                                        src={formattedAvatarSrc}
+                                        alt={fullName}
+                                        onError={() => setImageError(true)}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    initials
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="text-xl font-bold text-white truncate">
+                                        {fullName}
+                                    </h3>
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide border ${
+                                        status === "ACTIVE" || status === "Faol"
+                                            ? "bg-emerald-500/20 border-emerald-300/40 text-emerald-100"
+                                            : "bg-amber-500/20 border-amber-300/40 text-amber-100"
+                                    }`}>
+                                        {status}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-purple-100 truncate mt-0.5">
+                                    {email}
+                                </p>
+                            </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-xl font-bold text-white truncate">
-                                    {fullName}
-                                </h3>
-                                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide border ${
-                                    status === "ACTIVE" || status === "Faol"
-                                        ? "bg-emerald-500/20 border-emerald-300/40 text-emerald-100"
-                                        : "bg-amber-500/20 border-amber-300/40 text-amber-100"
-                                }`}>
+                    </div>
+
+                    <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div className="bg-white shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] p-3.5 rounded-2xl flex flex-col gap-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    Xodim ID
+                                </span>
+                                <span className="text-xs font-mono font-medium text-slate-800 break-all">
+                                    {user.id || "Mavjud emas"}
+                                </span>
+                            </div>
+
+                            <div className="bg-white shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] p-3.5 rounded-2xl flex flex-col gap-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    Roli
+                                </span>
+                                <span className="text-sm font-semibold text-slate-800">
+                                    {role}
+                                </span>
+                            </div>
+
+                            <div className="bg-white shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] p-3.5 rounded-2xl flex flex-col gap-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    Telefon raqami
+                                </span>
+                                <span className="text-sm font-medium text-slate-800">
+                                    {phone}
+                                </span>
+                            </div>
+
+                            <div className="bg-white shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] p-3.5 rounded-2xl flex flex-col gap-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    Bo'limi
+                                </span>
+                                <span className="text-sm font-semibold text-slate-800">
+                                    {department}
+                                </span>
+                            </div>
+
+                            <div className="bg-white shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] p-3.5 rounded-2xl flex flex-col gap-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    To'plagan balli / Reyting
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-amber-500">⭐</span>
+                                    <span className="text-sm font-bold text-slate-800">
+                                        {score}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="bg-white shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] p-3.5 rounded-2xl flex flex-col gap-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    Faollik holati
+                                </span>
+                                <span className="text-sm font-medium text-slate-800">
                                     {status}
                                 </span>
                             </div>
-                            <p className="text-sm text-purple-100 truncate mt-0.5">
-                                {email}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex flex-col gap-1">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                Xodim ID
-                            </span>
-                            <span className="text-xs font-mono font-medium text-slate-800 break-all">
-                                {user.id || "Mavjud emas"}
-                            </span>
                         </div>
 
-                        <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex flex-col gap-1">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                Roli
-                            </span>
-                            <span className="text-sm font-semibold text-slate-800">
-                                {role}
-                            </span>
-                        </div>
-
-                        <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex flex-col gap-1">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                Telefon raqami
-                            </span>
-                            <span className="text-sm font-medium text-slate-800">
-                                {phone}
-                            </span>
-                        </div>
-
-                        <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex flex-col gap-1">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                Bo'limi
-                            </span>
-                            <span className="text-sm font-semibold text-slate-800">
-                                {department}
-                            </span>
-                        </div>
-
-                        <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex flex-col gap-1">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                To'plagan balli / Reyting
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-amber-500">⭐</span>
-                                <span className="text-sm font-bold text-slate-800">
-                                    {score}
+                        {user.createdAt && (
+                            <div className="bg-white shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] p-3.5 rounded-2xl flex items-center justify-between text-xs text-slate-500">
+                                <span>Qo'shilgan sana:</span>
+                                <span className="font-semibold text-slate-800">
+                                    {new Date(user.createdAt).toLocaleDateString()}
                                 </span>
                             </div>
-                        </div>
-
-                        <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex flex-col gap-1">
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                Faollik holati
-                            </span>
-                            <span className="text-sm font-medium text-slate-800">
-                                {status}
-                            </span>
-                        </div>
+                        )}
                     </div>
 
-                    {user.createdAt && (
-                        <div className="bg-slate-50/60 border border-slate-100 p-3 rounded-xl flex items-center justify-between text-xs text-slate-500">
-                            <span>Qo'shilgan sana:</span>
-                            <span className="font-medium text-slate-700">
-                                {new Date(user.createdAt).toLocaleDateString()}
-                            </span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs"
-                    >
-                        Yopish
-                    </button>
+                    <div className="px-6 py-4 bg-slate-50/80 flex items-center justify-end">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-5 py-2.5 bg-white text-slate-800 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff] text-xs font-semibold rounded-2xl transition-all cursor-pointer"
+                        >
+                            Yopish
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

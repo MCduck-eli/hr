@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import StatusBadge from "@/src/components/hr/employees/status-badge";
 import EmployeeForm from "@/src/components/hr/employees/employee-form";
@@ -15,7 +15,9 @@ import { fetchDepartments, createDepartment, deleteDepartment, unassignEmployeeF
 import ExecutiveAnalyticsDashboard from "@/src/components/analytics/ExecutiveAnalyticsDashboard";
 import OrgChartTree from "@/src/components/org-chart/OrgChartTree";
 import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
-
+import { motion } from "framer-motion";
+import GirihPattern from "@/src/components/ui/GirihPattern";
+import AnimatedNumber from "@/src/components/ui/AnimatedNumber";
 
 function EmployeeTableAvatar({ user }: { user: any }) {
     const [imageError, setImageError] = useState(false);
@@ -35,7 +37,7 @@ function EmployeeTableAvatar({ user }: { user: any }) {
     }
 
     return (
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 text-white flex items-center justify-center font-bold text-xs uppercase shadow-xs overflow-hidden shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs uppercase shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] overflow-hidden shrink-0">
             {avatarSrc ? (
                 <img
                     src={avatarSrc}
@@ -56,9 +58,23 @@ export default function DirectorDashboard() {
     const params = useParams();
     const locale = (params.locale as string) || "uz";
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const tabParam = searchParams.get("tab") as "employees" | "departments" | "analytics" | "orgchart" | null;
 
     const [companyName, setCompanyName] = useState("");
     const [activeTab, setActiveTab] = useState<"employees" | "departments" | "analytics" | "orgchart">("analytics");
+
+    useEffect(() => {
+        if (tabParam && ["employees", "departments", "analytics", "orgchart"].includes(tabParam)) {
+            setActiveTab(tabParam);
+        }
+    }, [tabParam]);
+
+    const handleTabChange = (tab: "employees" | "departments" | "analytics" | "orgchart") => {
+        setActiveTab(tab);
+        router.replace(`/${locale}/director/dashboard?tab=${tab}`, { scroll: false });
+    };
 
     const [users, setUsers] = useState<any[]>(() => getQueryData<any[]>("director:users") || []);
     const [departments, setDepartments] = useState<any[]>(() => getQueryData<any[]>("director:departments") || []);
@@ -321,189 +337,17 @@ export default function DirectorDashboard() {
     const hrAdminsCount = users.filter((u) => u.role === "HR_ADMIN").length;
 
     return (
-        <div className="min-h-screen bg-slate-50/60 flex flex-col md:flex-row">
-            <aside className="w-full md:w-72 bg-white border-r border-slate-100 shrink-0 md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col justify-between z-20">
-                <div className="p-5 flex flex-col gap-6">
-                    <div className="flex items-center gap-3 px-2 pt-2">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#9327FF] to-purple-800 text-white flex items-center justify-center font-black text-base shadow-sm">
-                            {companyName ? companyName[0].toUpperCase() : "D"}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-bold text-slate-900 truncate">
-                                {companyName || "Kompaniya"}
-                            </span>
-                            <span className="text-[11px] font-semibold text-[#9327FF] uppercase tracking-wider">
-                                Direktor Paneli
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                        <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                            Boshqaruv
-                        </span>
-
-                        <button
-                            onClick={() => setActiveTab("analytics")}
-                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                                activeTab === "analytics"
-                                    ? "bg-purple-50 text-[#9327FF] shadow-xs"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                            }`}
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <svg className={`w-4 h-4 ${activeTab === "analytics" ? "text-[#9327FF]" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                </svg>
-                                <span>BI & 9-Box Analitika</span>
-                            </div>
-                        </button>
-
-                        <button
-                            onClick={() => setActiveTab("orgchart")}
-                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                                activeTab === "orgchart"
-                                    ? "bg-purple-50 text-[#9327FF] shadow-xs"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                            }`}
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <svg className={`w-4 h-4 ${activeTab === "orgchart" ? "text-[#9327FF]" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                </svg>
-                                <span>Tashkiliy Tuzilma</span>
-                            </div>
-                        </button>
-
-                        <button
-                            onClick={() => setActiveTab("employees")}
-                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                                activeTab === "employees"
-                                    ? "bg-purple-50 text-[#9327FF] shadow-xs"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                            }`}
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <svg className={`w-4 h-4 ${activeTab === "employees" ? "text-[#9327FF]" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                                <span>{t("employeesTab")}</span>
-                            </div>
-                            {loading && !users.length ? (
-                                <Skeleton className="w-6 h-4 rounded-full" />
-                            ) : (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                    activeTab === "employees" ? "bg-purple-200/60 text-[#9327FF]" : "bg-slate-100 text-slate-600"
-                                }`}>
-                                    {users.length}
-                                </span>
-                            )}
-                        </button>
-
-                        <button
-                            onClick={() => setActiveTab("departments")}
-                            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                                activeTab === "departments"
-                                    ? "bg-purple-50 text-[#9327FF] shadow-xs"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                            }`}
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <svg className={`w-4 h-4 ${activeTab === "departments" ? "text-[#9327FF]" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                <span>{t("departmentsTab")}</span>
-                            </div>
-                            {loading && !departments.length ? (
-                                <Skeleton className="w-6 h-4 rounded-full" />
-                            ) : (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                    activeTab === "departments" ? "bg-purple-200/60 text-[#9327FF]" : "bg-slate-100 text-slate-600"
-                                }`}>
-                                    {departments.length}
-                                </span>
-                            )}
-                        </button>
-                    </div>
-
-                    <div className="flex flex-col gap-1 pt-3 border-t border-slate-100">
-                        <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                            Platforma Bo'limlari
-                        </span>
-
-                        <Link
-                            href={`/${locale}/hr/okr`}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200"
-                        >
-                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>OKR Maqsadlar</span>
-                        </Link>
-
-                        <Link
-                            href={`/${locale}/grading`}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200"
-                        >
-                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                            </svg>
-                            <span>Greyding Tizimi</span>
-                        </Link>
-
-                        <Link
-                            href={`/${locale}/disc`}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200"
-                        >
-                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
-                            </svg>
-                            <span>DISC Modeli</span>
-                        </Link>
-
-                        <Link
-                            href={`/${locale}/hr/feedback360`}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200"
-                        >
-                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            <span>360° Baholash</span>
-                        </Link>
-
-                        <Link
-                            href={`/${locale}/profile?tab=payroll`}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200"
-                        >
-                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>Oylik & Moliya</span>
-                        </Link>
-                    </div>
-                </div>
-
-                <div className="p-4 m-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-purple-100 text-[#9327FF] flex items-center justify-center font-bold text-sm">
-                        👑
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-slate-800">Direktor Hub</span>
-                        <span className="text-[10px] text-slate-500 truncate">SaaS Enterprise v2.4</span>
-                    </div>
-                </div>
-            </aside>
-
-            <main className="flex-1 min-w-0 p-6 md:p-10 flex flex-col gap-8 bg-slate-50/60 overflow-y-auto">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200/80">
-                    <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2.5">
-                            <span className="px-2.5 py-1 bg-purple-50 text-[#9327FF] text-xs font-bold rounded-lg inline-flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#9327FF]"></span>
+        <div className="min-h-full flex flex-col gap-8 pb-10">
+            <div className="flex flex-col gap-8">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-3">
+                            <span className="px-3.5 py-1.5 bg-white text-purple-600 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] text-xs font-black uppercase tracking-wider rounded-2xl inline-flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
                                 Direktor Kabineti
                             </span>
                             {companyName && (
-                                <span className="text-xs font-semibold text-slate-500">
+                                <span className="text-xs font-bold text-slate-500">
                                     • {companyName}
                                 </span>
                             )}
@@ -516,10 +360,11 @@ export default function DirectorDashboard() {
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-4">
                         <button
+                            type="button"
                             onClick={handleOpenCreateEmployee}
-                            className="bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl px-5 py-2.5 transition-all duration-200 shadow-sm flex items-center gap-2 text-xs md:text-sm"
+                            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-2xl px-5 py-3 transition-all duration-200 shadow-[4px_4px_10px_#e2e8f0,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3)] flex items-center gap-2 text-xs md:text-sm cursor-pointer"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -527,10 +372,11 @@ export default function DirectorDashboard() {
                             <span>{t("createEmployee")}</span>
                         </button>
                         <button
+                            type="button"
                             onClick={() => setIsDeptModalOpen(true)}
-                            className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 font-medium rounded-xl px-5 py-2.5 transition-all duration-200 shadow-sm flex items-center gap-2 text-xs md:text-sm"
+                            className="bg-white hover:bg-slate-50 text-slate-800 font-semibold rounded-2xl px-5 py-3 transition-all duration-200 shadow-[4px_4px_10px_#e2e8f0,-4px_-4px_10px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff] flex items-center gap-2 text-xs md:text-sm cursor-pointer"
                         >
-                            <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                             <span>{t("createDepartment")}</span>
@@ -538,75 +384,117 @@ export default function DirectorDashboard() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    <div
-                        onClick={() => setActiveTab("employees")}
-                        className={`p-6 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between shadow-[0_8px_30px_rgba(0,0,0,0.04)] ${
+                <motion.div
+                    initial="hidden"
+                    animate="show"
+                    variants={{
+                        hidden: { opacity: 0 },
+                        show: {
+                            opacity: 1,
+                            transition: {
+                                staggerChildren: 0.1,
+                            },
+                        },
+                    }}
+                    className="grid grid-cols-1 sm:grid-cols-3 gap-6"
+                >
+                    <motion.div
+                        variants={{
+                            hidden: { opacity: 0, y: 16 },
+                            show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+                        }}
+                        onClick={() => handleTabChange("employees")}
+                        className={`p-6 rounded-2xl transition-all duration-200 cursor-pointer flex items-center justify-between relative overflow-hidden ${
                             activeTab === "employees"
-                                ? "bg-white border-[#9327FF] ring-2 ring-[#9327FF]/10"
-                                : "bg-white border-slate-100 hover:border-slate-200"
+                                ? "bg-white shadow-[inset_3px_3px_6px_#e2e8f0,inset_-3px_-3px_6px_#ffffff]"
+                                : "bg-white shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff]"
                         }`}
                     >
-                        <div className="flex flex-col gap-1">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                {t("totalEmployees")}
-                            </span>
-                            {loading ? (
-                                <Skeleton className="w-16 h-8 rounded-lg" />
-                            ) : (
-                                <span className="text-3xl font-extrabold text-slate-900">{users.length}</span>
-                            )}
+                        <GirihPattern className="opacity-[0.11]" />
+                        <div className="relative z-10 flex items-center justify-between w-full">
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    {t("totalEmployees")}
+                                </span>
+                                {loading ? (
+                                    <Skeleton className="w-16 h-8 rounded-lg" />
+                                ) : (
+                                    <span className="text-3xl font-extrabold text-slate-900">
+                                        <AnimatedNumber value={users.length} />
+                                    </span>
+                                )}
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-white shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] text-purple-600 flex items-center justify-center">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </div>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-purple-50 text-[#9327FF] flex items-center justify-center">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                        </div>
-                    </div>
+                    </motion.div>
 
-                    <div
-                        onClick={() => setActiveTab("departments")}
-                        className={`p-6 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between shadow-[0_8px_30px_rgba(0,0,0,0.04)] ${
+                    <motion.div
+                        variants={{
+                            hidden: { opacity: 0, y: 16 },
+                            show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+                        }}
+                        onClick={() => handleTabChange("departments")}
+                        className={`p-6 rounded-2xl transition-all duration-200 cursor-pointer flex items-center justify-between relative overflow-hidden ${
                             activeTab === "departments"
-                                ? "bg-white border-[#9327FF] ring-2 ring-[#9327FF]/10"
-                                : "bg-white border-slate-100 hover:border-slate-200"
+                                ? "bg-white shadow-[inset_3px_3px_6px_#e2e8f0,inset_-3px_-3px_6px_#ffffff]"
+                                : "bg-white shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff]"
                         }`}
                     >
-                        <div className="flex flex-col gap-1">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                {t("totalDepartments")}
-                            </span>
-                            {loading ? (
-                                <Skeleton className="w-16 h-8 rounded-lg" />
-                            ) : (
-                                <span className="text-3xl font-extrabold text-slate-900">{departments.length}</span>
-                            )}
+                        <GirihPattern className="opacity-[0.11]" />
+                        <div className="relative z-10 flex items-center justify-between w-full">
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    {t("totalDepartments")}
+                                </span>
+                                {loading ? (
+                                    <Skeleton className="w-16 h-8 rounded-lg" />
+                                ) : (
+                                    <span className="text-3xl font-extrabold text-slate-900">
+                                        <AnimatedNumber value={departments.length} />
+                                    </span>
+                                )}
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-white shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] text-blue-600 flex items-center justify-center">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                        </div>
-                    </div>
+                    </motion.div>
 
-                    <div className="p-6 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-                        <div className="flex flex-col gap-1">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                                {t("activeAdmins")}
-                            </span>
-                            {loading ? (
-                                <Skeleton className="w-16 h-8 rounded-lg" />
-                            ) : (
-                                <span className="text-3xl font-extrabold text-[#9327FF]">{hrAdminsCount}</span>
-                            )}
+                    <motion.div
+                        variants={{
+                            hidden: { opacity: 0, y: 16 },
+                            show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+                        }}
+                        className="p-6 bg-white rounded-2xl flex items-center justify-between shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] relative overflow-hidden"
+                    >
+                        <GirihPattern className="opacity-[0.11]" />
+                        <div className="relative z-10 flex items-center justify-between w-full">
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    {t("activeAdmins")}
+                                </span>
+                                {loading ? (
+                                    <Skeleton className="w-16 h-8 rounded-lg" />
+                                ) : (
+                                    <span className="text-3xl font-extrabold text-purple-600">
+                                        <AnimatedNumber value={hrAdminsCount} />
+                                    </span>
+                                )}
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-white shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] text-emerald-600 flex items-center justify-center">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                            </div>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
 
                 {activeTab === "analytics" && (
                     <div className="flex flex-col gap-6">
@@ -615,7 +503,7 @@ export default function DirectorDashboard() {
                 )}
 
                 {activeTab === "orgchart" && (
-                    <div className="bg-white rounded-2xl border border-slate-100 p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                    <div className="bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] p-6 md:p-8">
                         <div className="pb-5 mb-6 border-b border-slate-100 flex items-center justify-between">
                             <div>
                                 <h2 className="text-base font-bold text-slate-900">Tashkiliy Ierarxiya va Strukturasi</h2>
@@ -627,8 +515,18 @@ export default function DirectorDashboard() {
                 )}
 
                 {activeTab === "employees" && (
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col">
-                        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                        className="bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] overflow-hidden flex flex-col"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.35, ease: "easeOut" }}
+                            className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                        >
                             <div className="flex items-center gap-3">
                                 <h2 className="text-base font-bold text-slate-900">
                                     {t("employeesTab")}
@@ -636,8 +534,8 @@ export default function DirectorDashboard() {
                                 {loading ? (
                                     <Skeleton className="w-20 h-6 rounded-full" />
                                 ) : (
-                                    <span className="px-3 py-1 bg-purple-50 text-[#9327FF] text-xs font-bold rounded-full">
-                                        {filteredUsers.length} ta xodim
+                                    <span className="px-3 py-1 bg-white shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] text-purple-600 text-xs font-bold rounded-full">
+                                        <AnimatedNumber value={filteredUsers.length} /> ta xodim
                                     </span>
                                 )}
                             </div>
@@ -648,21 +546,22 @@ export default function DirectorDashboard() {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         placeholder="Ism, email yoki bo'lim..."
-                                        className="pl-9 pr-4 py-2.5 border border-slate-200 text-xs bg-slate-50/50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] focus:ring-2 focus:ring-[#9327FF]/10 w-64 md:w-72 transition-all"
+                                        className="pl-9 pr-4 py-2.5 bg-white shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff] text-xs text-slate-900 rounded-2xl outline-none w-64 md:w-72 transition-all focus:text-purple-600"
                                     />
                                     <svg className="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
                                 </div>
                                 <button
+                                    type="button"
                                     onClick={handleOpenCreateEmployee}
-                                    className="bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl px-4 py-2.5 transition-all duration-200 shadow-sm whitespace-nowrap flex items-center gap-1.5 text-xs"
+                                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-2xl px-4 py-2.5 transition-all duration-200 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3)] whitespace-nowrap flex items-center gap-1.5 text-xs cursor-pointer"
                                 >
                                     <span>+</span>
                                     <span>{tEmp("addEmployee")}</span>
                                 </button>
                             </div>
-                        </div>
+                        </motion.div>
 
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse text-xs">
@@ -718,8 +617,18 @@ export default function DirectorDashboard() {
                                             </td>
                                         </tr>
                                     ) : (
-                                        filteredUsers.map((u) => (
-                                            <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
+                                        filteredUsers.map((u, index) => (
+                                            <motion.tr
+                                                key={u.id}
+                                                initial={{ opacity: 0, y: 15 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{
+                                                    duration: 0.35,
+                                                    delay: Math.min(index * 0.05, 0.6),
+                                                    ease: "easeOut",
+                                                }}
+                                                className="hover:bg-slate-50/70 transition-colors"
+                                            >
                                                 <td className="p-4 pl-6 text-xs font-medium text-slate-900 whitespace-nowrap">
                                                     <div className="flex items-center gap-3">
                                                         <EmployeeTableAvatar user={u} />
@@ -744,7 +653,7 @@ export default function DirectorDashboard() {
                                                     {u.email}
                                                 </td>
                                                 <td className="p-4 text-xs font-semibold uppercase text-slate-600">
-                                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                                                    <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold ${
                                                         u.role === "HR_ADMIN"
                                                             ? "bg-purple-100 text-[#9327FF]"
                                                             : u.role === "MANAGER"
@@ -760,46 +669,60 @@ export default function DirectorDashboard() {
                                                     {u.employee?.department?.name || "-"}
                                                 </td>
                                                 <td className="p-4 pr-6 text-right whitespace-nowrap">
-                                                    <div className="flex items-center justify-end gap-1.5">
+                                                    <div className="flex items-center justify-end gap-2">
                                                         <button
+                                                            type="button"
                                                             onClick={() => handleLoginAs(u)}
-                                                            className="px-3 py-1.5 bg-[#9327FF] hover:bg-[#7e22ce] text-white text-[11px] font-medium rounded-lg transition-colors shadow-xs flex items-center gap-1"
+                                                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-medium rounded-xl transition-all shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_rgba(0,0,0,0.3)] flex items-center gap-1 cursor-pointer"
                                                         >
                                                             <span>🔑</span>
                                                             <span>{t("enterAccount")}</span>
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             onClick={() => setSelectedProfileUser(u)}
-                                                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-[11px] font-medium rounded-lg transition-colors shadow-xs"
+                                                            className="px-3 py-1.5 bg-white text-slate-700 hover:text-slate-900 text-[11px] font-medium rounded-xl transition-all shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] cursor-pointer"
                                                         >
                                                             Profil
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             onClick={() => handleOpenEditEmployee(u)}
-                                                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-[11px] font-medium rounded-lg transition-colors shadow-xs"
+                                                            className="px-3 py-1.5 bg-white text-slate-700 hover:text-slate-900 text-[11px] font-medium rounded-xl transition-all shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] cursor-pointer"
                                                         >
                                                             {tEmp("edit")}
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             onClick={() => handleDeleteEmployee(u)}
-                                                            className="px-3 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-medium rounded-lg transition-colors shadow-xs cursor-pointer"
+                                                            className="px-3 py-1.5 bg-white text-red-600 hover:text-red-700 text-[11px] font-medium rounded-xl transition-all shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] cursor-pointer"
                                                         >
                                                             {tEmp("delete")}
                                                         </button>
                                                     </div>
                                                 </td>
-                                            </tr>
+                                            </motion.tr>
                                         ))
                                     )}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    </motion.div>
                 )}
 
                 {activeTab === "departments" && (
-                    <div className="flex flex-col gap-6">
-                        <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                        className="flex flex-col gap-6"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.35, ease: "easeOut" }}
+                            className="flex items-center justify-between bg-white p-6 rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff]"
+                        >
                             <div className="flex items-center gap-3">
                                 <h2 className="text-base font-bold text-slate-900">
                                     {t("departmentsTab")}
@@ -807,26 +730,27 @@ export default function DirectorDashboard() {
                                 {loading ? (
                                     <Skeleton className="w-20 h-6 rounded-full" />
                                 ) : (
-                                    <span className="px-3 py-1 bg-purple-50 text-[#9327FF] text-xs font-bold rounded-full">
-                                        {departments.length} ta bo'lim
+                                    <span className="px-3 py-1 bg-white shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] text-purple-600 text-xs font-bold rounded-full">
+                                        <AnimatedNumber value={departments.length} /> ta bo'lim
                                     </span>
                                 )}
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setIsDeptModalOpen(true)}
-                                className="bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl px-5 py-2.5 transition-all duration-200 shadow-sm flex items-center gap-2 text-xs md:text-sm"
+                                className="bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-2xl px-5 py-2.5 transition-all duration-200 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3)] flex items-center gap-2 text-xs md:text-sm cursor-pointer"
                             >
                                 <span>+</span>
                                 <span>{t("createDepartment")}</span>
                             </button>
-                        </div>
+                        </motion.div>
 
                         {loading ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                                 {Array.from({ length: 4 }).map((_, idx) => (
                                     <div
                                         key={`dept-skel-${idx}`}
-                                        className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-col gap-4 animate-pulse"
+                                        className="bg-white rounded-2xl p-6 shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] flex flex-col gap-4 animate-pulse"
                                     >
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-3 min-w-0">
@@ -846,35 +770,39 @@ export default function DirectorDashboard() {
                                 ))}
                             </div>
                         ) : departments.length === 0 ? (
-                            <div className="p-16 bg-white border border-slate-100 text-center rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                            <div className="p-16 bg-white text-center rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff]">
                                 <span className="text-4xl block mb-3">🏢</span>
                                 <h3 className="text-base font-bold text-slate-900 mb-1">
                                     {t("noDepartments")}
                                 </h3>
                                 <p className="text-xs text-slate-500 mb-4">Hozircha hech qanday bo'lim yaratilmagan</p>
                                 <button
+                                    type="button"
                                     onClick={() => setIsDeptModalOpen(true)}
-                                    className="bg-[#9327FF] hover:bg-[#7e22ce] text-white font-medium rounded-xl px-6 py-2.5 transition-all duration-200 shadow-sm text-xs"
+                                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-2xl px-6 py-2.5 transition-all duration-200 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3)] text-xs cursor-pointer"
                                 >
                                     + {t("createDepartment")}
                                 </button>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                                {departments.map((dept) => {
+                                {departments.map((dept, index) => {
                                     const deptEmployees = users.filter(
                                         (u) => u.employee?.departmentId === dept.id,
                                     );
                                     const isExpanded = expandedDeptIds.includes(dept.id);
 
                                     return (
-                                        <div
+                                        <motion.div
                                             key={dept.id}
-                                            className={`bg-white border rounded-2xl transition-all duration-200 overflow-hidden ${
-                                                isExpanded
-                                                    ? "border-purple-300 shadow-[0_8px_30px_rgba(147,39,255,0.08)]"
-                                                    : "border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:border-slate-200"
-                                            }`}
+                                            initial={{ opacity: 0, y: 15 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{
+                                                duration: 0.35,
+                                                delay: Math.min(index * 0.05, 0.6),
+                                                ease: "easeOut",
+                                            }}
+                                            className="bg-white rounded-2xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] transition-all duration-200 overflow-hidden"
                                         >
                                             <div
                                                 onClick={() => toggleDeptExpand(dept.id)}
@@ -882,7 +810,7 @@ export default function DirectorDashboard() {
                                             >
                                                 <div className="flex items-center justify-between gap-3">
                                                     <div className="flex items-center gap-3 min-w-0">
-                                                        <div className="w-11 h-11 bg-purple-50 text-[#9327FF] rounded-xl flex items-center justify-center text-xl shrink-0">
+                                                        <div className="w-11 h-11 bg-white shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff] text-purple-600 rounded-2xl flex items-center justify-center text-xl shrink-0">
                                                             🏢
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
@@ -907,7 +835,7 @@ export default function DirectorDashboard() {
                                                                 e.stopPropagation();
                                                                 setAssigningDept(dept);
                                                             }}
-                                                            className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-[#9327FF] text-xs font-bold rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                                                            className="px-3 py-1.5 bg-white text-purple-600 shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
                                                         >
                                                             <span>+</span>
                                                             <span>Xodim biriktirish</span>
@@ -918,12 +846,12 @@ export default function DirectorDashboard() {
                                                                 e.stopPropagation();
                                                                 handleDeleteDept(dept.id);
                                                             }}
-                                                            className="px-3 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-medium rounded-lg transition-colors shadow-xs cursor-pointer"
+                                                            className="px-3 py-1.5 bg-white text-red-600 hover:text-red-700 shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] text-[11px] font-medium rounded-xl transition-all cursor-pointer"
                                                         >
                                                             O'chirish
                                                         </button>
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 text-slate-400 transition-transform duration-200 ${
-                                                            isExpanded ? "rotate-180 text-purple-600 bg-purple-50" : ""
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] text-slate-500 transition-transform duration-200 ${
+                                                            isExpanded ? "rotate-180 text-purple-600" : ""
                                                         }`}>
                                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -971,7 +899,7 @@ export default function DirectorDashboard() {
                                                     )}
 
                                                     {!isDeptUpdating && !loading && deptEmployees.length === 0 ? (
-                                                        <div className="p-6 bg-slate-50 rounded-xl text-center border border-dashed border-slate-200">
+                                                        <div className="p-6 bg-slate-50/70 rounded-2xl text-center">
                                                             <p className="text-xs text-slate-500 font-medium">
                                                                 Bu bo'limda hali xodimlar yo'q
                                                             </p>
@@ -1023,7 +951,7 @@ export default function DirectorDashboard() {
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => handleLoginAs(empUser)}
-                                                                                className="px-2.5 py-1.5 bg-[#9327FF] hover:bg-[#7e22ce] text-white text-[10px] font-medium rounded-lg shadow-xs flex items-center gap-1 cursor-pointer"
+                                                                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-medium rounded-xl shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_rgba(0,0,0,0.3)] flex items-center gap-1 cursor-pointer"
                                                                             >
                                                                                 <span>🔑</span>
                                                                                 <span>{t("enterAccount")}</span>
@@ -1031,7 +959,7 @@ export default function DirectorDashboard() {
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => setSelectedProfileUser(empUser)}
-                                                                                className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-700 hover:text-slate-900 text-[10px] font-medium rounded-lg shadow-xs cursor-pointer"
+                                                                                className="px-2.5 py-1.5 bg-white text-slate-700 hover:text-slate-900 text-[10px] font-medium rounded-xl shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] cursor-pointer"
                                                                             >
                                                                                 Profil
                                                                             </button>
@@ -1039,7 +967,7 @@ export default function DirectorDashboard() {
                                                                                 type="button"
                                                                                 onClick={() => handleUnassignEmployee(dept.id, empUser.id)}
                                                                                 disabled={unassigningUserId === empUser.id}
-                                                                                className="px-2.5 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-[10px] font-medium rounded-lg shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                                                                className="px-2.5 py-1.5 bg-white text-red-600 hover:text-red-700 text-[10px] font-medium rounded-xl shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] flex items-center gap-1 cursor-pointer disabled:opacity-50"
                                                                             >
                                                                                 <span>🗑️</span>
                                                                                 <span>Chiqarish</span>
@@ -1052,41 +980,45 @@ export default function DirectorDashboard() {
                                                     )}
                                                 </div>
                                             )}
-                                        </div>
+                                        </motion.div>
                                     );
                                 })}
                             </div>
                         )}
-                    </div>
+                    </motion.div>
                 )}
-            </main>
+            </div>
 
             {isEmployeeModalOpen && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto">
-                    <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl rounded-3xl relative p-8 border border-slate-100">
-                        <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
-                            <h2 className="text-lg font-bold text-slate-900">
-                                {editingUser ? tEmp("editEmployee") : tEmp("addEmployee")}
-                            </h2>
-                            <button
-                                onClick={() => {
+                <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] relative p-8 overflow-hidden">
+                        <GirihPattern className="opacity-[0.11] rounded-3xl overflow-hidden" strokeColor="#9333ea" />
+                        <div className="relative z-10">
+                            <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
+                                <h2 className="text-lg font-bold text-slate-900">
+                                    {editingUser ? tEmp("editEmployee") : tEmp("addEmployee")}
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsEmployeeModalOpen(false);
+                                        setEditingUser(null);
+                                    }}
+                                    className="w-8 h-8 rounded-full bg-white text-slate-500 hover:text-slate-900 shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] flex items-center justify-center font-bold text-sm transition-all cursor-pointer"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <EmployeeForm
+                                initialData={editingUser}
+                                onSubmit={handleEmployeeSubmit}
+                                onCancel={() => {
                                     setIsEmployeeModalOpen(false);
                                     setEditingUser(null);
                                 }}
-                                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 flex items-center justify-center font-bold text-sm transition-colors"
-                            >
-                                ✕
-                            </button>
+                                loading={formLoading}
+                            />
                         </div>
-                        <EmployeeForm
-                            initialData={editingUser}
-                            onSubmit={handleEmployeeSubmit}
-                            onCancel={() => {
-                                setIsEmployeeModalOpen(false);
-                                setEditingUser(null);
-                            }}
-                            loading={formLoading}
-                        />
                     </div>
                 </div>
             )}
@@ -1098,45 +1030,47 @@ export default function DirectorDashboard() {
                 departments={departments}
             />
 
-
             {deleteModalUser && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full flex flex-col gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-lg shrink-0">
-                                ⚠️
+                <div className="fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] p-6 max-w-md w-full flex flex-col gap-4 relative overflow-hidden">
+                        <GirihPattern className="opacity-[0.11] rounded-3xl overflow-hidden" strokeColor="#9333ea" />
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-white text-red-600 shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] flex items-center justify-center font-bold text-lg shrink-0">
+                                    ⚠️
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-slate-900">
+                                        {tEmp("deleteModalTitle") || "Diqqat!"}
+                                    </h3>
+                                    <p className="text-xs text-slate-500">
+                                        {deleteModalUser.employee?.firstName ? `${deleteModalUser.employee.firstName} ${deleteModalUser.employee.lastName}` : deleteModalUser.email}
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-base font-bold text-slate-900">
-                                    {tEmp("deleteModalTitle") || "Diqqat!"}
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    {deleteModalUser.employee?.firstName ? `${deleteModalUser.employee.firstName} ${deleteModalUser.employee.lastName}` : deleteModalUser.email}
-                                </p>
+
+                            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                {tEmp("deleteModalText") || "Haqiqatan ham ushbu xodimni o'chirmoqchimisiz? Bu jarayonni orqaga qaytarib bo'lmaydi."}
+                            </p>
+
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={() => setDeleteModalUser(null)}
+                                    className="bg-white text-slate-700 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff] rounded-2xl px-5 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer disabled:opacity-50"
+                                >
+                                    {tEmp("cancelBtn") || "Bekor qilish"}
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={confirmDeleteEmployee}
+                                    className="bg-red-500 hover:bg-red-600 text-white shadow-[3px_3px_8px_#fca5a5,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3)] rounded-2xl px-5 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                                >
+                                    {isDeleting ? (tEmp("deletingBtn") || "O'chirilmoqda...") : (tEmp("deleteConfirmBtn") || "O'chirish")}
+                                </button>
                             </div>
-                        </div>
-
-                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                            {tEmp("deleteModalText") || "Haqiqatan ham ushbu xodimni o'chirmoqchimisiz? Bu jarayonni orqaga qaytarib bo'lmaydi."}
-                        </p>
-
-                        <div className="flex items-center justify-end gap-3 pt-2">
-                            <button
-                                type="button"
-                                disabled={isDeleting}
-                                onClick={() => setDeleteModalUser(null)}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl px-5 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                                {tEmp("cancelBtn") || "Bekor qilish"}
-                            </button>
-                            <button
-                                type="button"
-                                disabled={isDeleting}
-                                onClick={confirmDeleteEmployee}
-                                className="bg-red-500 hover:bg-red-600 text-white rounded-xl px-5 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                            >
-                                {isDeleting ? (tEmp("deletingBtn") || "O'chirilmoqda...") : (tEmp("deleteConfirmBtn") || "O'chirish")}
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1163,13 +1097,13 @@ export default function DirectorDashboard() {
             {toast && (
                 <div className="fixed top-6 right-6 z-[9999] transition-all duration-300 transform translate-y-0">
                     <div
-                        className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium ${
+                        className={`flex items-center gap-2.5 px-5 py-3.5 rounded-2xl shadow-[5px_5px_15px_#cbd5e1,-5px_-5px_15px_#ffffff] bg-white text-xs sm:text-sm font-semibold ${
                             toast.type === "success"
-                                ? "bg-white border-emerald-200 text-emerald-800"
-                                : "bg-white border-rose-200 text-rose-800"
+                                ? "text-emerald-800"
+                                : "text-rose-800"
                         }`}
                     >
-                        <span className={`w-2 h-2 rounded-full ${toast.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`} />
+                        <span className={`w-2.5 h-2.5 rounded-full ${toast.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`} />
                         <span>{toast.message}</span>
                     </div>
                 </div>

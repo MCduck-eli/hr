@@ -4,6 +4,7 @@ import {
     updateCustomRole,
     deleteCustomRole,
 } from "@/src/services/role-service";
+import GirihPattern from "@/src/components/ui/GirihPattern";
 
 interface RoleManagementModalProps {
     isOpen: boolean;
@@ -116,8 +117,10 @@ export default function RoleManagementModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-            <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-md p-4">
+            <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden relative">
+                <GirihPattern className="opacity-[0.11] rounded-3xl overflow-hidden" strokeColor="#9333ea" />
+                <div className="relative z-10 flex flex-col h-full overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-slate-100">
                     <div>
                         <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -311,6 +314,7 @@ export default function RoleManagementModal({
                             ))}
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </div>

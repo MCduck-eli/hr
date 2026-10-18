@@ -12,6 +12,7 @@ import {
     fetchTargetReport,
 } from "@/src/services/feedback360-service";
 import { fetchAllUsers } from "@/src/services/user-service";
+import { motion } from "framer-motion";
 import CreateFeedbackCycleModal from "./CreateFeedbackCycleModal";
 
 export default function FeedbackAssignmentManager() {
@@ -326,8 +327,18 @@ export default function FeedbackAssignmentManager() {
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col gap-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
+        <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col gap-8"
+        >
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100"
+            >
                 <div>
                     <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">
                         {t("title")}
@@ -345,7 +356,7 @@ export default function FeedbackAssignmentManager() {
                 >
                     {t("createNewCycle") || "+ Yangi Sikl"}
                 </button>
-            </div>
+            </motion.div>
 
             {initialLoading ? (
                 <div className="flex flex-col gap-6 animate-pulse">
@@ -374,7 +385,12 @@ export default function FeedbackAssignmentManager() {
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.05 }}
+                        className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end"
+                    >
                         <div className="flex flex-col gap-2">
                             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 {t("selectCycle")}
@@ -444,10 +460,15 @@ export default function FeedbackAssignmentManager() {
                                     ))}
                             </select>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {selectedCycleId && (
-                        <div className="flex flex-col gap-4 p-6 bg-gray-50/60 border border-gray-100 rounded-2xl">
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.35, delay: 0.1 }}
+                            className="flex flex-col gap-4 p-6 bg-gray-50/60 border border-gray-100 rounded-2xl"
+                        >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-200/60">
                                 <div>
                                     <h3 className="text-base font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
@@ -488,14 +509,17 @@ export default function FeedbackAssignmentManager() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {leaderboard.map((item) => {
+                                    {leaderboard.map((item, index) => {
                                         const isFirst = item.rank === 1;
                                         const isSecond = item.rank === 2;
                                         const isThird = item.rank === 3;
 
                                         return (
-                                            <tr
+                                            <motion.tr
                                                 key={item.employeeId}
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.2, delay: index * 0.04 }}
                                                 className={`transition-colors hover:bg-gray-50/80 ${
                                                     isFirst ? "bg-amber-50/40" : ""
                                                 }`}
@@ -554,18 +578,23 @@ export default function FeedbackAssignmentManager() {
                                                         {t("viewReport")}
                                                     </button>
                                                 </td>
-                                            </tr>
+                                            </motion.tr>
                                         );
                                     })}
                                 </tbody>
                             </table>
                         </div>
                     )}
-                </div>
-            )}
+                        </motion.div>
+                    )}
 
-            {selectedCycleId && selectedTargetId && (
-                <div className="flex flex-col gap-6 pt-6 border-t border-gray-100">
+                    {selectedCycleId && selectedTargetId && (
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.15 }}
+                    className="flex flex-col gap-6 pt-6 border-t border-gray-100"
+                >
                     <h3 className="text-lg font-bold uppercase tracking-wider text-gray-900">
                         {t("assignedReviewers")}
                     </h3>
@@ -648,8 +677,14 @@ export default function FeedbackAssignmentManager() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-xs">
-                                    {assignments.map((a) => (
-                                        <tr key={a.reviewerId} className="hover:bg-gray-50/80 transition-colors">
+                                    {assignments.map((a, index) => (
+                                        <motion.tr
+                                            key={a.reviewerId}
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.2, delay: index * 0.04 }}
+                                            className="hover:bg-gray-50/80 transition-colors"
+                                        >
                                             <td className="p-4 font-bold text-gray-900">
                                                 {a.reviewerName}
                                             </td>
@@ -672,7 +707,7 @@ export default function FeedbackAssignmentManager() {
                                                     {t("remove")}
                                                 </button>
                                             </td>
-                                        </tr>
+                                        </motion.tr>
                                     ))}
                                 </tbody>
                             </table>
@@ -688,11 +723,16 @@ export default function FeedbackAssignmentManager() {
                             {saving ? t("saving") : t("saveChanges")}
                         </button>
                     </div>
-                </div>
+                </motion.div>
             )}
 
             {selectedCycleId && (
-                <div className="flex flex-col gap-6 pt-6 border-t border-gray-100">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.2 }}
+                    className="flex flex-col gap-6 pt-6 border-t border-gray-100"
+                >
                     <h3 className="text-lg font-bold uppercase tracking-wider text-gray-900">
                         {t("allAssignments") || "Barcha biriktirilganlar (Sikl bo'yicha)"}
                     </h3>
@@ -721,8 +761,14 @@ export default function FeedbackAssignmentManager() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {globalAssignments.map((a: any) => (
-                                        <tr key={a.id} className="hover:bg-gray-50/80 transition-colors">
+                                    {globalAssignments.map((a: any, index: number) => (
+                                        <motion.tr
+                                            key={a.id}
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.4) }}
+                                            className="hover:bg-gray-50/80 transition-colors"
+                                        >
                                             <td className="p-4 font-bold text-gray-900">
                                                 {a.target?.firstName} {a.target?.lastName}
                                             </td>
@@ -759,7 +805,7 @@ export default function FeedbackAssignmentManager() {
                                                                 }}
                                                                 className="text-[11px] font-bold uppercase tracking-wider bg-[#9327FF] text-white px-3 py-1 rounded-lg hover:opacity-90 transition-all shadow-xs cursor-pointer"
                                                             >
-                                                                {t("evaluateButton") || "Baholash"}
+                                                                {t("startEvaluation") || "Baholash"}
                                                             </button>
                                                         )}
                                                         <button
@@ -771,13 +817,13 @@ export default function FeedbackAssignmentManager() {
                                                     </div>
                                                 )}
                                             </td>
-                                        </tr>
+                                        </motion.tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
                     )}
-                </div>
+                </motion.div>
             )}
             </>
             )}
@@ -967,6 +1013,6 @@ export default function FeedbackAssignmentManager() {
                     </div>
                 </div>
             )}
-        </div>
+        </motion.div>
     );
 }

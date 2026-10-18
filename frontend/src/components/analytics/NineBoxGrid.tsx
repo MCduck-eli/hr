@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { NineBoxMatrixCell, NineBoxEmployee } from "@/src/services/analytics-service";
+import AnimatedNumber from "@/src/components/ui/AnimatedNumber";
 
 interface NineBoxGridProps {
     matrix: NineBoxMatrixCell[];
@@ -195,7 +196,7 @@ export default function NineBoxGrid({ matrix }: NineBoxGridProps) {
                                             <span
                                                 className={`px-2 py-0.5 text-[10px] font-bold rounded-full shadow-xs ${theme.badge}`}
                                             >
-                                                {cell.count}
+                                                <AnimatedNumber value={cell.count} />
                                             </span>
                                         </div>
 
@@ -204,7 +205,7 @@ export default function NineBoxGrid({ matrix }: NineBoxGridProps) {
                                                 Ulashuv
                                             </span>
                                             <span className="text-xs font-mono font-bold text-slate-900">
-                                                {cell.percentage}%
+                                                <AnimatedNumber value={cell.percentage} suffix="%" />
                                             </span>
                                         </div>
                                     </div>

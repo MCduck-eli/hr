@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
     DiscQuestion,
     DiscProfileResponse,
@@ -244,40 +245,52 @@ export default function EmployeeTestModal({
                         </div>
 
                         {currentQ && (
-                            <div className="flex flex-col gap-4 border-2 border-black p-5 md:p-6 bg-white shadow-xs">
-                                <h3 className="text-base md:text-lg font-bold text-black leading-snug">
+                            <div key={currentQ.id} className="flex flex-col gap-4 border-2 border-black p-5 md:p-6 bg-white shadow-xs">
+                                <motion.h3
+                                    key={`title-${currentQ.id}`}
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="text-base md:text-lg font-bold text-black leading-snug"
+                                >
                                     {currentQ.text}
-                                </h3>
+                                </motion.h3>
 
                                 <div className="flex flex-col gap-2.5 pt-2">
-                                    {currentQ.options.map((opt) => {
+                                    {currentQ.options.map((opt, index) => {
                                         const isSelected = answers[currentQ.id] === opt.id;
                                         const color = discColorConfig[opt.discType] || discColorConfig.D;
 
                                         return (
-                                            <button
-                                                key={opt.id}
-                                                type="button"
-                                                onClick={() => handleSelectOption(currentQ.id, opt.id)}
-                                                className={`text-left p-4 border-2 transition-all flex items-start gap-3.5 ${
-                                                    isSelected
-                                                        ? "border-black bg-neutral-900 text-white shadow-sm"
-                                                        : "border-gray-200 bg-white hover:border-gray-400 text-black"
-                                                }`}
+                                            <motion.div
+                                                key={`${currentQ.id}-${opt.id}`}
+                                                initial={{ opacity: 0, y: 15 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.25, delay: index * 0.1 }}
                                             >
-                                                <div
-                                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 border ${
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSelectOption(currentQ.id, opt.id)}
+                                                    className={`w-full text-left p-4 border-2 transition-all flex items-start gap-3.5 ${
                                                         isSelected
-                                                            ? "bg-white text-black border-white"
-                                                            : "bg-gray-100 text-gray-700 border-gray-300"
+                                                            ? "border-black bg-neutral-900 text-white shadow-sm"
+                                                            : "border-gray-200 bg-white hover:border-gray-400 text-black"
                                                     }`}
                                                 >
-                                                    {opt.discType}
-                                                </div>
-                                                <span className="text-xs md:text-sm font-medium leading-relaxed flex-1">
-                                                    {opt.text}
-                                                </span>
-                                            </button>
+                                                    <div
+                                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 border ${
+                                                            isSelected
+                                                                ? "bg-white text-black border-white"
+                                                                : "bg-gray-100 text-gray-700 border-gray-300"
+                                                        }`}
+                                                    >
+                                                        {opt.discType}
+                                                    </div>
+                                                    <span className="text-xs md:text-sm font-medium leading-relaxed flex-1">
+                                                        {opt.text}
+                                                    </span>
+                                                </button>
+                                            </motion.div>
                                         );
                                     })}
                                 </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { assignEmployeeToDepartment } from "@/src/services/department-service";
+import GirihPattern from "@/src/components/ui/GirihPattern";
 
 interface AssignDepartmentEmployeeModalProps {
     isOpen: boolean;
@@ -77,88 +78,93 @@ export default function AssignDepartmentEmployeeModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-                className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+                className="fixed inset-0 bg-slate-900/20 backdrop-blur-md transition-opacity"
                 onClick={onClose}
             />
 
-            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-purple-100 text-[#9327FF] flex items-center justify-center text-lg font-bold">
-                            🏢
+            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200">
+                <GirihPattern className="opacity-[0.11] rounded-3xl overflow-hidden" strokeColor="#9333ea" />
+
+                <div className="relative z-10">
+                    <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-white text-purple-600 shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] flex items-center justify-center text-lg font-bold">
+                                🏢
+                            </div>
+                            <div>
+                                <h3 className="text-base font-bold text-slate-900">
+                                    Xodim biriktirish
+                                </h3>
+                                <p className="text-xs text-slate-500 font-medium">
+                                    {department.name} bo'limiga
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-base font-bold text-slate-900">
-                                Xodim biriktirish
-                            </h3>
-                            <p className="text-xs text-slate-500 font-medium">
-                                {department.name} bo'limiga
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                        ✕
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-                    {error && (
-                        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl">
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-700">
-                            Xodimni tanlang *
-                        </label>
-                        <select
-                            value={selectedUserId}
-                            onChange={(e) => {
-                                setSelectedUserId(e.target.value);
-                                setError(null);
-                            }}
-                            className="p-3 border border-slate-200 text-xs sm:text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:border-[#9327FF] w-full font-medium"
-                        >
-                            <option value="">-- Xodimni tanlang --</option>
-                            {availableUsers.map((u) => {
-                                const name = `${u.employee?.firstName || ""} ${u.employee?.lastName || ""}`.trim() || u.email;
-                                const currentDept = u.employee?.department?.name ? `(${u.employee.department.name})` : "(Bo'limsiz)";
-                                return (
-                                    <option key={u.id} value={u.id}>
-                                        {name} {currentDept} - {u.role}
-                                    </option>
-                                );
-                            })}
-                        </select>
-                    </div>
-
-                    {availableUsers.length === 0 && (
-                        <p className="text-xs text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-200">
-                            Kompaniyada ushbu bo'limga biriktirish mumkin bo'lgan boshqa xodimlar topilmadi.
-                        </p>
-                    )}
-
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                            className="w-8 h-8 rounded-full bg-white text-slate-500 hover:text-slate-900 shadow-[2px_2px_5px_#e2e8f0,-2px_-2px_5px_#ffffff] active:shadow-[inset_1px_1px_3px_#e2e8f0,inset_-1px_-1px_3px_#ffffff] flex items-center justify-center transition-all cursor-pointer"
                         >
-                            Bekor qilish
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading || !selectedUserId}
-                            className="px-5 py-2.5 bg-[#9327FF] hover:bg-[#7e22ce] text-white text-xs font-semibold rounded-xl transition-all duration-200 shadow-sm disabled:opacity-50 cursor-pointer"
-                        >
-                            {loading ? "Biriktirilmoqda..." : "Biriktirish"}
+                            ✕
                         </button>
                     </div>
-                </form>
+
+                    <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+                        {error && (
+                            <div className="p-3 bg-rose-50 text-rose-700 text-xs font-semibold rounded-2xl shadow-[inset_1px_1px_3px_#fecdd3,inset_-1px_-1px_3px_#ffffff]">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-slate-700">
+                                Xodimni tanlang *
+                            </label>
+                            <select
+                                value={selectedUserId}
+                                onChange={(e) => {
+                                    setSelectedUserId(e.target.value);
+                                    setError(null);
+                                }}
+                                className="p-3 shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff] text-xs sm:text-sm bg-white rounded-2xl outline-none w-full font-medium"
+                            >
+                                <option value="">-- Xodimni tanlang --</option>
+                                {availableUsers.map((u) => {
+                                    const name = `${u.employee?.firstName || ""} ${u.employee?.lastName || ""}`.trim() || u.email;
+                                    const currentDept = u.employee?.department?.name ? `(${u.employee.department.name})` : "(Bo'limsiz)";
+                                    return (
+                                        <option key={u.id} value={u.id}>
+                                            {name} {currentDept} - {u.role}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+
+                        {availableUsers.length === 0 && (
+                            <p className="text-xs text-amber-700 bg-amber-50 p-3 rounded-2xl shadow-[inset_1px_1px_3px_#fde68a,inset_-1px_-1px_3px_#ffffff]">
+                                Kompaniyada ushbu bo'limga biriktirish mumkin bo'lgan boshqa xodimlar topilmadi.
+                            </p>
+                        )}
+
+                        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2.5 bg-white text-slate-700 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff] text-xs font-semibold rounded-2xl transition-all cursor-pointer"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading || !selectedUserId}
+                                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-2xl transition-all duration-200 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.3)] disabled:opacity-50 cursor-pointer"
+                            >
+                                {loading ? "Biriktirilmoqda..." : "Biriktirish"}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     );
