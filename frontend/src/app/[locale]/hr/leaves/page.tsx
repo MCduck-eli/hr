@@ -9,7 +9,7 @@ import {
     LeaveRequestWithEmployee,
 } from "@/src/services/leave-service";
 import Skeleton from "@/src/components/ui/Skeleton";
-import Sidebar from "@/src/components/Sidebar";
+
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
     ANNUAL: "Yillik mehnat ta'tili",
@@ -110,10 +110,7 @@ export default function HRLeavesPage() {
     const pendingCount = leaves.filter((l) => l.status === "PENDING").length;
 
     return (
-        <div className="min-h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans">
-            <Sidebar />
-
-            <div className="flex-1 flex flex-col min-w-0 p-6 lg:p-8 gap-6">
+        <div className="flex-1 flex flex-col min-w-0 p-6 lg:p-8 gap-6">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-bold text-slate-900">Ta&apos;til So&apos;rovlari</h1>
                     <p className="text-sm text-slate-500 font-normal">
@@ -266,6 +263,5 @@ export default function HRLeavesPage() {
                     </button>
                 </div>
             )}
-        </div>
     );
 }

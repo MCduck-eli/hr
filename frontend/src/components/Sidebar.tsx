@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
+import GirihPattern from "@/src/components/ui/GirihPattern";
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -236,7 +237,9 @@ export default function Sidebar() {
     };
 
     return (
-        <aside className="w-full md:w-72 bg-white border-r border-slate-100 shrink-0 md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col justify-between z-20">
+        <aside className="w-72 m-4 h-[calc(100vh-2rem)] bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl flex flex-col relative overflow-hidden transition-all duration-300 shrink-0">
+            <GirihPattern className="opacity-[0.10]" />
+            <div className="relative z-10 flex-1 overflow-y-auto flex flex-col justify-between">
             <div className="p-5 flex flex-col gap-6">
                 <div className="flex items-center gap-3 px-2 pt-2">
                     <Link href={`/${locale}/hr/dashboard`} className="flex items-center gap-3">
@@ -320,6 +323,7 @@ export default function Sidebar() {
                         SaaS Enterprise v2.4
                     </span>
                 </div>
+            </div>
             </div>
         </aside>
     );

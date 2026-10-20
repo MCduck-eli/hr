@@ -1,20 +1,14 @@
-import DirectorSidebar from "@/src/components/director/DirectorSidebar";
+import HRSidebar from "./components/HRSidebar";
 
-export default async function HRLayout({
+export default function HRLayout({
     children,
-    params,
 }: {
     children: React.ReactNode;
-    params: Promise<{ locale: string }>;
 }) {
-    const { locale } = await params;
-
     return (
-        <div className="flex min-h-[calc(100vh-64px)] w-full bg-[#F8FAFC] p-4 md:p-6 gap-6 relative">
-            <DirectorSidebar locale={locale} />
-            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-                {children}
-            </div>
+        <div className="flex h-screen overflow-hidden bg-slate-50">
+            <HRSidebar />
+            <main className="flex-1 flex flex-col overflow-y-auto relative">{children}</main>
         </div>
     );
 }

@@ -14,7 +14,7 @@ import {
 } from "@/src/services/dashboard-service";
 import { fetchOkrDashboard } from "@/src/services/okr-service";
 import Skeleton from "@/src/components/ui/Skeleton";
-import Sidebar from "@/src/components/Sidebar";
+
 
 function CircularProgress({
     value,
@@ -303,10 +303,7 @@ export default function HRAdminDashboard() {
               : "Rejalar yo'q";
 
     return (
-        <div className="min-h-screen bg-slate-50/60 flex flex-col md:flex-row font-sans">
-            <Sidebar />
-
-            <main className="flex-1 min-w-0 p-6 md:p-10 flex flex-col gap-8 bg-slate-50/60 overflow-y-auto">
+        <main className="flex-1 min-w-0 p-6 md:p-10 flex flex-col gap-8 bg-slate-50/60 overflow-y-auto">
                 {isLoading ? (
                     <DashboardSkeleton />
                 ) : (
@@ -713,7 +710,6 @@ export default function HRAdminDashboard() {
                         </div>
                     </>
                 )}
-            </main>
-        </div>
+        </main>
     );
 }
