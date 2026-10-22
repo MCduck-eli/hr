@@ -1,0 +1,88 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import GradingManager from "@/src/components/grading/GradingManager";
+
+import Skeleton from "@/src/components/ui/Skeleton";
+
+import { motion } from "framer-motion";
+
+export default function GradingPage() {
+    const t = useTranslations("Grading");
+    const router = useRouter();
+    const params = useParams();
+    const locale = (params?.locale as string) || "uz";
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    useEffect(() => {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        if (!token) {
+            router.push(`/${locale}/login`);
+        } else {
+            setIsAuthenticated(true);
+        }
+    }, [locale, router]);
+
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-[#fafafa] text-gray-900 pb-20 font-sans">
+                <div className="border-b border-gray-100 bg-white">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-3">
+                        <Skeleton className="w-36 h-4 rounded" />
+                        <Skeleton className="w-64 h-8 rounded-lg" />
+                        <Skeleton className="w-96 h-4 rounded" />
+                    </div>
+                </div>
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+                                <div className="flex justify-between">
+                                    <Skeleton className="w-24 h-4 rounded" />
+                                    <Skeleton className="w-9 h-9 rounded-xl" />
+                                </div>
+                                <Skeleton className="w-20 h-8 rounded-lg" />
+                                <Skeleton className="w-28 h-3 rounded" />
+                            </div>
+                        ))}
+                    </div>
+                </main>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-[#fafafa] text-gray-900 pb-20 font-sans">
+            <div className="border-b border-gray-100 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                        <div>
+                            <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                                <span>{t("breadcrumbParent")}</span>
+                                <span>/</span>
+                                <span className="text-[#9327FF] font-bold">{t("breadcrumbCurrent")}</span>
+                            </div>
+                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
+                                {t("pageTitle")}
+                            </h1>
+                            <p className="text-xs sm:text-sm text-gray-500 mt-1 max-w-2xl">
+                                {t("pageSubtitle")}
+                            </p>
+                        </div>
+                    </motion.div>
+                </div>
+            </div>
+
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                <GradingManager />
+            </main>
+        </div>
+    );
+}

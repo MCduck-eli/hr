@@ -950,8 +950,33 @@ export default function OkrManager() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="bg-white max-w-3xl w-full rounded-3xl border border-gray-100 shadow-2xl overflow-hidden"
+                        className="relative bg-white max-w-3xl w-full rounded-3xl border border-gray-100 shadow-2xl overflow-hidden"
                     >
+                        <svg
+                            className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <defs>
+                                <pattern id="girih-pattern-okr-form" width="240" height="240" patternUnits="userSpaceOnUse">
+                                    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
+                                        <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
+                                        <circle cx="120" cy="120" r="10" />
+                                        <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
+                                        <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
+                                        <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
+                                        <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
+                                        <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
+                                        <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
+                                        <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
+                                        <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
+                                    </g>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#girih-pattern-okr-form)" />
+                        </svg>
+
+                        <div className="relative z-10">
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/60">
                             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-900">{editingObjective ? t("editOkrTitle") : t("newOkrTitle")}</h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 p-1 transition-colors cursor-pointer">
@@ -1198,6 +1223,7 @@ export default function OkrManager() {
                                 </button>
                             </div>
                         </form>
+                        </div>
                     </motion.div>
                 </div>
             )}
@@ -1208,8 +1234,33 @@ export default function OkrManager() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="bg-white max-w-2xl w-full rounded-3xl border border-gray-100 shadow-2xl overflow-hidden"
+                        className="relative bg-white max-w-2xl w-full rounded-3xl border border-gray-100 shadow-2xl overflow-hidden"
                     >
+                        <svg
+                            className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <defs>
+                                <pattern id="girih-pattern-okr-cycle" width="240" height="240" patternUnits="userSpaceOnUse">
+                                    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
+                                        <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
+                                        <circle cx="120" cy="120" r="10" />
+                                        <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
+                                        <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
+                                        <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
+                                        <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
+                                        <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
+                                        <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
+                                        <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
+                                        <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
+                                    </g>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#girih-pattern-okr-cycle)" />
+                        </svg>
+
+                        <div className="relative z-10">
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/60">
                             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-900">{t("createCycleTitle")}</h2>
                             <button onClick={() => setIsCycleModalOpen(false)} className="text-gray-400 hover:text-gray-900 p-1 transition-colors cursor-pointer">
@@ -1291,6 +1342,7 @@ export default function OkrManager() {
                                 </button>
                             </div>
                         </form>
+                        </div>
                     </motion.div>
                 </div>
             )}
@@ -1301,8 +1353,33 @@ export default function OkrManager() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.2 }}
-                        className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-lg border border-gray-100 flex flex-col gap-4"
+                        className="relative bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-lg border border-gray-100 flex flex-col gap-4 overflow-hidden"
                     >
+                        <svg
+                            className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <defs>
+                                <pattern id="girih-pattern-okr-delete" width="240" height="240" patternUnits="userSpaceOnUse">
+                                    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
+                                        <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
+                                        <circle cx="120" cy="120" r="10" />
+                                        <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
+                                        <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
+                                        <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
+                                        <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
+                                        <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
+                                        <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
+                                        <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
+                                        <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
+                                    </g>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#girih-pattern-okr-delete)" />
+                        </svg>
+
+                        <div className="relative z-10 flex flex-col gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-1">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1339,6 +1416,7 @@ export default function OkrManager() {
                                 )}
                                 {isDeleting ? "O'chirilmoqda..." : "O'chirish"}
                             </button>
+                        </div>
                         </div>
                     </motion.div>
                 </div>

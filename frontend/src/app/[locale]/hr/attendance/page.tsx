@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { motion } from "framer-motion";
 import {
     AttendanceRecord,
     AttendanceSummary,
@@ -15,10 +16,33 @@ import {
 import WorkScheduleModal from "@/src/components/hr/attendance/work-schedule-modal";
 import AbsenceReasonModal from "@/src/components/hr/attendance/absence-reason-modal";
 
+function useCountUp(target: number, duration = 1500) {
+    const [value, setValue] = useState(0);
+
+    useEffect(() => {
+        const startedAt = Date.now();
+        const timer = setInterval(() => {
+            const progress = Math.min(1, (Date.now() - startedAt) / duration);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            setValue(Math.round(target * eased));
+            if (progress >= 1) {
+                clearInterval(timer);
+            }
+        }, 16);
+        return () => clearInterval(timer);
+    }, [target, duration]);
+
+    return value;
+}
+
+function AnimatedPercent({ value, className }: { value: number; className?: string }) {
+    const display = useCountUp(value);
+    return <span className={className}>{display}</span>;
+}
+
 function CircularProgress({ value, size = 48, strokeWidth = 4, color = "#9327FF" }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
     const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-    const offset = circumference - (value / 100) * circumference;
+    const animatedValue = useCountUp(value);
 
     return (
         <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
@@ -32,20 +56,20 @@ function CircularProgress({ value, size = 48, strokeWidth = 4, color = "#9327FF"
                     className="text-gray-100"
                     fill="transparent"
                 />
-                <circle
+                <motion.circle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
                     stroke={color}
                     strokeWidth={strokeWidth}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
                     strokeLinecap="round"
-                    className="transition-all duration-700 ease-out"
                     fill="transparent"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: value / 100 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
                 />
             </svg>
-            <span className="absolute text-[11px] font-bold" style={{ color }}>{value}%</span>
+            <span className="absolute text-[11px] font-bold" style={{ color }}>{animatedValue}%</span>
         </div>
     );
 }
@@ -228,6 +252,7 @@ export default function HRAttendancePage() {
     const earlyPercent = totalEmp > 0 ? Math.round((todayEarlyCount / totalEmp) * 100) : 0;
     const checkedOutPercent = totalEmp > 0 ? Math.round((todayCheckedOutCount / totalEmp) * 100) : 0;
     const unmarkedPercent = totalEmp > 0 ? Math.round((todayUnmarkedCount / totalEmp) * 100) : 0;
+    const attendancePercent = totalEmp > 0 ? Math.round(((todayPresentCount + todayLateCount + todayCheckedOutCount) / totalEmp) * 100) : 0;
 
     const attendanceSegments = [
         { label: "Vaqtida kelgan", count: todayPresentCount, percent: onTimePercent, color: "#10b981", dotClass: "bg-emerald-500", textClass: "text-emerald-600" },
@@ -274,7 +299,12 @@ export default function HRAttendancePage() {
 
     return (
         <div className="max-w-[1400px] mx-auto p-4 md:p-8 flex flex-col gap-8 font-sans">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
+            <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100"
+            >
                 <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2">
                         <Link
@@ -312,10 +342,15 @@ export default function HRAttendancePage() {
                         <span>{t("refresh")}</span>
                     </button>
                 </div>
-            </div>
+            </motion.div>
 
             {schedule && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap items-center justify-between gap-4 text-xs">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap items-center justify-between gap-4 text-xs"
+                >
                     <div className="flex flex-wrap items-center gap-6 font-semibold text-slate-700">
                         <div className="flex items-center gap-2">
                             <span className="text-slate-400 font-normal">{t("standardSchedule")}:</span>
@@ -347,11 +382,16 @@ export default function HRAttendancePage() {
                             {summary.isWorkingDay ? t("todayWorkDay") : t("todayOffDay")}
                         </span>
                     </div>
-                </div>
+                </motion.div>
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-all">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-all"
+                >
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-gray-400 truncate">
                             {t("totalEmployees")}
@@ -374,9 +414,14 @@ export default function HRAttendancePage() {
                             {todayPresentCount + todayLateCount + todayCheckedOutCount}
                         </span>
                     </div>
-                </div>
+                </motion.div>
 
-                <div className="lg:col-span-2 xl:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-4 hover:shadow-md transition-all">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="lg:col-span-2 xl:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-4 hover:shadow-md transition-all"
+                >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -387,7 +432,7 @@ export default function HRAttendancePage() {
                         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
                             <span>Jami qatnashuv:</span>
                             <span className="text-slate-900 font-bold">
-                                {totalEmp > 0 ? Math.round(((todayPresentCount + todayLateCount + todayCheckedOutCount) / totalEmp) * 100) : 0}%
+                                <AnimatedPercent value={attendancePercent} />%
                             </span>
                         </div>
                     </div>
@@ -404,15 +449,14 @@ export default function HRAttendancePage() {
                                     strokeWidth="18"
                                 />
                                 {(() => {
-                                    const circumference = 2 * Math.PI * 56;
                                     let accumulated = 0;
                                     return attendanceSegments.map((seg, idx) => {
                                         if (seg.count <= 0 || totalEmp <= 0) return null;
-                                        const dashArray = `${(seg.count / totalEmp) * circumference} ${circumference}`;
-                                        const dashOffset = -((accumulated / totalEmp) * circumference);
+                                        const fraction = seg.count / totalEmp;
+                                        const startFraction = accumulated / totalEmp;
                                         accumulated += seg.count;
                                         return (
-                                            <circle
+                                            <motion.circle
                                                 key={idx}
                                                 cx="80"
                                                 cy="80"
@@ -420,9 +464,9 @@ export default function HRAttendancePage() {
                                                 fill="none"
                                                 stroke={seg.color}
                                                 strokeWidth="18"
-                                                strokeDasharray={dashArray}
-                                                strokeDashoffset={dashOffset}
-                                                className="transition-all duration-500"
+                                                initial={{ pathLength: 0, pathOffset: startFraction }}
+                                                animate={{ pathLength: fraction, pathOffset: startFraction }}
+                                                transition={{ duration: 1.5, delay: 0.2 + idx * 0.15, ease: "easeOut" }}
                                             />
                                         );
                                     });
@@ -430,7 +474,7 @@ export default function HRAttendancePage() {
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 <span className="text-xl font-extrabold text-slate-900 leading-none">
-                                    {totalEmp > 0 ? Math.round(((todayPresentCount + todayLateCount + todayCheckedOutCount) / totalEmp) * 100) : 0}%
+                                    <AnimatedPercent value={attendancePercent} />%
                                 </span>
                                 <span className="text-[10px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">
                                     Davomat
@@ -440,7 +484,13 @@ export default function HRAttendancePage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
                             {attendanceSegments.map((seg, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4 }}
+                                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors"
+                                >
                                     <div className="flex items-center gap-2 min-w-0">
                                         <span className={`w-2.5 h-2.5 rounded-full ${seg.dotClass} shrink-0`}></span>
                                         <span className="text-xs font-medium text-slate-600 truncate">
@@ -455,15 +505,20 @@ export default function HRAttendancePage() {
                                             ({seg.percent}%)
                                         </span>
                                     </div>
-                                </div>
+                                </motion.div>
                             ))}
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
 
             <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="flex items-center justify-between"
+                >
                     <div>
                         <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                             Bo'limlar bo'yicha ko'rsatkichlar
@@ -475,10 +530,10 @@ export default function HRAttendancePage() {
                     <span className="text-xs font-semibold text-slate-400">
                         {departmentStats.length} ta bo'lim
                     </span>
-                </div>
+                </motion.div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-                    {departmentStats.map((dept) => {
+                    {departmentStats.map((dept, deptIndex) => {
                         const deptSegments = [
                             { label: "Vaqtida keldi", count: dept.onTime, color: "#10b981", dotClass: "bg-emerald-500" },
                             { label: "Kechikkan", count: dept.late, color: "#f59e0b", dotClass: "bg-amber-500" },
@@ -487,12 +542,14 @@ export default function HRAttendancePage() {
                             { label: "Belgilanmagan", count: dept.unmarked, color: "#ef4444", dotClass: "bg-rose-500" },
                         ];
                         const radius = 38;
-                        const circumference = 2 * Math.PI * radius;
                         let accumulated = 0;
 
                         return (
-                            <div
+                            <motion.div
                                 key={dept.department}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4 }}
                                 className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col justify-between gap-3 hover:shadow-md transition-all"
                             >
                                 <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
@@ -520,11 +577,11 @@ export default function HRAttendancePage() {
                                             />
                                             {deptSegments.map((seg, sIdx) => {
                                                 if (seg.count <= 0 || dept.total <= 0) return null;
-                                                const dashArray = `${(seg.count / dept.total) * circumference} ${circumference}`;
-                                                const dashOffset = -((accumulated / dept.total) * circumference);
+                                                const fraction = seg.count / dept.total;
+                                                const startFraction = accumulated / dept.total;
                                                 accumulated += seg.count;
                                                 return (
-                                                    <circle
+                                                    <motion.circle
                                                         key={sIdx}
                                                         cx="50"
                                                         cy="50"
@@ -532,16 +589,16 @@ export default function HRAttendancePage() {
                                                         fill="none"
                                                         stroke={seg.color}
                                                         strokeWidth="10"
-                                                        strokeDasharray={dashArray}
-                                                        strokeDashoffset={dashOffset}
-                                                        className="transition-all duration-300"
+                                                        initial={{ pathLength: 0, pathOffset: startFraction }}
+                                                        animate={{ pathLength: fraction, pathOffset: startFraction }}
+                                                        transition={{ duration: 1.5, delay: 0.3 + deptIndex * 0.1 + sIdx * 0.12, ease: "easeOut" }}
                                                     />
                                                 );
                                             })}
                                         </svg>
                                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                             <span className="text-sm font-extrabold text-slate-900 leading-none">
-                                                {dept.percentage}%
+                                                <AnimatedPercent value={dept.percentage} />%
                                             </span>
                                             <span className="text-[8px] font-bold text-emerald-600 mt-0.5 uppercase tracking-wider">
                                                 Vaqtida
@@ -551,17 +608,23 @@ export default function HRAttendancePage() {
 
                                     <div className="flex flex-col justify-center gap-1 w-full min-w-0">
                                         {deptSegments.map((seg, sIdx) => (
-                                            <div key={sIdx} className="flex items-center justify-between text-xs py-0.5 px-2 rounded-lg bg-slate-50/60 border border-slate-100/70">
+                                            <motion.div
+                                                key={sIdx}
+                                                initial={{ opacity: 0, y: 15 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.4 }}
+                                                className="flex items-center justify-between text-xs py-0.5 px-2 rounded-lg bg-slate-50/60 border border-slate-100/70"
+                                            >
                                                 <div className="flex items-center gap-1.5 min-w-0">
                                                     <span className={`w-1.5 h-1.5 rounded-full ${seg.dotClass} shrink-0`} />
                                                     <span className="text-slate-600 text-[10px] font-medium truncate">{seg.label}</span>
                                                 </div>
                                                 <span className="font-bold text-slate-900 text-[11px] pl-1.5 shrink-0">{seg.count}</span>
-                                            </div>
+                                            </motion.div>
                                         ))}
                                     </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         );
                     })}
 

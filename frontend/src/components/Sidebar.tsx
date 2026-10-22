@@ -138,7 +138,7 @@ export default function Sidebar() {
             ),
         },
         {
-            href: `/${locale}/grading`,
+            href: `/${locale}/hr/grading`,
             label: "Greyding Tizimi",
             icon: (
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -147,7 +147,7 @@ export default function Sidebar() {
             ),
         },
         {
-            href: `/${locale}/disc`,
+            href: `/${locale}/hr/disc`,
             label: "DISC Modeli",
             icon: (
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

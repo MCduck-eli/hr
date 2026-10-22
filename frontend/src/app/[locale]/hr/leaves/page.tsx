@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
     getAllLeaveRequests,
     updateLeaveStatus,
@@ -110,15 +111,26 @@ export default function HRLeavesPage() {
     const pendingCount = leaves.filter((l) => l.status === "PENDING").length;
 
     return (
+        <>
         <div className="flex-1 flex flex-col min-w-0 p-6 lg:p-8 gap-6">
-                <div className="flex flex-col gap-1">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="flex flex-col gap-1"
+                >
                     <h1 className="text-2xl font-bold text-slate-900">Ta&apos;til So&apos;rovlari</h1>
                     <p className="text-sm text-slate-500 font-normal">
                         Xodimlarning ta&apos;til so&apos;rovlarini ko&apos;rib chiqing va tasdiqlang
                     </p>
-                </div>
+                </motion.div>
 
-                <div className="flex gap-2 flex-wrap">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="flex gap-2 flex-wrap"
+                >
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
@@ -137,12 +149,18 @@ export default function HRLeavesPage() {
                             )}
                         </button>
                     ))}
-                </div>
+                </motion.div>
 
                 {loading ? (
                     <div className="flex flex-col gap-3">
                         {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4 }}
+                                className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4"
+                            >
                                 <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
                                 <div className="flex-1 flex flex-col gap-2">
                                     <Skeleton className="w-40 h-4 rounded-lg" />
@@ -150,7 +168,7 @@ export default function HRLeavesPage() {
                                 </div>
                                 <Skeleton className="w-24 h-7 rounded-full" />
                                 <Skeleton className="w-28 h-8 rounded-xl" />
-                            </div>
+                            </motion.div>
                         ))}
                     </div>
                 ) : leaves.length === 0 ? (
@@ -161,13 +179,16 @@ export default function HRLeavesPage() {
                     </div>
                 ) : (
                     <div className="flex flex-col gap-3">
-                        {leaves.map((leave) => {
+                        {leaves.map((leave, index) => {
                             const statusConfig = STATUS_CONFIG[leave.status] || STATUS_CONFIG.PENDING;
                             const isProcessing = processingId === leave.id;
 
                             return (
-                                <div
+                                <motion.div
                                     key={leave.id}
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: index * 0.05 }}
                                     className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col sm:flex-row sm:items-center gap-4"
                                 >
                                     <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg shrink-0">
@@ -229,7 +250,7 @@ export default function HRLeavesPage() {
                                             </div>
                                         )}
                                     </div>
-                                </div>
+                                </motion.div>
                             );
                         })}
                     </div>
@@ -263,5 +284,6 @@ export default function HRLeavesPage() {
                     </button>
                 </div>
             )}
+        </>
     );
 }

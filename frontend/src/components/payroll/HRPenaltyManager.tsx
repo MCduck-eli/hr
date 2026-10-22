@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { motion } from "framer-motion";
 import {
     fetchPenaltyRules,
     createPenaltyRule,
@@ -18,10 +19,33 @@ import {
 } from "@/src/services/payroll-service";
 import { fetchAllUsers } from "@/src/services/user-service";
 
+function useCountUp(target: number, duration = 1500) {
+    const [value, setValue] = useState(0);
+
+    useEffect(() => {
+        const startedAt = Date.now();
+        const timer = setInterval(() => {
+            const progress = Math.min(1, (Date.now() - startedAt) / duration);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            setValue(Math.round(target * eased));
+            if (progress >= 1) {
+                clearInterval(timer);
+            }
+        }, 16);
+        return () => clearInterval(timer);
+    }, [target, duration]);
+
+    return value;
+}
+
+function AnimatedNumber({ value, format }: { value: number; format?: (n: number) => string }) {
+    const display = useCountUp(value);
+    return <>{format ? format(display) : display}</>;
+}
+
 function CircularProgress({ value, size = 46, strokeWidth = 4, color = "#9327FF" }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
     const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-    const offset = circumference - (value / 100) * circumference;
+    const animatedValue = useCountUp(value);
 
     return (
         <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
@@ -35,20 +59,20 @@ function CircularProgress({ value, size = 46, strokeWidth = 4, color = "#9327FF"
                     className="text-gray-100"
                     fill="transparent"
                 />
-                <circle
+                <motion.circle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
                     stroke={color}
                     strokeWidth={strokeWidth}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
                     strokeLinecap="round"
-                    className="transition-all duration-700 ease-out"
                     fill="transparent"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: value / 100 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
                 />
             </svg>
-            <span className="absolute text-[11px] font-bold" style={{ color }}>{value}%</span>
+            <span className="absolute text-[11px] font-bold" style={{ color }}>{animatedValue}%</span>
         </div>
     );
 }
@@ -871,7 +895,12 @@ export default function HRPenaltyManager() {
 
     return (
         <div className="flex flex-col gap-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-6">
+            <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-6"
+            >
                 <div>
                     <h1 className="text-2xl font-black uppercase tracking-tight text-black flex items-center gap-2">
                         <span>⚖️</span>
@@ -906,7 +935,7 @@ export default function HRPenaltyManager() {
                         <span>{t("addPenaltyBtnText")}</span>
                     </button>
                 </div>
-            </div>
+            </motion.div>
 
             {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
@@ -923,69 +952,94 @@ export default function HRPenaltyManager() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-2xl shadow-sm border border-rose-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
+                    <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="bg-white rounded-2xl shadow-sm border border-rose-100 p-5 flex items-center justify-between hover:shadow-md transition-all"
+                    >
                         <div className="flex flex-col gap-1 min-w-0">
                             <span className="text-xs font-bold uppercase tracking-wider text-rose-600 truncate">
                                 {t("cardTotalFines")} ({getMonthName(selectedMonth)})
                             </span>
                             <div className="text-2xl font-black text-rose-600">
-                                -{Number(summaryStats.grandTotalFines || 0).toLocaleString()} UZS
+                                -<AnimatedNumber value={Number(summaryStats.grandTotalFines || 0)} format={(n) => n.toLocaleString()} /> UZS
                             </div>
                             <span className="text-[11px] font-medium text-rose-600 mt-0.5">
                                 {t("cardTotalFinesSub")}
                             </span>
                         </div>
                         <CircularProgress value={finePercent} size={46} strokeWidth={4} color="#f43f5e" />
-                    </div>
+                    </motion.div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
+                    <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5 flex items-center justify-between hover:shadow-md transition-all"
+                    >
                         <div className="flex flex-col gap-1 min-w-0">
                             <span className="text-xs font-bold uppercase tracking-wider text-amber-600 truncate">
                                 {t("cardLatenessAuto")}
                             </span>
                             <div className="text-2xl font-black text-amber-600">
-                                {summaryStats.totalLateCount || 0} {t("unitItems")}
+                                <AnimatedNumber value={Number(summaryStats.totalLateCount || 0)} /> {t("unitItems")}
                             </div>
                             <span className="text-[11px] font-medium text-amber-600 mt-0.5">
                                 {t("totalLabel")} {formatLateTime(summaryStats.totalLateMinutes || 0)} (-{Number(summaryStats.totalLateFines || 0).toLocaleString()} UZS)
                             </span>
                         </div>
                         <CircularProgress value={latePercent} size={46} strokeWidth={4} color="#f59e0b" />
-                    </div>
+                    </motion.div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
+                    <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="bg-white rounded-2xl shadow-sm border border-red-100 p-5 flex items-center justify-between hover:shadow-md transition-all"
+                    >
                         <div className="flex flex-col gap-1 min-w-0">
                             <span className="text-xs font-bold uppercase tracking-wider text-red-600 truncate">
                                 {t("cardAbsenceAuto")}
                             </span>
                             <div className="text-2xl font-black text-red-600">
-                                {summaryStats.totalAbsentDays || 0} {t("unitDays")}
+                                <AnimatedNumber value={Number(summaryStats.totalAbsentDays || 0)} /> {t("unitDays")}
                             </div>
                             <span className="text-[11px] font-medium text-red-600 mt-0.5">
                                 {t("totalLabel")} (-{Number(summaryStats.totalAbsentFines || 0).toLocaleString()} UZS)
                             </span>
                         </div>
                         <CircularProgress value={absentPercent} size={46} strokeWidth={4} color="#ef4444" />
-                    </div>
+                    </motion.div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-5 flex items-center justify-between hover:shadow-md transition-all">
+                    <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="bg-white rounded-2xl shadow-sm border border-purple-100 p-5 flex items-center justify-between hover:shadow-md transition-all"
+                    >
                         <div className="flex flex-col gap-1 min-w-0">
                             <span className="text-xs font-bold uppercase tracking-wider text-purple-600 truncate">
                                 {t("cardDisciplinaryManual")}
                             </span>
                             <div className="text-2xl font-black text-slate-900">
-                                {summaryStats.totalDisciplinaryCount || 0} {t("unitItems")}
+                                <AnimatedNumber value={Number(summaryStats.totalDisciplinaryCount || 0)} /> {t("unitItems")}
                             </div>
                             <span className="text-[11px] font-medium text-slate-500 mt-0.5">
                                 {t("cardDisciplinarySub")} (-{Number(summaryStats.totalDisciplinaryFines || 0).toLocaleString()} UZS)
                             </span>
                         </div>
                         <CircularProgress value={discPercent} size={46} strokeWidth={4} color="#9327FF" />
-                    </div>
+                    </motion.div>
                 </div>
             )}
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+            >
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold uppercase text-gray-500">{t("monthLabel")}</span>
@@ -1050,9 +1104,14 @@ export default function HRPenaltyManager() {
                         className="w-full bg-white border border-gray-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 shadow-xs text-slate-800"
                     />
                 </div>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="flex items-center gap-2 overflow-x-auto pb-1"
+            >
                 <button
                     onClick={() => setActiveTab("overview")}
                     className={`px-4 py-2 text-xs font-medium rounded-xl transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
@@ -1119,7 +1178,7 @@ export default function HRPenaltyManager() {
                     <span>📁</span>
                     <span>3 oylik arxiv ({filteredArchiveItems.length})</span>
                 </button>
-            </div>
+            </motion.div>
 
             {error && (
                 <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold uppercase">
@@ -1145,7 +1204,12 @@ export default function HRPenaltyManager() {
             ) : (
                 <>
                     {activeTab === "overview" && (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                        >
                             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
                                 <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
                                     {t("overviewTableTitle")} ({getMonthName(selectedMonth)} {selectedYear})
@@ -1176,12 +1240,18 @@ export default function HRPenaltyManager() {
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredSummaries.map((summary) => {
+                                            filteredSummaries.map((summary, index) => {
                                                 const empPenaltiesList = getEmployeeAllPenalties(summary);
                                                 const isExpanded = !!expandedEmployees[summary.employeeId];
 
                                                 return (
-                                                    <tr key={summary.employeeId} className="group">
+                                                    <motion.tr
+                                                        key={summary.employeeId}
+                                                        initial={{ opacity: 0, y: 10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                                                        className="group"
+                                                    >
                                                         <td colSpan={7} className="p-0">
                                                             <div className="flex items-center justify-between p-4 hover:bg-slate-50/60 transition-colors border-b border-gray-50">
                                                                 <div className="grid grid-cols-7 w-full items-center">
@@ -1293,7 +1363,13 @@ export default function HRPenaltyManager() {
                                                                                     </thead>
                                                                                     <tbody className="divide-y divide-gray-50">
                                                                                         {empPenaltiesList.map((item, pIdx) => (
-                                                                                            <tr key={pIdx} className="hover:bg-slate-50/60 transition-colors">
+                                                                                            <motion.tr
+                                                                                                key={pIdx}
+                                                                                                initial={{ opacity: 0, y: 10 }}
+                                                                                                animate={{ opacity: 1, y: 0 }}
+                                                                                                transition={{ duration: 0.3, delay: pIdx * 0.05 }}
+                                                                                                className="hover:bg-slate-50/60 transition-colors"
+                                                                                            >
                                                                                                 <td className="py-2.5 px-3 font-medium text-slate-700 whitespace-nowrap">
                                                                                                     <span className="font-bold text-slate-900">
                                                                                                         {item.date ? new Date(item.date).toLocaleDateString(locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US") : "-"}
@@ -1345,7 +1421,7 @@ export default function HRPenaltyManager() {
                                                                                                         </button>
                                                                                                     </div>
                                                                                                 </td>
-                                                                                            </tr>
+                                                                                            </motion.tr>
                                                                                         ))}
                                                                                     </tbody>
                                                                                 </table>
@@ -1355,18 +1431,23 @@ export default function HRPenaltyManager() {
                                                                 </div>
                                                             )}
                                                         </td>
-                                                    </tr>
+                                                    </motion.tr>
                                                 );
                                             })
                                         )}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {activeTab === "all" && (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                        >
                             <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
                                 <div>
                                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
@@ -1491,7 +1572,13 @@ export default function HRPenaltyManager() {
                                             </tr>
                                         ) : (
                                             filteredAllPenalties.map((item, idx) => (
-                                                <tr key={item.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                                                <motion.tr
+                                                    key={item.id || idx}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 0.3, delay: idx * 0.05 }}
+                                                    className="hover:bg-slate-50/60 transition-colors"
+                                                >
                                                     <td className="py-3.5 px-3 text-center text-slate-400 font-medium">
                                                         {idx + 1}
                                                     </td>
@@ -1563,17 +1650,22 @@ export default function HRPenaltyManager() {
                                                             </div>
                                                         )}
                                                     </td>
-                                                </tr>
+                                                </motion.tr>
                                             ))
                                         )}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {activeTab === "lateness" && (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                        >
                             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                                     {t("latenessTableTitle")} ({filteredLateAttendances.length})
@@ -1603,8 +1695,14 @@ export default function HRPenaltyManager() {
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredLateAttendances.map((late) => (
-                                                <tr key={late.id} className="hover:bg-slate-50/60 transition-colors">
+                                            filteredLateAttendances.map((late, index) => (
+                                                <motion.tr
+                                                    key={late.id}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                                                    className="hover:bg-slate-50/60 transition-colors"
+                                                >
                                                     <td className="py-3.5 px-4 font-bold text-slate-900">
                                                         <div>{`${late.employee?.firstName || ""} ${late.employee?.lastName || ""}`.trim() || "-"}</div>
                                                         {(late.employee?.user?.email || late.employee?.email) && (
@@ -1667,17 +1765,22 @@ export default function HRPenaltyManager() {
                                                             </button>
                                                         </div>
                                                     </td>
-                                                </tr>
+                                                </motion.tr>
                                             ))
                                         )}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {activeTab === "absence" && (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                        >
                             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                                     Ishga kelmaganliklar ro'yxati ({filteredAbsentRecords.length})
@@ -1707,7 +1810,13 @@ export default function HRPenaltyManager() {
                                             </tr>
                                         ) : (
                                             filteredAbsentRecords.map((absent, idx) => (
-                                                <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                                                <motion.tr
+                                                    key={idx}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 0.3, delay: idx * 0.05 }}
+                                                    className="hover:bg-slate-50/60 transition-colors"
+                                                >
                                                     <td className="py-3.5 px-4 font-bold text-slate-900">
                                                         <div>{`${absent.employee?.firstName || ""} ${absent.employee?.lastName || ""}`.trim() || "-"}</div>
                                                         {(absent.employee?.user?.email || absent.employee?.email) && (
@@ -1767,17 +1876,22 @@ export default function HRPenaltyManager() {
                                                             </button>
                                                         </div>
                                                     </td>
-                                                </tr>
+                                                </motion.tr>
                                             ))
                                         )}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {activeTab === "disciplinary" && (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                        >
                             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                                     {t("disciplinaryTableTitle")} ({filteredDisciplinaryPenalties.length})
@@ -1807,8 +1921,14 @@ export default function HRPenaltyManager() {
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredDisciplinaryPenalties.map((penalty) => (
-                                                <tr key={penalty.id} className="hover:bg-slate-50/60 transition-colors">
+                                            filteredDisciplinaryPenalties.map((penalty, index) => (
+                                                <motion.tr
+                                                    key={penalty.id}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                                                    className="hover:bg-slate-50/60 transition-colors"
+                                                >
                                                     <td className="py-3.5 px-4 font-bold text-slate-900">
                                                         <div>{`${penalty.employee?.firstName || ""} ${penalty.employee?.lastName || ""}`.trim() || "-"}</div>
                                                         {(penalty.employee?.user?.email || penalty.employee?.email) && (
@@ -1871,13 +1991,13 @@ export default function HRPenaltyManager() {
                                                             </button>
                                                         </div>
                                                     </td>
-                                                </tr>
+                                                </motion.tr>
                                             ))
                                         )}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {activeTab === "archive" && (
@@ -1951,7 +2071,12 @@ export default function HRPenaltyManager() {
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <motion.div
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4 }}
+                                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                            >
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse text-xs">
                                         <thead>
@@ -1972,8 +2097,14 @@ export default function HRPenaltyManager() {
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                filteredArchiveItems.map((item) => (
-                                                    <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                                                filteredArchiveItems.map((item, index) => (
+                                                    <motion.tr
+                                                        key={item.id}
+                                                        initial={{ opacity: 0, y: 10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                                                        className="hover:bg-slate-50/60 transition-colors"
+                                                    >
                                                         <td className="py-3.5 px-4">
                                                             <div className="font-bold text-slate-900">{item.monthLabel}</div>
                                                             <div className="text-[11px] text-slate-400 font-mono">
@@ -2008,13 +2139,13 @@ export default function HRPenaltyManager() {
                                                                 Arxivlangan
                                                             </span>
                                                         </td>
-                                                    </tr>
+                                                    </motion.tr>
                                                 ))
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                            </div>
+                            </motion.div>
                         </div>
                     )}
                 </>
@@ -2022,7 +2153,32 @@ export default function HRPenaltyManager() {
 
             {isAddPenaltyModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-lg rounded-2xl border border-gray-100 shadow-2xl p-6">
+                    <div className="relative bg-white w-full max-w-lg rounded-2xl border border-gray-100 shadow-2xl p-6 overflow-hidden">
+                        <svg
+                            className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <defs>
+                                <pattern id="girih-pattern-penalty-add" width="240" height="240" patternUnits="userSpaceOnUse">
+                                    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
+                                        <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
+                                        <circle cx="120" cy="120" r="10" />
+                                        <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
+                                        <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
+                                        <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
+                                        <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
+                                        <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
+                                        <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
+                                        <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
+                                        <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
+                                    </g>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#girih-pattern-penalty-add)" />
+                        </svg>
+
+                        <div className="relative z-10">
                         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                             <h3 className="text-base font-bold uppercase text-slate-900 flex items-center gap-2">
                                 <span>⚖️</span>
@@ -2155,13 +2311,39 @@ export default function HRPenaltyManager() {
                                 </button>
                             </div>
                         </form>
+                        </div>
                     </div>
                 </div>
             )}
 
             {isPenaltyRulesModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-2xl rounded-2xl border border-gray-100 shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+                    <div className="relative bg-white w-full max-w-2xl rounded-2xl border border-gray-100 shadow-2xl p-6 max-h-[90vh] overflow-hidden flex flex-col">
+                        <svg
+                            className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <defs>
+                                <pattern id="girih-pattern-penalty-rules" width="240" height="240" patternUnits="userSpaceOnUse">
+                                    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
+                                        <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
+                                        <circle cx="120" cy="120" r="10" />
+                                        <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
+                                        <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
+                                        <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
+                                        <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
+                                        <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
+                                        <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
+                                        <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
+                                        <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
+                                    </g>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#girih-pattern-penalty-rules)" />
+                        </svg>
+
+                        <div className="relative z-10 overflow-y-auto flex-1 min-h-0">
                         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                             <div>
                                 <h3 className="text-base font-bold uppercase text-slate-900 flex items-center gap-2">
@@ -2479,13 +2661,39 @@ export default function HRPenaltyManager() {
                                 )}
                             </div>
                         </div>
+                        </div>
                     </div>
                 </div>
             )}
 
             {isEditPenaltyModalOpen && editingPenaltyItem && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="bg-white border border-gray-100 w-full max-w-md rounded-2xl shadow-2xl p-6 relative animate-in fade-in zoom-in-95 duration-150">
+                    <div className="relative bg-white border border-gray-100 w-full max-w-md rounded-2xl shadow-2xl p-6 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                        <svg
+                            className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <defs>
+                                <pattern id="girih-pattern-penalty-edit" width="240" height="240" patternUnits="userSpaceOnUse">
+                                    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
+                                        <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
+                                        <circle cx="120" cy="120" r="10" />
+                                        <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
+                                        <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
+                                        <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
+                                        <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
+                                        <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
+                                        <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
+                                        <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
+                                        <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
+                                    </g>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#girih-pattern-penalty-edit)" />
+                        </svg>
+
+                        <div className="relative z-10">
                         <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
                             <div>
                                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
@@ -2582,6 +2790,7 @@ export default function HRPenaltyManager() {
                                 </button>
                             </div>
                         </form>
+                        </div>
                     </div>
                 </div>
             )}
