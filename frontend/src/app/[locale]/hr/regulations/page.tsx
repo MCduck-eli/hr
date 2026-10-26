@@ -15,6 +15,8 @@ import RegulationFormModal from "@/src/components/hr/regulations/regulation-form
 import RegulationSignaturesModal from "@/src/components/hr/regulations/regulation-signatures-modal";
 import RegulationViewerModal from "@/src/components/regulations/regulation-viewer-modal";
 import Skeleton from "@/src/components/ui/Skeleton";
+import { motion } from "framer-motion";
+import GirihPattern from "@/src/components/ui/GirihPattern";
 
 function CircularProgress({
     value,
@@ -299,8 +301,20 @@ export default function HRRegulationsPage() {
             />
 
             {deletingPolicyId && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all scale-100">
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+                >
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                        className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all scale-100"
+                    >
+                        <GirihPattern className="opacity-[0.10] rounded-3xl overflow-hidden" />
+                        <div className="relative z-10">
                         <div className="flex items-center gap-3.5 mb-2">
                             <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -332,8 +346,9 @@ export default function HRRegulationsPage() {
                                 {isDeleting ? "O'chirilmoqda..." : "O'chirish"}
                             </button>
                         </div>
-                    </div>
-                </div>
+                        </div>
+                    </motion.div>
+                </motion.div>
             )}
 
             {toast && (

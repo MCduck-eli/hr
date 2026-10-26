@@ -156,192 +156,196 @@ export default function DirectorSidebar({ locale }: DirectorSidebarProps) {
     ];
 
     return (
-        <aside className="w-64 lg:w-72 shrink-0 bg-white rounded-3xl shadow-[5px_5px_15px_#e2e8f0,-5px_-5px_15px_#ffffff] m-4 relative flex flex-col justify-between p-4 md:p-6 sticky top-20 h-[calc(100vh-5rem)] md:h-[calc(100vh-6rem)] overflow-hidden">
-            <GirihPattern className="opacity-[0.11]" />
+        <aside className="w-72 shrink-0 bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl m-4 sticky top-20 h-[calc(100vh-5rem)] md:h-[calc(100vh-6rem)] overflow-hidden relative flex flex-col transition-all duration-300">
+            <GirihPattern className="opacity-[0.10]" />
 
-            <div className="relative z-10 flex flex-col justify-between h-full overflow-y-auto pr-1">
-                <div className="flex flex-col gap-5">
-                    <div className="px-1">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-white text-purple-600 flex items-center justify-center font-black text-sm shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] shrink-0">
-                                {companyName ? companyName[0].toUpperCase() : "👑"}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 truncate">
-                                    {companyName || "Direktor Paneli"}
-                                </h3>
-                                <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
-                                    Boshqaruv Kabineti
-                                </p>
-                            </div>
+            <div className="relative z-10 flex-1 overflow-y-auto flex flex-col justify-between">
+                <div className="p-5 flex flex-col gap-6">
+                    <div className="flex items-center gap-3 px-2 pt-2">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#9327FF] to-purple-800 text-white flex items-center justify-center font-black text-base shadow-sm shrink-0">
+                            {companyName ? companyName[0].toUpperCase() : "👑"}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-bold text-slate-900 truncate">
+                                {companyName || "Direktor Paneli"}
+                            </span>
+                            <span className="text-[11px] font-semibold text-[#9327FF] uppercase tracking-wider">
+                                Boshqaruv Kabineti
+                            </span>
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <span className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    <div className="flex flex-col gap-1">
+                        <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                             Asosiy Menyular
                         </span>
 
-                        <div className="flex flex-col gap-2.5">
-                            {navTabs.map((item) => {
-                                const active = isDashboardActive && currentTab === item.id;
-                                const Icon = item.icon;
-                                return (
-                                    <Link
-                                        key={item.id}
-                                        href={item.href}
-                                        className={`flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs md:text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                                            active
-                                                ? "bg-white text-purple-600 shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff]"
-                                                : "bg-white text-slate-700 hover:text-purple-600 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff]"
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Icon className={`w-4 h-4 shrink-0 ${active ? "text-purple-600" : "text-slate-500"}`} />
-                                            <span>{item.label}</span>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-
-                            <div className="relative" ref={notifRef}>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsNotifOpen(!isNotifOpen)}
-                                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs md:text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                                        isNotifOpen
-                                            ? "bg-white text-purple-600 shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff]"
-                                            : "bg-white text-slate-700 hover:text-purple-600 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff]"
+                        {navTabs.map((item) => {
+                            const active = isDashboardActive && currentTab === item.id;
+                            const Icon = item.icon;
+                            return (
+                                <Link
+                                    key={item.id}
+                                    href={item.href}
+                                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                                        active
+                                            ? "text-[#9327FF] bg-purple-50/70"
+                                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                                     }`}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <Bell className={`w-4 h-4 shrink-0 ${isNotifOpen ? "text-purple-600" : "text-slate-500"}`} />
-                                        <span>Bildirishnomalar</span>
-                                    </div>
-                                    {unreadCount > 0 && (
-                                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse shadow-xs">
-                                            {unreadCount > 99 ? "99+" : unreadCount}
+                                    <div className="flex items-center gap-2.5">
+                                        <span className={active ? "text-[#9327FF]" : "text-slate-400"}>
+                                            <Icon className="w-4 h-4 shrink-0" />
                                         </span>
-                                    )}
-                                </button>
+                                        <span>{item.label}</span>
+                                    </div>
+                                </Link>
+                            );
+                        })}
 
-                                {isNotifOpen && (
-                                    <div className="absolute left-full ml-4 top-0 w-80 sm:w-96 bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] z-50 overflow-hidden animate-in fade-in slide-in-from-left-2 duration-150 relative">
-                                        <GirihPattern className="opacity-[0.11]" />
-                                        <div className="relative z-10">
-                                            <div className="p-4 bg-slate-50/70 flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-black uppercase tracking-wider text-slate-900">
-                                                        Bildirishnomalar
-                                                    </span>
-                                                    {unreadCount > 0 && (
-                                                        <span className="px-2 py-0.5 text-[9px] font-black bg-red-100 text-red-700 rounded-full">
-                                                            {unreadCount} yangi
-                                                        </span>
-                                                    )}
-                                                </div>
+                        <div className="relative" ref={notifRef}>
+                            <button
+                                type="button"
+                                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                                    isNotifOpen
+                                        ? "text-[#9327FF] bg-purple-50/70"
+                                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                                }`}
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    <span className={isNotifOpen ? "text-[#9327FF]" : "text-slate-400"}>
+                                        <Bell className="w-4 h-4 shrink-0" />
+                                    </span>
+                                    <span>Bildirishnomalar</span>
+                                </div>
+                                {unreadCount > 0 && (
+                                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse shadow-xs">
+                                        {unreadCount > 99 ? "99+" : unreadCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {isNotifOpen && (
+                                <div className="absolute left-full ml-4 top-0 w-80 sm:w-96 bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] z-50 overflow-hidden animate-in fade-in slide-in-from-left-2 duration-150 relative">
+                                    <GirihPattern className="opacity-[0.11]" />
+                                    <div className="relative z-10">
+                                        <div className="p-4 bg-slate-50/70 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-black uppercase tracking-wider text-slate-900">
+                                                    Bildirishnomalar
+                                                </span>
                                                 {unreadCount > 0 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleMarkAllAsRead}
-                                                        className="text-[10px] font-bold text-purple-600 hover:text-purple-800 uppercase tracking-wider transition-colors cursor-pointer"
-                                                    >
-                                                        Hammasini o'qish
-                                                    </button>
+                                                    <span className="px-2 py-0.5 text-[9px] font-black bg-red-100 text-red-700 rounded-full">
+                                                        {unreadCount} yangi
+                                                    </span>
                                                 )}
                                             </div>
+                                            {unreadCount > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleMarkAllAsRead}
+                                                    className="text-[10px] font-bold text-purple-600 hover:text-purple-800 uppercase tracking-wider transition-colors cursor-pointer"
+                                                >
+                                                    Hammasini o'qish
+                                                </button>
+                                            )}
+                                        </div>
 
-                                            <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
-                                                {notifications.length === 0 ? (
-                                                    <div className="p-8 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                                        Bildirishnomalar mavjud emas
-                                                    </div>
-                                                ) : (
-                                                    notifications.map((notif) => (
-                                                        <div
-                                                            key={notif.id}
-                                                            onClick={() => handleNotificationClick(notif)}
-                                                            className={`p-3.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3 ${
-                                                                !notif.isRead ? "bg-purple-50/40" : "bg-white"
-                                                            }`}
-                                                        >
-                                                            <div className="mt-1 shrink-0">
-                                                                {!notif.isRead ? (
-                                                                    <div className="w-2 h-2 rounded-full bg-purple-600" />
-                                                                ) : (
-                                                                    <div className="w-2 h-2 rounded-full bg-slate-300" />
-                                                                )}
-                                                            </div>
-                                                            <div className="flex-1 flex flex-col gap-0.5">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <span
-                                                                        className={`text-xs ${
-                                                                            !notif.isRead
-                                                                                ? "font-black text-slate-900"
-                                                                                : "font-bold text-slate-700"
-                                                                        }`}
-                                                                    >
-                                                                        {notif.title}
-                                                                    </span>
-                                                                    <span className="text-[9px] font-medium text-slate-400 shrink-0">
-                                                                        {new Date(notif.createdAt).toLocaleTimeString([], {
-                                                                            hour: "2-digit",
-                                                                            minute: "2-digit",
-                                                                        })}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
-                                                                    {notif.message}
-                                                                </p>
-                                                            </div>
+                                        <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
+                                            {notifications.length === 0 ? (
+                                                <div className="p-8 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                    Bildirishnomalar mavjud emas
+                                                </div>
+                                            ) : (
+                                                notifications.map((notif) => (
+                                                    <div
+                                                        key={notif.id}
+                                                        onClick={() => handleNotificationClick(notif)}
+                                                        className={`p-3.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3 ${
+                                                            !notif.isRead ? "bg-purple-50/40" : "bg-white"
+                                                        }`}
+                                                    >
+                                                        <div className="mt-1 shrink-0">
+                                                            {!notif.isRead ? (
+                                                                <div className="w-2 h-2 rounded-full bg-purple-600" />
+                                                            ) : (
+                                                                <div className="w-2 h-2 rounded-full bg-slate-300" />
+                                                            )}
                                                         </div>
-                                                    ))
-                                                )}
-                                            </div>
+                                                        <div className="flex-1 flex flex-col gap-0.5">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span
+                                                                    className={`text-xs ${
+                                                                        !notif.isRead
+                                                                            ? "font-black text-slate-900"
+                                                                            : "font-bold text-slate-700"
+                                                                    }`}
+                                                                >
+                                                                    {notif.title}
+                                                                </span>
+                                                                <span className="text-[9px] font-medium text-slate-400 shrink-0">
+                                                                    {new Date(notif.createdAt).toLocaleTimeString([], {
+                                                                        hour: "2-digit",
+                                                                        minute: "2-digit",
+                                                                    })}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-500 font-medium leading-relaxed line-clamp-2">
+                                                                {notif.message}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
                                         </div>
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 pt-2">
-                        <span className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                            Platforma Bo'limlari
+                    <div className="flex flex-col gap-1 pt-3 border-t border-slate-100">
+                        <span className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                            Platforma Bo&apos;limlari
                         </span>
 
-                        <div className="flex flex-col gap-2.5">
-                            {platformLinks.map((link) => {
-                                const active = pathname?.startsWith(link.href);
-                                const Icon = link.icon;
-                                return (
-                                    <Link
-                                        key={link.href}
-                                        href={link.href}
-                                        className={`flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs md:text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                                            active
-                                                ? "bg-white text-purple-600 shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff]"
-                                                : "bg-white text-slate-700 hover:text-purple-600 shadow-[3px_3px_8px_#e2e8f0,-3px_-3px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#e2e8f0,inset_-2px_-2px_5px_#ffffff]"
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Icon className={`w-4 h-4 shrink-0 ${active ? "text-purple-600" : "text-slate-500"}`} />
-                                            <span>{link.label}</span>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
+                        {platformLinks.map((link) => {
+                            const active = pathname?.startsWith(link.href);
+                            const Icon = link.icon;
+                            return (
+                                <Link
+                                    key={link.href}
+                                    href={link.href}
+                                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                                        active
+                                            ? "text-[#9327FF] bg-purple-50/70"
+                                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <span className={active ? "text-[#9327FF]" : "text-slate-400"}>
+                                            <Icon className="w-4 h-4 shrink-0" />
+                                        </span>
+                                        <span>{link.label}</span>
+                                    </div>
+                                </Link>
+                            );
+                        })}
                     </div>
                 </div>
 
-                <div className="pt-4">
-                    <div className="p-3.5 rounded-2xl bg-white shadow-[inset_2px_2px_5px_#f1f5f9,inset_-2px_-2px_5px_#ffffff] flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-bold text-slate-800 truncate">Direktor Hub</p>
-                            <p className="text-[10px] text-emerald-600 font-medium">Faol va himoyalangan</p>
-                        </div>
+                <div className="p-4 m-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-100 text-[#9327FF] flex items-center justify-center font-bold text-sm shrink-0">
+                        👑
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-800">
+                            Direktor Hub
+                        </span>
+                        <span className="text-[10px] text-slate-500 truncate">
+                            Faol va himoyalangan
+                        </span>
                     </div>
                 </div>
             </div>

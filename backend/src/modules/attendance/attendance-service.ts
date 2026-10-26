@@ -850,7 +850,7 @@ export class AttendanceService {
                 defaultSchedule;
 
             const workingDaysArr = empSchedule.workingDays || [1, 2, 3, 4, 5];
-            const empCreatedAtRaw = emp.createdAt || emp.user?.createdAt || threeMonthsAgo;
+            const empCreatedAtRaw = emp.hireDate || emp.createdAt || emp.user?.createdAt || threeMonthsAgo;
             const empCreatedAt = new Date(empCreatedAtRaw);
             empCreatedAt.setHours(0, 0, 0, 0);
 

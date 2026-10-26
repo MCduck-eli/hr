@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { fetchDepartments, createDepartment } from "@/src/services/department-service";
 import { fetchAllStatuses } from "@/src/services/employee-status-service";
@@ -22,6 +23,313 @@ interface FormErrors {
     email?: "requiredField" | "invalidEmail";
     password?: "requiredField" | "minPassword" | "weakPassword";
     phone?: "requiredField";
+    hireDate?: "requiredField";
+}
+
+function toDateInputValue(val: any): string {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return "";
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${month}-${day}`;
+}
+
+const MONTHS_UZ = [
+    "Yanvar",
+    "Fevral",
+    "Mart",
+    "Aprel",
+    "May",
+    "Iyun",
+    "Iyul",
+    "Avgust",
+    "Sentabr",
+    "Oktabr",
+    "Noyabr",
+    "Dekabr",
+];
+
+const WEEKDAYS_UZ = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
+
+function parseDateValue(value: string): Date | null {
+    if (!value) return null;
+    const [year, month, day] = value.split("-").map(Number);
+    if (!year || !month || !day) return null;
+    const date = new Date(year, month - 1, day);
+    return isNaN(date.getTime()) ? null : date;
+}
+
+function formatDisplayDate(value: string): string {
+    const date = parseDateValue(value);
+    if (!date) return "";
+    return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
+}
+
+function parseDisplayDate(text: string): string | null {
+    const match = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!match) return null;
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        return null;
+    }
+    return toDateInputValue(date);
+}
+
+function DateField({
+    value,
+    onChange,
+    error,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    error?: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+    const [viewDate, setViewDate] = useState<Date>(() => parseDateValue(value) || new Date());
+    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const [inputText, setInputText] = useState(() => formatDisplayDate(value));
+    const [inputInvalid, setInputInvalid] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setInputText(formatDisplayDate(value));
+    }, [value]);
+
+    useEffect(() => {
+        if (!open) return;
+
+        setViewDate(parseDateValue(value) || new Date());
+
+        const updatePosition = () => {
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            const width = 292;
+            const height = 348;
+            const openAbove = rect.bottom + height + 12 > window.innerHeight && rect.top > height + 12;
+            setPosition({
+                top: openAbove ? rect.top - height - 8 : rect.bottom + 8,
+                left: Math.min(Math.max(8, rect.left), window.innerWidth - width - 8),
+            });
+        };
+
+        updatePosition();
+
+        const handlePointerDown = (event: MouseEvent) => {
+            if (
+                popoverRef.current?.contains(event.target as Node) ||
+                containerRef.current?.contains(event.target as Node)
+            ) {
+                return;
+            }
+            setOpen(false);
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setOpen(false);
+        };
+
+        window.addEventListener("resize", updatePosition);
+        document.addEventListener("scroll", updatePosition, true);
+        document.addEventListener("mousedown", handlePointerDown);
+        document.addEventListener("keydown", handleKeyDown);
+
+        return () => {
+            window.removeEventListener("resize", updatePosition);
+            document.removeEventListener("scroll", updatePosition, true);
+            document.removeEventListener("mousedown", handlePointerDown);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [open, value]);
+
+    const selected = parseDateValue(value);
+    const today = new Date();
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: (Date | null)[] = [
+        ...Array.from({ length: firstWeekday }, () => null),
+        ...Array.from({ length: daysInMonth }, (_, index) => new Date(year, month, index + 1)),
+    ];
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    const selectDate = (date: Date) => {
+        onChange(toDateInputValue(date));
+        setOpen(false);
+    };
+
+    const openPicker = () => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect) {
+            const width = 292;
+            const height = 348;
+            const openAbove = rect.bottom + height + 12 > window.innerHeight && rect.top > height + 12;
+            setPosition({
+                top: openAbove ? rect.top - height - 8 : rect.bottom + 8,
+                left: Math.min(Math.max(8, rect.left), window.innerWidth - width - 8),
+            });
+        }
+        setOpen(true);
+    };
+
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const raw = event.target.value.replace(/[^\d.]/g, "").slice(0, 10);
+        const digits = raw.replace(/\D/g, "");
+        let formatted = raw;
+        if (!raw.includes(".") && digits.length > 4) {
+            formatted = `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4, 8)}`;
+        } else if (!raw.includes(".") && digits.length > 2) {
+            formatted = `${digits.slice(0, 2)}.${digits.slice(2, 8)}`;
+        }
+        setInputText(formatted);
+        const parsed = parseDisplayDate(formatted);
+        if (parsed) {
+            setInputInvalid(false);
+            onChange(parsed);
+        } else {
+            const complete = /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(formatted);
+            setInputInvalid(complete);
+        }
+    };
+
+    const handleInputBlur = () => {
+        setInputText(formatDisplayDate(value));
+        setInputInvalid(false);
+    };
+
+    return (
+        <div ref={containerRef} className="relative">
+            <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={10}
+                placeholder="kun.oy.yil"
+                value={inputText}
+                onChange={handleInputChange}
+                onFocus={(event) => event.target.select()}
+                onBlur={handleInputBlur}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter") event.preventDefault();
+                }}
+                className={`w-full p-3 pr-11 border ${
+                    error || inputInvalid
+                        ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                        : open
+                        ? "border-[#9327FF] ring-2 ring-[#9327FF]/10"
+                        : "border-slate-200 focus:ring-[#9327FF]/10 focus:border-[#9327FF]"
+                } text-sm bg-slate-50 rounded-xl outline-none focus:bg-white focus:ring-2 transition-all font-mono font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal`}
+            />
+            <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => (open ? setOpen(false) : openPicker())}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                    open ? "bg-purple-50 text-[#9327FF]" : "text-slate-400 hover:text-[#9327FF] hover:bg-purple-50"
+                }`}
+            >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </button>
+
+            {open &&
+                createPortal(
+                    <div
+                        ref={popoverRef}
+                        style={{ position: "fixed", top: position.top, left: position.left, width: 292 }}
+                        className="z-[120] bg-white rounded-2xl border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.18)] p-3.5 flex flex-col gap-2.5"
+                    >
+                        <div className="flex items-center justify-between">
+                            <button
+                                type="button"
+                                onClick={() => setViewDate(new Date(year, month - 1, 1))}
+                                className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <span className="text-xs font-black text-slate-900 uppercase tracking-wide">
+                                {MONTHS_UZ[month]} {year}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setViewDate(new Date(year, month + 1, 1))}
+                                className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-1">
+                            {WEEKDAYS_UZ.map((day) => (
+                                <span key={day} className="text-[10px] font-bold text-slate-400 text-center uppercase">
+                                    {day}
+                                </span>
+                            ))}
+                            {cells.map((date, index) => {
+                                if (!date) return <span key={`empty-${index}`} />;
+                                const isSelected =
+                                    selected &&
+                                    date.getFullYear() === selected.getFullYear() &&
+                                    date.getMonth() === selected.getMonth() &&
+                                    date.getDate() === selected.getDate();
+                                const isToday =
+                                    date.getFullYear() === today.getFullYear() &&
+                                    date.getMonth() === today.getMonth() &&
+                                    date.getDate() === today.getDate();
+                                return (
+                                    <button
+                                        key={date.toISOString()}
+                                        type="button"
+                                        onClick={() => selectDate(date)}
+                                        className={`h-8 w-8 mx-auto rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                                            isSelected
+                                                ? "bg-[#9327FF] text-white shadow-sm"
+                                                : isToday
+                                                ? "bg-purple-50 text-[#9327FF] border border-purple-200"
+                                                : "text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                    >
+                                        {date.getDate()}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const now = new Date();
+                                    onChange(toDateInputValue(now));
+                                    setOpen(false);
+                                }}
+                                className="text-[11px] font-bold text-[#9327FF] hover:underline cursor-pointer"
+                            >
+                                Bugun
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                className="text-[11px] font-medium text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                            >
+                                Yopish
+                            </button>
+                        </div>
+                    </div>,
+                    document.body,
+                )}
+        </div>
+    );
 }
 
 const NAME_REGEX = /^[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ'ʻʼ`\s-]+$/;
@@ -183,6 +491,7 @@ export default function EmployeeForm({
         departmentId: "",
         positionId: "",
         leaveBalance: "",
+        hireDate: toDateInputValue(new Date()),
         permissions: [],
     });
 
@@ -235,6 +544,12 @@ export default function EmployeeForm({
                     initialData.employee?.positionId ||
                     "",
                 leaveBalance: initialData.employee?.leaveBalance ?? "",
+                hireDate: toDateInputValue(
+                    initialData.hireDate ||
+                        initialData.employee?.hireDate ||
+                        initialData.employee?.createdAt ||
+                        new Date(),
+                ),
                 permissions: initialData.permissions || initialData.employee?.user?.permissions || initialData.user?.permissions || [],
             });
         } else {
@@ -253,6 +568,7 @@ export default function EmployeeForm({
                 departmentId: "",
                 positionId: "",
                 leaveBalance: "",
+                hireDate: toDateInputValue(new Date()),
                 permissions: [],
             });
         }
@@ -331,14 +647,16 @@ export default function EmployeeForm({
         const emailErr = validateEmailField(form.email);
         const passwordErr = validatePasswordField(form.password, !initialData);
         const phoneErr = validatePhoneField(form.phone);
+        const hireDateErr = form.hireDate ? null : "requiredField";
 
-        if (firstNameErr || lastNameErr || emailErr || passwordErr || phoneErr) {
+        if (firstNameErr || lastNameErr || emailErr || passwordErr || phoneErr || hireDateErr) {
             setFormErrors({
                 firstName: firstNameErr || undefined,
                 lastName: lastNameErr || undefined,
                 email: emailErr || undefined,
                 password: passwordErr || undefined,
                 phone: phoneErr || undefined,
+                hireDate: hireDateErr || undefined,
             });
             return;
         }
@@ -592,7 +910,7 @@ export default function EmployeeForm({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-700">
                             Telefon raqami *
@@ -652,6 +970,30 @@ export default function EmployeeForm({
                                 <option key={d.id} value={d.id}>{d.name}</option>
                             ))}
                         </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700">
+                            Ish boshlash sanasi *
+                        </label>
+                        <DateField
+                            value={form.hireDate}
+                            error={Boolean(formErrors.hireDate)}
+                            onChange={(val) => {
+                                setForm({ ...form, hireDate: val });
+                                if (formErrors.hireDate) {
+                                    setFormErrors((prev) => ({
+                                        ...prev,
+                                        hireDate: val ? undefined : "requiredField",
+                                    }));
+                                }
+                            }}
+                        />
+                        {formErrors.hireDate && (
+                            <span className="text-[11px] font-semibold text-red-500 mt-0.5">
+                                {tErr(formErrors.hireDate)}
+                            </span>
+                        )}
                     </div>
                 </div>
 

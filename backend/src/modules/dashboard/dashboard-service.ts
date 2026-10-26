@@ -2,7 +2,7 @@ import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 
 export class DashboardService {
-    async getEmployeeDashboardData(id: string) {
+    async getEmployeeDashboardData(id: string, requester?: any) {
         const userSelect = {
             id: true,
             email: true,
@@ -106,6 +106,26 @@ export class DashboardService {
 
         if (!user) {
             throw new AppError("Foydalanuvchi topilmadi", 404);
+        }
+
+        if (requester && requester.role !== "SUPER_ADMIN") {
+            let requesterCompany =
+                requester.companyName || requester.companyId || null;
+
+            if (!requesterCompany && requester.id) {
+                const caller = await prisma.user.findUnique({
+                    where: { id: requester.id },
+                    select: { companyName: true },
+                });
+                requesterCompany = caller?.companyName || null;
+            }
+
+            if (requesterCompany && user.companyName !== requesterCompany) {
+                throw new AppError(
+                    "Boshqa kompaniya xodimini ko'rish huquqi yo'q",
+                    403,
+                );
+            }
         }
 
         const currentUser = user;

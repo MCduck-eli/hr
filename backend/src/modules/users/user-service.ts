@@ -238,9 +238,14 @@ export class UserService {
             departmentId,
             positionId,
             leaveBalance,
+            hireDate,
             assignedCourseIds,
             permissions,
         } = payload;
+
+        const parsedHireDate = hireDate ? new Date(hireDate) : null;
+        const resolvedHireDate =
+            parsedHireDate && !isNaN(parsedHireDate.getTime()) ? parsedHireDate : null;
 
         const resolvedAvatar = avatar || image || null;
         const callerRole = currentUser.role || "";
@@ -420,6 +425,7 @@ export class UserService {
                         avatar: resolvedAvatar,
                         status: enumStatus,
                         statusConfigId: statusConfigId || undefined,
+                        ...(resolvedHireDate && { hireDate: resolvedHireDate }),
                         statusStartedAt: new Date(),
                         statusExpiresAt,
                         ...(resolvedDepartmentId && { departmentId: resolvedDepartmentId }),
@@ -504,6 +510,7 @@ export class UserService {
             positionId,
             password,
             leaveBalance,
+            hireDate,
             assignedCourseIds,
             permissions,
         } = payload;
@@ -531,6 +538,12 @@ export class UserService {
             } else {
                 resolvedPermissions = [];
             }
+        }
+
+        let resolvedHireDate: Date | null | undefined = undefined;
+        if (hireDate !== undefined) {
+            const parsed = hireDate ? new Date(hireDate) : null;
+            resolvedHireDate = parsed && !isNaN(parsed.getTime()) ? parsed : null;
         }
 
         const resolvedAvatar = avatar !== undefined ? avatar : (image !== undefined ? image : undefined);
@@ -720,6 +733,7 @@ export class UserService {
                             positionId: resolvedPositionId,
                         }),
                         ...(leaveBalance !== undefined && leaveBalance !== null && leaveBalance !== "" && { leaveBalance: Number(leaveBalance) }),
+                        ...(resolvedHireDate !== undefined && { hireDate: resolvedHireDate }),
                         ...(enumStatus !== undefined && { status: enumStatus }),
                         ...(statusConfigId !== undefined && {
                             statusConfigId,

@@ -125,6 +125,8 @@ export default function ExecutiveAnalyticsDashboard({
     if (!data) return null;
 
     const maxMonthlyTurnover = Math.max(...data.turnover.trend.map((t) => t.turnoverRate), 5);
+    const periodLabel =
+        timeframe === "quarter" ? "Kvartallik" : timeframe === "month" ? "Oylik" : "Yillik";
 
     return (
         <div className="flex flex-col gap-8 w-full print:p-0">
@@ -251,7 +253,7 @@ export default function ExecutiveAnalyticsDashboard({
                                 <AnimatedNumber value={data.turnover.turnoverRate} suffix="%" />
                             </span>
                             <span className="text-xs font-medium text-slate-400">
-                                (Yillik qo'nimsizlik)
+                                ({periodLabel} qo'nimsizlik)
                             </span>
                         </div>
 
@@ -504,7 +506,7 @@ export default function ExecutiveAnalyticsDashboard({
                                 </div>
                             </div>
                             <span className="text-xs font-mono font-bold text-slate-900">
-                                Yillik O'rtacha: {data.turnover.turnoverRate}%
+                                {periodLabel} O'rtacha: {data.turnover.turnoverRate}%
                             </span>
                         </div>
                     </div>

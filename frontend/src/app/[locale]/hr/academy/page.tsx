@@ -216,7 +216,7 @@ export default function HRAcademyManagementPage() {
                 <h2 className="text-xl font-bold text-gray-900 mb-6">
                     {editingId ? t("editCourse") : t("addCourse")}
                 </h2>
-                <div className="flex flex-col gap-5 max-w-xl">
+                <div className="flex flex-col gap-5">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             {t("titlePlaceholder") || "Kurs nomi"}
@@ -241,74 +241,76 @@ export default function HRAcademyManagementPage() {
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            {t("coverLabel")}
-                        </label>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
-                            onChange={(e) =>
-                                setCoverFile(e.target.files?.[0] || null)
-                            }
-                        />
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                {t("coverLabel")}
+                            </label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
+                                onChange={(e) =>
+                                    setCoverFile(e.target.files?.[0] || null)
+                                }
+                            />
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            {t("videoLabel")}
-                        </label>
-                        <input
-                            type="file"
-                            accept="video/*"
-                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
-                            onChange={(e) =>
-                                setVideoFile(e.target.files?.[0] || null)
-                            }
-                        />
-                    </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                {t("videoLabel")}
+                            </label>
+                            <input
+                                type="file"
+                                accept="video/*"
+                                className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
+                                onChange={(e) =>
+                                    setVideoFile(e.target.files?.[0] || null)
+                                }
+                            />
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Bo'lim (Department)
-                        </label>
-                        <select
-                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm bg-white"
-                            value={targetDepartmentId}
-                            onChange={(e) => {
-                                setTargetDepartmentId(e.target.value);
-                                if (e.target.value) setTargetEmployeeId("");
-                            }}
-                        >
-                            <option value="">-- Barcha bo'limlar --</option>
-                            {departments.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                    {d.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Bo'lim (Department)
+                            </label>
+                            <select
+                                className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm bg-white"
+                                value={targetDepartmentId}
+                                onChange={(e) => {
+                                    setTargetDepartmentId(e.target.value);
+                                    if (e.target.value) setTargetEmployeeId("");
+                                }}
+                            >
+                                <option value="">-- Barcha bo'limlar --</option>
+                                {departments.map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                        {d.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Xodim (Employee)
-                        </label>
-                        <select
-                            className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm bg-white"
-                            value={targetEmployeeId}
-                            onChange={(e) => {
-                                setTargetEmployeeId(e.target.value);
-                                if (e.target.value) setTargetDepartmentId("");
-                            }}
-                        >
-                            <option value="">-- Barcha xodimlar --</option>
-                            {employees.map((u) => (
-                                <option key={u.employee.id} value={u.employee.id}>
-                                    {u.employee.firstName} {u.employee.lastName} ({u.email}){u.role === "HR_ADMIN" ? " [HR Admin]" : ""}
-                                </option>
-                            ))}
-                        </select>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Xodim (Employee)
+                            </label>
+                            <select
+                                className="rounded-xl border border-gray-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all px-4 py-2.5 w-full text-sm bg-white"
+                                value={targetEmployeeId}
+                                onChange={(e) => {
+                                    setTargetEmployeeId(e.target.value);
+                                    if (e.target.value) setTargetDepartmentId("");
+                                }}
+                            >
+                                <option value="">-- Barcha xodimlar --</option>
+                                {employees.map((u) => (
+                                    <option key={u.employee.id} value={u.employee.id}>
+                                        {u.employee.firstName} {u.employee.lastName} ({u.email}){u.role === "HR_ADMIN" ? " [HR Admin]" : ""}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <label className="flex items-center gap-2.5 text-sm font-medium text-gray-700 cursor-pointer select-none">

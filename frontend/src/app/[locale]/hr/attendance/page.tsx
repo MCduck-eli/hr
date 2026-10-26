@@ -344,34 +344,46 @@ export default function HRAttendancePage() {
                 </div>
             </motion.div>
 
-            {schedule && (
-                <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap items-center justify-between gap-4 text-xs"
-                >
-                    <div className="flex flex-wrap items-center gap-6 font-semibold text-slate-700">
-                        <div className="flex items-center gap-2">
-                            <span className="text-slate-400 font-normal">{t("standardSchedule")}:</span>
+            <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap items-center justify-between gap-4 text-xs"
+            >
+                <div className="flex flex-wrap items-center gap-6 font-semibold text-slate-700">
+                    <div className="flex items-center gap-2">
+                        <span className="text-slate-400 font-normal">{t("standardSchedule")}:</span>
+                        {schedule ? (
                             <span className="font-mono bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 text-slate-900 font-bold">
                                 {schedule.startTime} - {schedule.endTime}
                             </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-slate-400 font-normal">{t("gracePeriod")}:</span>
+                        ) : (
+                            <span className="h-7 w-28 rounded-lg bg-slate-100 animate-pulse" />
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-slate-400 font-normal">{t("gracePeriod")}:</span>
+                        {schedule ? (
                             <span className="bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-100 text-amber-700 font-bold">
                                 {schedule.gracePeriodMinutes} {t("minutes")}
                             </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-slate-400 font-normal">{t("workingDaysLabel")}:</span>
+                        ) : (
+                            <span className="h-7 w-20 rounded-lg bg-slate-100 animate-pulse" />
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-slate-400 font-normal">{t("workingDaysLabel")}:</span>
+                        {schedule ? (
                             <span className="bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 text-slate-900 font-bold">
                                 {formatWorkingDays(schedule.workingDays)}
                             </span>
-                        </div>
+                        ) : (
+                            <span className="h-7 w-32 rounded-lg bg-slate-100 animate-pulse" />
+                        )}
                     </div>
-                    <div>
+                </div>
+                <div>
+                    {schedule ? (
                         <span
                             className={`px-3 py-1.5 text-xs font-bold rounded-xl border ${
                                 summary.isWorkingDay
@@ -381,9 +393,11 @@ export default function HRAttendancePage() {
                         >
                             {summary.isWorkingDay ? t("todayWorkDay") : t("todayOffDay")}
                         </span>
-                    </div>
-                </motion.div>
-            )}
+                    ) : (
+                        <span className="block h-8 w-36 rounded-xl bg-slate-100 animate-pulse" />
+                    )}
+                </div>
+            </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 <motion.div
@@ -527,12 +541,46 @@ export default function HRAttendancePage() {
                             Har bir bo'lim bo'yicha xodimlarning o'z vaqtida kelish foizlari
                         </p>
                     </div>
-                    <span className="text-xs font-semibold text-slate-400">
-                        {departmentStats.length} ta bo'lim
-                    </span>
+                    {loading && departmentStats.length === 0 ? (
+                        <span className="h-4 w-16 rounded-lg bg-slate-100 animate-pulse" />
+                    ) : (
+                        <span className="text-xs font-semibold text-slate-400">
+                            {departmentStats.length} ta bo'lim
+                        </span>
+                    )}
                 </motion.div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                    {loading && departmentStats.length === 0 &&
+                        Array.from({ length: 4 }).map((_, skeletonIndex) => (
+                            <div
+                                key={skeletonIndex}
+                                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col justify-between gap-3"
+                            >
+                                <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                                    <span className="h-4 w-36 rounded-lg bg-slate-100 animate-pulse" />
+                                    <span className="h-5 w-16 rounded-lg bg-slate-100 animate-pulse" />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-24 h-24 rounded-full bg-slate-100 animate-pulse shrink-0" />
+                                    <div className="flex flex-col gap-1.5 w-full min-w-0">
+                                        {Array.from({ length: 5 }).map((__, rowIndex) => (
+                                            <span
+                                                key={rowIndex}
+                                                className="h-5 w-full rounded-lg bg-slate-50 animate-pulse border border-slate-100/70"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                    {!loading && departmentStats.length === 0 && (
+                        <div className="col-span-full bg-white rounded-2xl border border-gray-100 p-8 text-center text-xs text-slate-400 font-medium">
+                            Bo'limlar bo'yicha ma'lumotlar hozircha mavjud emas
+                        </div>
+                    )}
+
                     {departmentStats.map((dept, deptIndex) => {
                         const deptSegments = [
                             { label: "Vaqtida keldi", count: dept.onTime, color: "#10b981", dotClass: "bg-emerald-500" },
@@ -833,6 +881,8 @@ export default function HRAttendancePage() {
                                                                     hour: "2-digit",
                                                                     minute: "2-digit",
                                                                 })
+                                                            ) : record.status === "DAM_OLISH" ? (
+                                                                <span className="text-slate-300">-</span>
                                                             ) : (
                                                                 <span className="text-red-500 font-medium text-[10px]">
                                                                     {t("notArrived")}
@@ -852,8 +902,8 @@ export default function HRAttendancePage() {
                                                             </span>
                                                         )
                                                     ) : record.status === "DAM_OLISH" ? (
-                                                        <span className="text-[10px] font-bold text-slate-400">
-                                                            {t("offDay")}
+                                                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-500 border border-slate-200 w-fit">
+                                                            {t("offDayToday")}
                                                         </span>
                                                     ) : (
                                                         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-lg bg-red-50 text-red-600 border border-red-200 w-fit">
@@ -918,6 +968,10 @@ export default function HRAttendancePage() {
                                                             {t("submittedBy")}: {record.reasonSubmittedBy || "HR"}
                                                         </span>
                                                     </div>
+                                                ) : record.status === "DAM_OLISH" ? (
+                                                    <span className="text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg inline-block w-fit">
+                                                        {t("offDay")}
+                                                    </span>
                                                 ) : record.status === "BELGILANMADI" ? (
                                                     <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg inline-block w-fit">
                                                         {t("noReason")}
@@ -929,19 +983,25 @@ export default function HRAttendancePage() {
                                                 )}
                                             </td>
                                             <td className="py-3.5 px-5">
-                                                <button
-                                                    onClick={() =>
-                                                        setSelectedEmployeeForReason({
-                                                             employeeId: record.employee.id,
-                                                             employeeName: `${record.employee.firstName} ${record.employee.lastName}`,
-                                                             date: record.date ? record.date.split("T")[0] : undefined,
-                                                             initialReason: record.absenceReason,
-                                                        })
-                                                    }
-                                                    className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl transition-all shadow-xs cursor-pointer"
-                                                >
-                                                    {record.absenceReason ? t("editReason") : t("addReason")}
-                                                </button>
+                                                {record.status === "DAM_OLISH" && !record.absenceReason ? (
+                                                    <span className="text-[10px] font-semibold text-slate-400">
+                                                        {t("offDayNoAction")}
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() =>
+                                                            setSelectedEmployeeForReason({
+                                                                 employeeId: record.employee.id,
+                                                                 employeeName: `${record.employee.firstName} ${record.employee.lastName}`,
+                                                                 date: record.date ? record.date.split("T")[0] : undefined,
+                                                                 initialReason: record.absenceReason,
+                                                            })
+                                                        }
+                                                        className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-xl transition-all shadow-xs cursor-pointer"
+                                                    >
+                                                        {record.absenceReason ? t("editReason") : t("addReason")}
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))
@@ -1161,11 +1221,13 @@ export default function HRAttendancePage() {
                 </div>
             )}
 
-            <WorkScheduleModal
-                isOpen={isScheduleModalOpen}
-                onClose={() => setIsScheduleModalOpen(false)}
-                onSaved={loadData}
-            />
+            {isScheduleModalOpen && (
+                <WorkScheduleModal
+                    isOpen={isScheduleModalOpen}
+                    onClose={() => setIsScheduleModalOpen(false)}
+                    onSaved={loadData}
+                />
+            )}
 
             <AbsenceReasonModal
                 isOpen={Boolean(selectedEmployeeForReason)}

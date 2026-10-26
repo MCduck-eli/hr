@@ -312,6 +312,7 @@ export class PayrollService {
                     hourlyRate: true,
                     taxPercent: true,
                     createdAt: true,
+                    hireDate: true,
                     departmentId: true,
                     department: { select: { id: true, name: true } },
                     position: { select: { id: true, title: true } },
@@ -487,7 +488,7 @@ export class PayrollService {
             }
             if (workingDaysInMonth === 0) workingDaysInMonth = 22;
 
-            const empCreatedAtRaw = emp.createdAt || emp.user?.createdAt || startDate;
+            const empCreatedAtRaw = emp.hireDate || emp.createdAt || emp.user?.createdAt || startDate;
             const empCreatedAt = new Date(empCreatedAtRaw);
             empCreatedAt.setHours(0, 0, 0, 0);
 
@@ -1948,7 +1949,7 @@ export class PayrollService {
                     },
                 });
 
-                const empCreatedAtRaw = emp.createdAt || emp.user?.createdAt || startDate;
+                const empCreatedAtRaw = emp.hireDate || emp.createdAt || emp.user?.createdAt || startDate;
                 const empCreatedAt = new Date(empCreatedAtRaw);
                 empCreatedAt.setHours(0, 0, 0, 0);
 

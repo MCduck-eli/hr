@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { motion } from "framer-motion";
+import GirihPattern from "@/src/components/ui/GirihPattern";
+import Skeleton from "@/src/components/ui/Skeleton";
 import {
     WorkScheduleInfo,
     fetchAllWorkSchedules,
@@ -17,6 +20,12 @@ interface WorkScheduleModalProps {
     onClose: () => void;
     onSaved: () => void;
 }
+
+const inputClass =
+    "w-full p-3 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#9327FF] focus:ring-2 focus:ring-[#9327FF]/10 transition-all";
+
+const labelClass =
+    "text-[11px] font-black uppercase tracking-wider text-slate-500";
 
 export default function WorkScheduleModal({
     isOpen,
@@ -51,16 +60,29 @@ export default function WorkScheduleModal({
     const [workingDays, setWorkingDays] = useState<number[]>([1, 2, 3, 4, 5]);
     const [graceMinutes, setGraceMinutes] = useState(15);
     const [loading, setLoading] = useState(false);
+    const [listLoading, setListLoading] = useState(true);
+    const [optionsLoading, setOptionsLoading] = useState(false);
+    const optionsLoadedRef = useRef(false);
     const [error, setError] = useState<string | null>(null);
 
-    const loadSchedulesAndOptions = async () => {
+    const loadSchedules = async () => {
         try {
-            const [scheds, depts, users] = await Promise.all([
-                fetchAllWorkSchedules(),
+            const scheds = await fetchAllWorkSchedules();
+            setSchedules(scheds || []);
+        } catch (e) {
+        } finally {
+            setListLoading(false);
+        }
+    };
+
+    const loadOptions = async () => {
+        if (optionsLoadedRef.current) return;
+        setOptionsLoading(true);
+        try {
+            const [depts, users] = await Promise.all([
                 fetchDepartments().catch(() => []),
                 fetchAllUsers().catch(() => []),
             ]);
-            setSchedules(scheds || []);
             setDepartments(depts || []);
             const storedUser = localStorage.getItem("user");
             let currentUserId = "";
@@ -95,12 +117,17 @@ export default function WorkScheduleModal({
                 })
                 .filter((e: any) => e.name.toLowerCase() !== "super admin");
             setEmployees(emps);
-        } catch (e) {}
+            optionsLoadedRef.current = true;
+        } catch (e) {
+        } finally {
+            setOptionsLoading(false);
+        }
     };
 
     useEffect(() => {
         if (isOpen) {
-            loadSchedulesAndOptions();
+            setListLoading(true);
+            loadSchedules();
             setIsCreating(false);
             setEditingScheduleId(null);
             setError(null);
@@ -125,6 +152,7 @@ export default function WorkScheduleModal({
         resetForm();
         setName(t("addNewSchedule"));
         setIsCreating(true);
+        loadOptions();
     };
 
     const handleStartEdit = (s: WorkScheduleInfo) => {
@@ -135,6 +163,7 @@ export default function WorkScheduleModal({
         setEndTime(s.endTime);
         setWorkingDays(s.workingDays || [1, 2, 3, 4, 5]);
         setGraceMinutes(s.gracePeriodMinutes ?? 15);
+        loadOptions();
 
         if (s.employeeId) {
             setTargetType("EMPLOYEE");
@@ -156,7 +185,7 @@ export default function WorkScheduleModal({
         setLoading(true);
         try {
             await deleteWorkSchedule(id);
-            await loadSchedulesAndOptions();
+            await loadSchedules();
             onSaved();
         } catch (err: any) {
             alert(err.message || "Error");
@@ -214,7 +243,7 @@ export default function WorkScheduleModal({
                 });
             }
 
-            await loadSchedulesAndOptions();
+            await loadSchedules();
             resetForm();
             onSaved();
         } catch (err: any) {
@@ -226,336 +255,342 @@ export default function WorkScheduleModal({
 
     if (!isOpen) return null;
 
+    const showListSkeleton = listLoading && schedules.length === 0;
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="relative w-full max-w-2xl bg-white border border-gray-200 shadow-2xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
-                <svg
-                    className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <defs>
-                        <pattern id="girih-pattern-work-schedule" width="240" height="240" patternUnits="userSpaceOnUse">
-                            <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
-                                <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
-                                <circle cx="120" cy="120" r="10" />
-                                <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
-                                <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
-                                <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
-                                <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
-                                <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
-                                <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
-                                <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
-                                <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
-                            </g>
-                        </pattern>
-                    </defs>
-                    <rect width="100%" height="100%" fill="url(#girih-pattern-work-schedule)" />
-                </svg>
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="relative w-full max-w-2xl bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+                <GirihPattern className="opacity-[0.10] rounded-3xl overflow-hidden" />
 
                 <div className="relative z-10 flex flex-col flex-1 min-h-0">
-                <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <span className="text-base">⚙️</span>
-                        <h2 className="text-sm font-black uppercase tracking-wider text-black">
-                            {t("scheduleModalTitle")}
-                        </h2>
+                    <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-[#9327FF] flex items-center justify-center text-base shrink-0">
+                                ⚙️
+                            </div>
+                            <div className="flex flex-col">
+                                <h2 className="text-base font-bold text-slate-900">
+                                    {t("scheduleModalTitle")}
+                                </h2>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-xl transition-colors cursor-pointer shrink-0"
+                        >
+                            Yopish ✕
+                        </button>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-black p-1 text-sm font-bold"
-                    >
-                        ✕
-                    </button>
-                </div>
 
-                <div className="overflow-y-auto p-6 flex flex-col gap-6 flex-1 min-h-0">
-                    {error && (
-                        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    {!isCreating ? (
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xs font-black uppercase tracking-wider text-gray-500">
-                                    {t("existingSchedules")} ({schedules.length})
-                                </h3>
-                                <button
-                                    type="button"
-                                    onClick={handleStartCreate}
-                                    className="px-3.5 py-1.5 bg-black text-white text-xs font-bold uppercase tracking-wider rounded-sm hover:bg-gray-800 transition-colors flex items-center gap-1.5"
-                                >
-                                    <span>+</span>
-                                    <span>{t("addNewSchedule")}</span>
-                                </button>
+                    <div className="overflow-y-auto p-6 flex flex-col gap-6 flex-1 min-h-0">
+                        {error && (
+                            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl">
+                                {error}
                             </div>
+                        )}
 
-                            <div className="flex flex-col gap-3">
-                                {schedules.map((s) => (
-                                    <div
-                                        key={s.id}
-                                        className="p-4 border border-gray-200 bg-gray-50/50 hover:bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-sm transition-colors"
+                        {!isCreating ? (
+                            <div className="flex flex-col gap-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                                        {t("existingSchedules")}{" "}
+                                        {showListSkeleton ? (
+                                            <Skeleton className="inline-block w-8 h-4 rounded-md align-middle" />
+                                        ) : (
+                                            <span className="text-[#9327FF]">({schedules.length})</span>
+                                        )}
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={handleStartCreate}
+                                        className="px-4 py-2 bg-[#9327FF] hover:bg-[#7e22ce] text-white text-xs font-semibold rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
                                     >
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-black text-sm">
-                                                    {s.name}
-                                                </span>
-                                                {s.isDefault ? (
-                                                    <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 rounded-full">
-                                                        {t("globalDefault")}
-                                                    </span>
-                                                ) : s.departmentName ? (
-                                                    <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-blue-100 text-blue-800 rounded-full">
-                                                        {t("deptPrefix")}: {s.departmentName}
-                                                    </span>
-                                                ) : s.employeeName ? (
-                                                    <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-purple-100 text-purple-800 rounded-full">
-                                                        {t("empPrefix")}: {s.employeeName}
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 font-medium">
-                                                <span className="font-mono font-bold text-black">
-                                                    ⏰ {s.startTime} - {s.endTime}
-                                                </span>
-                                                <span>•</span>
-                                                <span>{t("gracePeriod")}: {s.gracePeriodMinutes} {t("minutes")}</span>
-                                                <span>•</span>
-                                                <span>
-                                                    {t("workingDaysLabel")}:{" "}
-                                                    {s.workingDays
-                                                        ?.map((d) => DAYS.find((day) => day.id === d)?.short)
-                                                        .join(", ")}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        <span>+</span>
+                                        <span>{t("addNewSchedule")}</span>
+                                    </button>
+                                </div>
 
-                                        <div className="flex items-center gap-2 self-end sm:self-center">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleStartEdit(s)}
-                                                className="px-3 py-1.5 bg-white border border-gray-300 hover:border-black text-black text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
+                                <div className="flex flex-col gap-3">
+                                    {showListSkeleton ? (
+                                        Array.from({ length: 3 }).map((_, idx) => (
+                                            <div
+                                                key={`sched-skel-${idx}`}
+                                                className="p-4 border border-slate-100 bg-white rounded-2xl flex items-center justify-between gap-3 animate-pulse"
                                             >
-                                                {t("edit")}
-                                            </button>
-                                            {!s.isDefault && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDelete(s.id)}
-                                                    className="px-3 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
-                                                >
-                                                    {t("delete")}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <form onSubmit={handleSave} className="flex flex-col gap-5">
-                            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                                <h3 className="text-xs font-black uppercase tracking-wider text-black">
-                                    {editingScheduleId ? t("edit") : t("addNewSchedule")}
-                                </h3>
-                                <button
-                                    type="button"
-                                    onClick={resetForm}
-                                    className="text-xs text-gray-500 hover:text-black font-bold uppercase tracking-wider"
-                                >
-                                    &larr; {t("backToList")}
-                                </button>
-                            </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <Skeleton className="w-40 h-4 rounded-md" />
+                                                    <Skeleton className="w-64 h-3 rounded-md" />
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Skeleton className="w-20 h-8 rounded-xl" />
+                                                    <Skeleton className="w-20 h-8 rounded-xl" />
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        schedules.map((s) => (
+                                            <div
+                                                key={s.id}
+                                                className="p-4 border border-slate-100 bg-white hover:border-[#9327FF]/30 hover:bg-purple-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl transition-colors shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+                                            >
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="font-bold text-slate-900 text-sm">
+                                                            {s.name}
+                                                        </span>
+                                                        {s.isDefault ? (
+                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+                                                                {t("globalDefault")}
+                                                            </span>
+                                                        ) : s.departmentName ? (
+                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+                                                                {t("deptPrefix")}: {s.departmentName}
+                                                            </span>
+                                                        ) : s.employeeName ? (
+                                                            <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-purple-50 text-[#9327FF] border border-purple-200 rounded-full">
+                                                                {t("empPrefix")}: {s.employeeName}
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
+                                                        <span className="font-mono font-bold text-slate-900">
+                                                            ⏰ {s.startTime} - {s.endTime}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span>
+                                                            {t("gracePeriod")}: {s.gracePeriodMinutes} {t("minutes")}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span>
+                                                            {t("workingDaysLabel")}:{" "}
+                                                            {s.workingDays
+                                                                ?.map((d) => DAYS.find((day) => day.id === d)?.short)
+                                                                .join(", ")}
+                                                        </span>
+                                                    </div>
+                                                </div>
 
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                    {t("scheduleName")}
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder={t("scheduleNamePlaceholder")}
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="p-3 border border-gray-300 bg-white font-bold text-sm text-black rounded-sm focus:border-black outline-none"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                    {t("targetAudience")}
-                                </label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setTargetType("GLOBAL")}
-                                        className={`py-2.5 px-3 text-xs font-bold uppercase tracking-wider border rounded-sm transition-colors text-center ${
-                                            targetType === "GLOBAL"
-                                                ? "bg-black border-black text-white"
-                                                : "bg-gray-50 border-gray-200 text-gray-600 hover:text-black"
-                                        }`}
-                                    >
-                                        🌐 {t("targetGlobal")}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setTargetType("DEPARTMENT")}
-                                        className={`py-2.5 px-3 text-xs font-bold uppercase tracking-wider border rounded-sm transition-colors text-center ${
-                                            targetType === "DEPARTMENT"
-                                                ? "bg-black border-black text-white"
-                                                : "bg-gray-50 border-gray-200 text-gray-600 hover:text-black"
-                                        }`}
-                                    >
-                                        🏢 {t("targetDept")}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setTargetType("EMPLOYEE")}
-                                        className={`py-2.5 px-3 text-xs font-bold uppercase tracking-wider border rounded-sm transition-colors text-center ${
-                                            targetType === "EMPLOYEE"
-                                                ? "bg-black border-black text-white"
-                                                : "bg-gray-50 border-gray-200 text-gray-600 hover:text-black"
-                                        }`}
-                                    >
-                                        👤 {t("targetEmp")}
-                                    </button>
+                                                <div className="flex items-center gap-2 self-end sm:self-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleStartEdit(s)}
+                                                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-[11px] font-medium rounded-lg transition-colors shadow-xs cursor-pointer"
+                                                    >
+                                                        {t("edit")}
+                                                    </button>
+                                                    {!s.isDefault && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDelete(s.id)}
+                                                            disabled={loading}
+                                                            className="px-3 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-medium rounded-lg transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                                                        >
+                                                            {t("delete")}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
-
-                            {targetType === "DEPARTMENT" && (
-                                <div className="flex flex-col gap-1.5 animate-in fade-in duration-150">
-                                    <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                        {t("selectDept")}
-                                    </label>
-                                    <select
-                                        required
-                                        value={selectedDepartmentId}
-                                        onChange={(e) => setSelectedDepartmentId(e.target.value)}
-                                        className="p-3 border border-gray-300 bg-white font-bold text-sm text-black rounded-sm focus:border-black outline-none"
+                        ) : (
+                            <form onSubmit={handleSave} className="flex flex-col gap-5">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                    <h3 className="text-base font-bold text-slate-900">
+                                        {editingScheduleId ? t("edit") : t("addNewSchedule")}
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={resetForm}
+                                        className="text-[11px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
                                     >
-                                        <option value="">{t("selectDeptPlaceholder")}</option>
-                                        {departments.map((dept) => (
-                                            <option key={dept.id} value={dept.id}>
-                                                {dept.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-
-                            {targetType === "EMPLOYEE" && (
-                                <div className="flex flex-col gap-1.5 animate-in fade-in duration-150">
-                                    <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                        {t("selectEmp")}
-                                    </label>
-                                    <select
-                                        required
-                                        value={selectedEmployeeId}
-                                        onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                                        className="p-3 border border-gray-300 bg-white font-bold text-sm text-black rounded-sm focus:border-black outline-none"
-                                    >
-                                        <option value="">{t("selectEmpPlaceholder")}</option>
-                                        {employees.map((emp) => (
-                                            <option key={emp.id} value={emp.id}>
-                                                {emp.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                        {t("checkInTimeLabel")}
-                                    </label>
-                                    <input
-                                        type="time"
-                                        required
-                                        value={startTime}
-                                        onChange={(e) => setStartTime(e.target.value)}
-                                        className="p-3 border border-gray-300 bg-white font-mono font-bold text-sm text-black rounded-sm focus:border-black outline-none"
-                                    />
+                                        &larr; {t("backToList")}
+                                    </button>
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                        {t("checkOutTimeLabel")}
-                                    </label>
+                                    <label className={labelClass}>{t("scheduleName")}</label>
                                     <input
-                                        type="time"
+                                        type="text"
                                         required
-                                        value={endTime}
-                                        onChange={(e) => setEndTime(e.target.value)}
-                                        className="p-3 border border-gray-300 bg-white font-mono font-bold text-sm text-black rounded-sm focus:border-black outline-none"
+                                        placeholder={t("scheduleNamePlaceholder")}
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className={inputClass}
                                     />
                                 </div>
-                            </div>
 
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                    {t("graceMinutesLabel")}
-                                </label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    max={120}
-                                    required
-                                    value={graceMinutes}
-                                    onChange={(e) => setGraceMinutes(Number(e.target.value))}
-                                    className="p-3 border border-gray-300 bg-white font-mono font-bold text-sm text-black rounded-sm focus:border-black outline-none"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-black uppercase tracking-wider text-gray-700">
-                                    {t("weeklyWorkDays")}
-                                </label>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    {DAYS.map((day) => {
-                                        const isSelected = workingDays.includes(day.id);
-                                        return (
+                                <div className="flex flex-col gap-2">
+                                    <label className={labelClass}>{t("targetAudience")}</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {(
+                                            [
+                                                { key: "GLOBAL", icon: "🌐", label: t("targetGlobal") },
+                                                { key: "DEPARTMENT", icon: "🏢", label: t("targetDept") },
+                                                { key: "EMPLOYEE", icon: "👤", label: t("targetEmp") },
+                                            ] as const
+                                        ).map((opt) => (
                                             <button
+                                                key={opt.key}
                                                 type="button"
-                                                key={day.id}
-                                                onClick={() => toggleDay(day.id)}
-                                                className={`py-2 px-3 text-xs font-bold uppercase tracking-wider border rounded-sm transition-colors text-center ${
-                                                    isSelected
-                                                        ? "bg-black border-black text-white"
-                                                        : "bg-gray-50 border-gray-200 text-gray-400 hover:text-black hover:border-gray-300"
+                                                onClick={() =>
+                                                    setTargetType(
+                                                        opt.key as "GLOBAL" | "DEPARTMENT" | "EMPLOYEE",
+                                                    )
+                                                }
+                                                className={`py-2.5 px-3 text-xs font-semibold rounded-xl border transition-all text-center cursor-pointer ${
+                                                    targetType === opt.key
+                                                        ? "bg-[#9327FF] border-[#9327FF] text-white shadow-xs"
+                                                        : "bg-slate-50 border-slate-200 text-slate-600 hover:border-[#9327FF]/40 hover:text-[#9327FF]"
                                                 }`}
                                             >
-                                                {day.name}
+                                                {opt.icon} {opt.label}
                                             </button>
-                                        );
-                                    })}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                                <button
-                                    type="button"
-                                    onClick={resetForm}
-                                    className="px-5 py-2.5 bg-white border border-gray-200 text-gray-600 hover:text-black text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
-                                >
-                                    {t("cancel")}
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="px-6 py-2.5 bg-[#1a1a1a] text-white hover:bg-black text-xs font-black uppercase tracking-wider rounded-sm transition-colors shadow-sm disabled:opacity-50"
-                                >
-                                    {loading ? t("saving") : t("save")}
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                                {targetType === "DEPARTMENT" && (
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className={labelClass}>{t("selectDept")}</label>
+                                        <select
+                                            required
+                                            disabled={optionsLoading}
+                                            value={selectedDepartmentId}
+                                            onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                                            className={`${inputClass} cursor-pointer ${
+                                                optionsLoading ? "opacity-60" : ""
+                                            }`}
+                                        >
+                                            <option value="">{t("selectDeptPlaceholder")}</option>
+                                            {departments.map((dept) => (
+                                                <option key={dept.id} value={dept.id}>
+                                                    {dept.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {targetType === "EMPLOYEE" && (
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className={labelClass}>{t("selectEmp")}</label>
+                                        <select
+                                            required
+                                            disabled={optionsLoading}
+                                            value={selectedEmployeeId}
+                                            onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                                            className={`${inputClass} cursor-pointer ${
+                                                optionsLoading ? "opacity-60" : ""
+                                            }`}
+                                        >
+                                            <option value="">{t("selectEmpPlaceholder")}</option>
+                                            {employees.map((emp) => (
+                                                <option key={emp.id} value={emp.id}>
+                                                    {emp.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className={labelClass}>
+                                            {t("checkInTimeLabel")}
+                                        </label>
+                                        <input
+                                            type="time"
+                                            required
+                                            value={startTime}
+                                            onChange={(e) => setStartTime(e.target.value)}
+                                            className={`${inputClass} font-mono cursor-pointer`}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className={labelClass}>
+                                            {t("checkOutTimeLabel")}
+                                        </label>
+                                        <input
+                                            type="time"
+                                            required
+                                            value={endTime}
+                                            onChange={(e) => setEndTime(e.target.value)}
+                                            className={`${inputClass} font-mono cursor-pointer`}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label className={labelClass}>{t("graceMinutesLabel")}</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={120}
+                                        required
+                                        value={graceMinutes}
+                                        onChange={(e) => setGraceMinutes(Number(e.target.value))}
+                                        className={`${inputClass} font-mono`}
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <label className={labelClass}>{t("weeklyWorkDays")}</label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        {DAYS.map((day) => {
+                                            const isSelected = workingDays.includes(day.id);
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={day.id}
+                                                    onClick={() => toggleDay(day.id)}
+                                                    className={`py-2 px-3 text-xs font-semibold uppercase tracking-wider border rounded-xl transition-all text-center cursor-pointer ${
+                                                        isSelected
+                                                            ? "bg-[#9327FF] border-[#9327FF] text-white shadow-xs"
+                                                            : "bg-slate-50 border-slate-200 text-slate-400 hover:border-[#9327FF]/40 hover:text-[#9327FF]"
+                                                    }`}
+                                                >
+                                                    {day.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        onClick={resetForm}
+                                        className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+                                    >
+                                        {t("cancel")}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="px-6 py-2.5 bg-[#9327FF] hover:bg-[#7e22ce] text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                                    >
+                                        {loading ? t("saving") : t("save")}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
                 </div>
-                </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }

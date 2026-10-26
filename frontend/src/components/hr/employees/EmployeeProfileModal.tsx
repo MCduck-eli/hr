@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import GirihPattern from "@/src/components/ui/GirihPattern";
 
 interface EmployeeProfileModalProps {
@@ -69,14 +70,24 @@ export default function EmployeeProfileModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
             <div
                 className="fixed inset-0 bg-slate-900/20 backdrop-blur-md transition-opacity"
                 onClick={onClose}
             />
 
-            <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200">
-                <GirihPattern className="opacity-[0.11] rounded-3xl overflow-hidden" strokeColor="#9333ea" />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="relative w-full max-w-lg bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200"
+            >
+                <GirihPattern className="opacity-[0.10] rounded-3xl overflow-hidden" />
 
                 <div className="relative z-10">
                     <div className="relative bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 px-6 pt-7 pb-8 text-white">
@@ -204,7 +215,7 @@ export default function EmployeeProfileModal({
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }

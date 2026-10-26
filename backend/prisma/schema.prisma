@@ -169,6 +169,7 @@ model Employee {
   status              EmployeeStatus          @default(NEW)
   statusConfigId      String?
   statusConfig        EmployeeStatusConfig?   @relation(fields: [statusConfigId], references: [id])
+  hireDate            DateTime?
   statusStartedAt     DateTime?               @default(now())
   statusExpiresAt     DateTime?
   leaveBalance        Float                   @default(20.0)

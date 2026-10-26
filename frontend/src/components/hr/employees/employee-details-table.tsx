@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import GirihPattern from "@/src/components/ui/GirihPattern";
 import StatusBadge from "./status-badge";
 import EmployeeJourneyTimeline from "@/src/components/lifecycle/EmployeeJourneyTimeline";
 import Skeleton from "@/src/components/ui/Skeleton";
@@ -13,6 +14,26 @@ interface EmployeeDetailsTableProps {
     loading?: boolean;
     onEdit: (user: any) => void;
     onDelete: (user: any) => void;
+}
+
+function formatHireDate(value: any): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return null;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    return `${day}.${month}.${date.getFullYear()}`;
+}
+
+function dayNumber(date: Date): number {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function hasWorkStarted(value: any): boolean {
+    if (!value) return false;
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return false;
+    return dayNumber(date) <= dayNumber(new Date());
 }
 
 function EmployeeTableAvatar({ user }: { user: any }) {
@@ -116,6 +137,7 @@ export default function EmployeeDetailsTable({
                     <thead>
                         <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] text-slate-400 uppercase tracking-wider font-bold whitespace-nowrap">
                             <th className="p-4 pl-6">{t("name")}</th>
+                            <th className="p-4">{t("hireDate")}</th>
                             <th className="p-4">{t("status")}</th>
                             <th className="p-4">{t("email")}</th>
                             <th className="p-4">{t("role")}</th>
@@ -140,6 +162,9 @@ export default function EmployeeDetailsTable({
                                                 <Skeleton className="w-20 h-2.5 rounded-md" />
                                             </div>
                                         </div>
+                                    </td>
+                                    <td className="p-4 whitespace-nowrap">
+                                        <Skeleton className="w-24 h-4 rounded-md" />
                                     </td>
                                     <td className="p-4 whitespace-nowrap">
                                         <Skeleton className="w-24 h-6 rounded-full" />
@@ -182,7 +207,7 @@ export default function EmployeeDetailsTable({
                         ) : users.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={11}
+                                    colSpan={12}
                                     className="p-12 text-center text-slate-400 font-semibold text-xs"
                                 >
                                     {t("noUsers")}
@@ -209,6 +234,30 @@ export default function EmployeeDetailsTable({
                                                 </span>
                                             </div>
                                         </div>
+                                    </td>
+                                    <td className="p-4 whitespace-nowrap">
+                                        {(() => {
+                                            const hireDate = u.employee?.hireDate;
+                                            const formatted = formatHireDate(hireDate);
+                                            if (!formatted) {
+                                                return <span className="text-slate-400">-</span>;
+                                            }
+                                            const started = hasWorkStarted(hireDate);
+                                            return (
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-bold text-slate-900 font-mono">
+                                                        {formatted}
+                                                    </span>
+                                                    <span
+                                                        className={`text-[9px] font-bold uppercase tracking-wider ${
+                                                            started ? "text-emerald-600" : "text-amber-600"
+                                                        }`}
+                                                    >
+                                                        {started ? t("hireStarted") : t("hireUpcoming")}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="p-4 whitespace-nowrap">
                                         <StatusBadge
@@ -332,31 +381,19 @@ export default function EmployeeDetailsTable({
             </div>
 
             {selectedEjmEmployee && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="relative bg-white rounded-2xl border border-slate-100 w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-150">
-                        <svg
-                            className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <defs>
-                                <pattern id="girih-pattern-employee-ejm" width="240" height="240" patternUnits="userSpaceOnUse">
-                                    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
-                                        <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
-                                        <circle cx="120" cy="120" r="10" />
-                                        <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
-                                        <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
-                                        <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
-                                        <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
-                                        <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
-                                        <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
-                                        <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
-                                        <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
-                                    </g>
-                                </pattern>
-                            </defs>
-                            <rect width="100%" height="100%" fill="url(#girih-pattern-employee-ejm)" />
-                        </svg>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4"
+                >
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                        className="relative bg-white rounded-2xl border border-slate-100 w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-150"
+                    >
+                        <GirihPattern className="opacity-[0.10] rounded-3xl overflow-hidden" />
 
                         <div className="relative z-10 flex flex-col gap-4 p-6 flex-1 min-h-0 overflow-y-auto">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -382,8 +419,8 @@ export default function EmployeeDetailsTable({
                             canManage={true}
                         />
                         </div>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             )}
         </motion.div>
     );

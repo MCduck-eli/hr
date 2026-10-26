@@ -114,7 +114,13 @@ export class AnalyticsService {
         const totalActive = activeEmployees.length;
 
         const now = new Date();
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const timeframe = query.timeframe || "year";
+        const periodStart =
+            timeframe === "quarter"
+                ? new Date(now.getFullYear(), now.getMonth() - 2, 1)
+                : timeframe === "month"
+                ? new Date(now.getFullYear(), now.getMonth(), 1)
+                : new Date(now.getFullYear(), 0, 1);
 
         const getEmployeeTerminationDate = (emp: any): Date | null => {
             if (emp.status !== "TERMINATED") return null;
@@ -131,12 +137,12 @@ export class AnalyticsService {
         };
 
         const newHiresYear = allEmployees.filter(
-            (e) => e.status !== "TERMINATED" && new Date(e.hireDate || e.createdAt) >= startOfYear,
+            (e) => e.status !== "TERMINATED" && new Date(e.hireDate || e.createdAt) >= periodStart,
         ).length;
 
         const terminationsYear = allEmployees.filter((e) => {
             const termDate = getEmployeeTerminationDate(e);
-            return termDate && termDate >= startOfYear;
+            return termDate && termDate >= periodStart;
         }).length;
 
         const avgTenureDays =
@@ -340,7 +346,8 @@ export class AnalyticsService {
 
             const deptExits = allEmployees.filter((e) => {
                 if (e.departmentId !== dept.id || e.status !== "TERMINATED") return false;
-                return true;
+                const termDate = getEmployeeTerminationDate(e);
+                return termDate ? termDate >= periodStart : false;
             }).length;
 
             const deptTurnover = Number(((deptExits / Math.max(1, count + deptExits)) * 100).toFixed(1));

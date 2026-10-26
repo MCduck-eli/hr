@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { assignEmployeeToDepartment } from "@/src/services/department-service";
 import GirihPattern from "@/src/components/ui/GirihPattern";
+import { motion } from "framer-motion";
 
 interface AssignDepartmentEmployeeModalProps {
     isOpen: boolean;
@@ -76,14 +77,24 @@ export default function AssignDepartmentEmployeeModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
             <div
                 className="fixed inset-0 bg-slate-900/20 backdrop-blur-md transition-opacity"
                 onClick={onClose}
             />
 
-            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200">
-                <GirihPattern className="opacity-[0.11] rounded-3xl overflow-hidden" strokeColor="#9333ea" />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="relative w-full max-w-md bg-white rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden transform transition-all z-10 animate-in fade-in zoom-in-95 duration-200"
+            >
+                <GirihPattern className="opacity-[0.10] rounded-3xl overflow-hidden" />
 
                 <div className="relative z-10">
                     <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
@@ -165,7 +176,7 @@ export default function AssignDepartmentEmployeeModal({
                         </div>
                     </form>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }

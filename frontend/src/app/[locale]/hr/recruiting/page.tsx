@@ -9,6 +9,8 @@ import CvParserModal from "@/src/components/hr/recruiting/CvParserModal";
 import { getVacancies, updateCandidateStage, hireCandidate, createVacancy, updateVacancy, deleteVacancy, applyForJob } from "@/src/services/recruiting-service";
 import { fetchDepartments } from "@/src/services/department-service";
 import { fetchAllUsers } from "@/src/services/user-service";
+import { motion } from "framer-motion";
+import GirihPattern from "@/src/components/ui/GirihPattern";
 
 export default function HRRecruitingPage() {
     const t = useTranslations("Recruiting");
@@ -239,8 +241,74 @@ export default function HRRecruitingPage() {
                 </div>
             </div>
 
-            {loading ? (
-                <div className="text-center p-8 font-bold text-gray-500">{t("loading")}</div>
+            {loading && vacancies.length === 0 ? (
+                <div className="flex flex-col gap-10">
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold uppercase tracking-wider text-gray-900">
+                                {t("vacanciesList") || "Mavjud Vakansiyalar"}
+                            </h2>
+                            <span className="h-4 w-10 rounded bg-slate-100 animate-pulse" />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+                            {Array.from({ length: 3 }).map((_, skeletonIndex) => (
+                                <div
+                                    key={skeletonIndex}
+                                    className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between gap-4"
+                                >
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="h-5 w-40 rounded-lg bg-slate-100 animate-pulse" />
+                                            <span className="h-6 w-14 rounded-lg bg-slate-100 animate-pulse shrink-0" />
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <span className="h-3.5 w-32 rounded bg-slate-100 animate-pulse" />
+                                            <span className="h-3.5 w-36 rounded bg-slate-100 animate-pulse" />
+                                            <span className="h-3.5 w-28 rounded bg-slate-100 animate-pulse" />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                                        <span className="h-7 w-20 rounded-xl bg-slate-100 animate-pulse" />
+                                        <span className="h-7 w-20 rounded-xl bg-slate-100 animate-pulse" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-4 pt-6 border-t border-gray-100">
+                        <div className="flex gap-3 overflow-x-auto pb-2">
+                            {Array.from({ length: 4 }).map((_, tabIndex) => (
+                                <span
+                                    key={tabIndex}
+                                    className="h-10 w-36 rounded-xl bg-slate-100 animate-pulse shrink-0"
+                                />
+                            ))}
+                        </div>
+
+                        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                                <span className="h-3.5 w-40 rounded bg-slate-100 animate-pulse" />
+                                <div className="flex items-center gap-3">
+                                    <span className="h-9 w-28 rounded-xl bg-slate-100 animate-pulse" />
+                                    <span className="h-9 w-20 rounded-xl bg-slate-100 animate-pulse" />
+                                </div>
+                            </div>
+                            <div className="p-4 flex flex-col gap-4">
+                                {Array.from({ length: 4 }).map((_, rowIndex) => (
+                                    <div key={rowIndex} className="grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
+                                        <span className="h-4 w-32 rounded bg-slate-100 animate-pulse" />
+                                        <span className="h-4 w-40 rounded bg-slate-100 animate-pulse" />
+                                        <span className="hidden md:block h-4 w-24 rounded bg-slate-100 animate-pulse" />
+                                        <span className="hidden md:block h-6 w-24 rounded-lg bg-slate-100 animate-pulse" />
+                                        <span className="h-7 w-24 rounded-xl bg-slate-100 animate-pulse md:ml-auto" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             ) : (
                 <div className="flex flex-col gap-10">
                     <div className="flex flex-col gap-4">
@@ -344,30 +412,13 @@ export default function HRRecruitingPage() {
             />
 
             {vacancyModalOpen && (
-                <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex flex-col gap-6 mt-8 overflow-hidden">
-                    <svg
-                        className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
-                        <defs>
-                            <pattern id="girih-pattern-recruiting-vacancy" width="240" height="240" patternUnits="userSpaceOnUse">
-                                <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
-                                    <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
-                                    <circle cx="120" cy="120" r="10" />
-                                    <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
-                                    <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
-                                    <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
-                                    <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
-                                    <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
-                                    <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
-                                    <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
-                                    <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
-                                </g>
-                            </pattern>
-                        </defs>
-                        <rect width="100%" height="100%" fill="url(#girih-pattern-recruiting-vacancy)" />
-                    </svg>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.98, y: 12 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="relative bg-white rounded-2xl border border-gray-100 shadow-sm p-8 flex flex-col gap-6 mt-8 overflow-hidden"
+                >
+                    <GirihPattern className="opacity-[0.10] rounded-2xl overflow-hidden" />
 
                     <div className="relative z-10 flex flex-col gap-6">
                     <div>
@@ -476,35 +527,23 @@ export default function HRRecruitingPage() {
                         </button>
                     </div>
                     </div>
-                </div>
+                </motion.div>
             )}
 
             {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all overflow-hidden">
-                        <svg
-                            className="absolute inset-0 w-full h-full z-0 opacity-[0.10] pointer-events-none text-slate-300 stroke-current"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <defs>
-                                <pattern id="girih-pattern-recruiting-delete" width="240" height="240" patternUnits="userSpaceOnUse">
-                                    <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M120 60L138 78H162V102L180 120L162 138V162H138L120 180L102 162H78V138L60 120L78 102V78H102Z" />
-                                        <path d="M120 96L127 103H137V113L144 120L137 127V137H127L120 144L113 137H103V127L96 120L103 113V103H113Z" />
-                                        <circle cx="120" cy="120" r="10" />
-                                        <path d="M0 60L18 42H42V18L60 0M180 0L198 18V42H222L240 60M240 180L222 198H198V222L180 240M60 240L42 222V198H18L0 180" />
-                                        <path d="M0 24L7 17H17V7L24 0M216 0L223 7V17H233L240 24M240 216L233 223H223V233L216 240M24 240L17 233V223H7L0 216" />
-                                        <path d="M0 10A10 10 0 0 1 10 0M230 0A10 10 0 0 1 240 10M240 230A10 10 0 0 1 230 240M10 240A10 10 0 0 1 0 230" />
-                                        <path d="M120 0V60M120 180V240M0 120H60M180 120H240" />
-                                        <path d="M0 0L42 42M198 198L240 240M240 0L198 42M42 198L0 240" />
-                                        <path d="M42 42L78 78M162 162L198 198M198 42L162 78M78 162L42 198" />
-                                        <path d="M60 0L120 60L180 0M240 60L180 120L240 180M180 240L120 180L60 240M0 180L60 120L0 60" />
-                                        <path d="M90 0L120 30L150 0M240 90L210 120L240 150M150 240L120 210L90 240M0 150L30 120L0 90" />
-                                    </g>
-                                </pattern>
-                            </defs>
-                            <rect width="100%" height="100%" fill="url(#girih-pattern-recruiting-delete)" />
-                        </svg>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+                >
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                        className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all overflow-hidden"
+                    >
+                        <GirihPattern className="opacity-[0.10] rounded-3xl overflow-hidden" />
 
                         <div className="relative z-10">
                         <h3 className="text-lg font-semibold text-gray-900">
@@ -535,8 +574,8 @@ export default function HRRecruitingPage() {
                             </button>
                         </div>
                         </div>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             )}
 
             {toast && (

@@ -308,6 +308,49 @@ export class EmployeeStatusService {
                 });
             }
         }
+
+        const hiredWhere: any = {
+            status: "NEW",
+            hireDate: {
+                not: null,
+                lte: now,
+            },
+        };
+
+        if (companyName) {
+            hiredWhere.user = { companyName };
+        }
+
+        const hiredEmployees = await prisma.employee.findMany({
+            where: hiredWhere,
+            include: { user: { select: { companyName: true } } },
+        });
+
+        for (const emp of hiredEmployees) {
+            const activeConfig = await prisma.employeeStatusConfig.findFirst({
+                where: {
+                    code: "ACTIVE",
+                    companyName: emp.user?.companyName ?? null,
+                },
+            });
+
+            if (!activeConfig) continue;
+
+            await prisma.employee.update({
+                where: { id: emp.id },
+                data: {
+                    status: "ACTIVE",
+                    statusConfigId: activeConfig.id,
+                    statusStartedAt: emp.hireDate ?? now,
+                    statusExpiresAt: activeConfig.durationDays
+                        ? new Date(
+                              now.getTime() +
+                                  activeConfig.durationDays * 24 * 60 * 60 * 1000,
+                          )
+                        : null,
+                },
+            });
+        }
     }
 }
 

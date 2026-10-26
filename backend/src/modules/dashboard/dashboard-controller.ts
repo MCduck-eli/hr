@@ -17,14 +17,15 @@ export class DashboardController {
                     .json({ message: "Avtorizatsiyadan o'tilmagan" });
             }
 
+            const privilegedRoles: string[] = ["SUPER_ADMIN", "HR_ADMIN", "DIRECTOR"];
+
             const targetUserId =
-                req.query.userId &&
-                (role === "SUPER_ADMIN" || role === "HR_ADMIN")
+                req.query.userId && privilegedRoles.includes(role)
                     ? String(req.query.userId)
                     : loggedInUserId;
 
             const data =
-                await dashboardService.getEmployeeDashboardData(targetUserId);
+                await dashboardService.getEmployeeDashboardData(targetUserId, (req as any).user);
 
             res.status(200).json({
                 status: "success",

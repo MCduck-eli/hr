@@ -76,9 +76,9 @@ export default function DirectorDashboard() {
         router.replace(`/${locale}/director/dashboard?tab=${tab}`, { scroll: false });
     };
 
-    const [users, setUsers] = useState<any[]>(() => getQueryData<any[]>("director:users") || []);
-    const [departments, setDepartments] = useState<any[]>(() => getQueryData<any[]>("director:departments") || []);
-    const [loading, setLoading] = useState<boolean>(() => !getQueryData("director:users") || !getQueryData("director:departments"));
+    const [users, setUsers] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
     const [isDeptUpdating, setIsDeptUpdating] = useState(false);
     const [formLoading, setFormLoading] = useState(false);
     const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
@@ -134,20 +134,25 @@ export default function DirectorDashboard() {
             } catch {}
         }
 
-        const usersCacheKey = currentCompany ? `director:${currentCompany}:users` : "director:users";
-        const deptsCacheKey = currentCompany ? `director:${currentCompany}:departments` : "director:departments";
+        const cacheScope = currentCompany || "all";
+        const usersCacheKey = `director:${cacheScope}:users`;
+        const deptsCacheKey = `director:${cacheScope}:departments`;
 
-        const hasCachedUsers = getQueryData<any[]>(usersCacheKey);
-        const hasCachedDepts = getQueryData<any[]>(deptsCacheKey);
-        const hasCache = Boolean(hasCachedUsers && hasCachedDepts);
+        const cachedUsers = getQueryData<any[]>(usersCacheKey);
+        const cachedDepts = getQueryData<any[]>(deptsCacheKey);
+        const hasCache = Boolean(cachedUsers && cachedDepts);
         const isStale = isQueryStale(usersCacheKey) || isQueryStale(deptsCacheKey);
+
+        if (hasCache && !isStale && !isBackground) {
+            setUsers(cachedUsers || []);
+            setDepartments(cachedDepts || []);
+            setLoading(false);
+            setIsDeptUpdating(false);
+            return;
+        }
 
         if (!hasCache && !isBackground) {
             setLoading(true);
-        }
-
-        if (hasCache && !isStale && !isBackground) {
-            return;
         }
 
         if (!hasCache) {

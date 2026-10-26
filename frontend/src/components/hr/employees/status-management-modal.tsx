@@ -5,6 +5,7 @@ import {
     deleteStatus,
 } from "@/src/services/employee-status-service";
 import GirihPattern from "@/src/components/ui/GirihPattern";
+import { motion } from "framer-motion";
 
 interface StatusManagementModalProps {
     isOpen: boolean;
@@ -108,9 +109,19 @@ export default function StatusManagementModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-md p-4">
-            <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden relative">
-                <GirihPattern className="opacity-[0.11] rounded-3xl overflow-hidden" strokeColor="#9333ea" />
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-md p-4"
+        >
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-[10px_10px_30px_#cbd5e1,-10px_-10px_30px_#ffffff] overflow-hidden relative"
+            >
+                <GirihPattern className="opacity-[0.10] rounded-3xl overflow-hidden" />
                 <div className="relative z-10 flex flex-col h-full overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-slate-100">
                     <div>
@@ -303,7 +314,7 @@ export default function StatusManagementModal({
                     </div>
                 </div>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }
