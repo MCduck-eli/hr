@@ -1,6 +1,7 @@
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 import { calculateDistanceInMeters } from "../../utils/geofence.util";
+import { workStartedWhere } from "../../utils/employee-availability";
 import { AttendanceStatus } from "@prisma/client";
 import { notificationService } from "../notification/notification-service";
 
@@ -221,8 +222,8 @@ export class AttendanceService {
                 employee = await prisma.employee.create({
                     data: {
                         userId: user.id,
-                        firstName: user.firstName || "Xodim",
-                        lastName: user.lastName || "",
+                        firstName: "Xodim",
+                        lastName: "",
                         status: "NEW",
                     },
                     include: { department: true, position: true, user: true },
@@ -622,10 +623,12 @@ export class AttendanceService {
         for (const att of attendances) {
             if (att.checkIn && att.checkOut) {
                 totalMs += att.checkOut.getTime() - att.checkIn.getTime();
-            } else if (att.checkIn && att.date.getTime() === today.getTime()) {
-                totalMs += Math.max(0, now.getTime() - att.checkIn.getTime());
             } else if (att.checkIn) {
-                totalMs += 8 * 60 * 60 * 1000;
+                const checkInDay = new Date(att.checkIn);
+                checkInDay.setHours(0, 0, 0, 0);
+                if (checkInDay.getTime() === today.getTime()) {
+                    totalMs += Math.max(0, now.getTime() - att.checkIn.getTime());
+                }
             }
         }
 
@@ -641,6 +644,23 @@ export class AttendanceService {
                 date: { lt: cutoffDate },
             },
         }).catch(() => {});
+    }
+
+    async getMyAttendance(
+        rawUserId: string,
+        query: { startDate?: string; endDate?: string },
+    ) {
+        const employee = await this.resolveEmployee(rawUserId);
+        return prisma.attendance.findMany({
+            where: {
+                employeeId: employee.id,
+                date: {
+                    ...(query.startDate ? { gte: new Date(query.startDate) } : {}),
+                    ...(query.endDate ? { lte: new Date(query.endDate) } : {}),
+                },
+            },
+            orderBy: { date: "desc" },
+        });
     }
 
     async getAllAttendance(
@@ -670,6 +690,9 @@ export class AttendanceService {
             : new Date();
         selectedDate.setHours(0, 0, 0, 0);
 
+        const todayMidnight = new Date();
+        todayMidnight.setHours(0, 0, 0, 0);
+
         const dayOfWeek =
             selectedDate.getDay() === 0 ? 7 : selectedDate.getDay();
 
@@ -690,6 +713,7 @@ export class AttendanceService {
                 role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
                 ...(companyFilter ? { companyName: companyFilter } : {}),
             },
+            AND: [workStartedWhere()],
         };
 
         if (query.employeeId) {
@@ -776,7 +800,7 @@ export class AttendanceService {
                             (1000 * 60 * 60)) *
                             10,
                     ) / 10;
-            } else if (att?.checkIn) {
+            } else if (att?.checkIn && selectedDate.getTime() === todayMidnight.getTime()) {
                 const now = new Date();
                 durationHours =
                     Math.round(
@@ -997,6 +1021,248 @@ export class AttendanceService {
                 employeeSummaries: employeeThreeMonthSummaries,
             },
         };
+    }
+
+    async getWorkedHoursSummary(query: { month?: string; search?: string }, currentUser?: any) {
+        const now = new Date();
+        let year = now.getFullYear();
+        let monthIndex = now.getMonth();
+
+        if (query.month) {
+            const parts = query.month.split("-");
+            const parsedYear = parseInt(parts[0], 10);
+            const parsedMonth = parseInt(parts[1], 10);
+            if (!isNaN(parsedYear) && parsedMonth >= 1 && parsedMonth <= 12) {
+                year = parsedYear;
+                monthIndex = parsedMonth - 1;
+            }
+        }
+
+        const monthStart = new Date(year, monthIndex, 1);
+        const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const rangeStart = new Date(monthStart);
+        rangeStart.setDate(rangeStart.getDate() - 2);
+        const rangeEnd = new Date(monthEnd);
+        rangeEnd.setDate(rangeEnd.getDate() + 2);
+
+        let companyFilter: string | null = null;
+        if (currentUser?.id) {
+            const caller = await prisma.user.findUnique({
+                where: { id: currentUser.id },
+                select: { role: true, companyName: true },
+            });
+            if (caller && caller.role !== "SUPER_ADMIN") {
+                companyFilter = caller.companyName || null;
+            }
+        }
+
+        const whereEmployee: any = {
+            status: { not: "TERMINATED" },
+            user: {
+                role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
+                ...(companyFilter ? { companyName: companyFilter } : {}),
+            },
+            AND: [workStartedWhere()],
+        };
+
+        if (query.search) {
+            whereEmployee.OR = [
+                { firstName: { contains: query.search, mode: "insensitive" } },
+                { lastName: { contains: query.search, mode: "insensitive" } },
+            ];
+        }
+
+        const [employees, schedules, monthAttendances] = await Promise.all([
+            prisma.employee.findMany({
+                where: whereEmployee,
+                include: {
+                    department: { select: { id: true, name: true } },
+                    position: { select: { id: true, title: true } },
+                },
+                orderBy: { firstName: "asc" },
+            }),
+            prisma.workSchedule.findMany(),
+            prisma.attendance.findMany({
+                where: { date: { gte: rangeStart, lte: rangeEnd } },
+                orderBy: { date: "asc" },
+            }),
+        ]);
+
+        const items = this.buildWorkedHoursItems({
+            employees,
+            schedules,
+            monthAttendances,
+            monthStart,
+            monthEnd,
+            today,
+            now,
+        });
+
+        items.sort((a: any, b: any) => b.totalHours - a.totalHours);
+
+        return {
+            month: `${year}-${String(monthIndex + 1).padStart(2, "0")}`,
+            year,
+            monthNumber: monthIndex + 1,
+            items,
+            totals: {
+                employees: items.length,
+                totalHours: Math.round(items.reduce((acc: number, i: any) => acc + i.totalHours, 0) * 10) / 10,
+                expectedHours: Math.round(items.reduce((acc: number, i: any) => acc + i.expectedHours, 0) * 10) / 10,
+                atWork: items.filter((i: any) => i.todayStatus === "AT_WORK").length,
+            },
+        };
+    }
+
+    private buildWorkedHoursItems(params: {
+        employees: any[];
+        schedules: any[];
+        monthAttendances: any[];
+        monthStart: Date;
+        monthEnd: Date;
+        today: Date;
+        now: Date;
+    }) {
+        const defaultSchedule: any = params.schedules.find((s) => s.isDefault) || null;
+
+        const resolveSchedule = (employeeId: string, departmentId?: string | null): any => {
+            const empSchedule = params.schedules.find((s) => s.employeeId === employeeId);
+            if (empSchedule) return empSchedule;
+            if (departmentId) {
+                const deptSchedule = params.schedules.find((s) => s.departmentId === departmentId);
+                if (deptSchedule) return deptSchedule;
+            }
+            return defaultSchedule;
+        };
+
+        const toMinutes = (value: string) => {
+            const parts = (value || "0:0").split(":");
+            return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+        };
+
+        const roundHours = (ms: number) => Math.max(0, Math.round((ms / 3600000) * 10) / 10);
+
+        const dayKey = (d: Date) => {
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            return `${d.getFullYear()}-${mm}-${dd}`;
+        };
+
+        const storedKey = (d: Date) => new Date(d).toISOString().slice(0, 10);
+
+        const byEmployee = new Map<string, Map<string, any>>();
+        for (const att of params.monthAttendances) {
+            if (!att.date) continue;
+            const key = storedKey(att.date);
+            if (!byEmployee.has(att.employeeId)) byEmployee.set(att.employeeId, new Map());
+            byEmployee.get(att.employeeId)!.set(key, att);
+        }
+
+        const calendarDays: Date[] = [];
+        const cursor = new Date(params.monthStart);
+        while (cursor <= params.monthEnd) {
+            calendarDays.push(new Date(cursor));
+            cursor.setDate(cursor.getDate() + 1);
+        }
+
+        return params.employees.map((emp) => {
+            const schedule = resolveSchedule(emp.id, emp.department?.id);
+            const workingDays: number[] = Array.isArray(schedule?.workingDays) ? schedule.workingDays : [];
+            const dailyHours = schedule ? Math.max(0, (toMinutes(schedule.endTime) - toMinutes(schedule.startTime)) / 60) : 0;
+            const empAtts = byEmployee.get(emp.id) || new Map<string, any>();
+
+            const days: any[] = [];
+            let totalMs = 0;
+            let daysWorked = 0;
+            let scheduledDays = 0;
+            let absentDays = 0;
+            let excusedDays = 0;
+            let incompleteDays = 0;
+            let lateMinutes = 0;
+            let todayStatus = "NO_RECORD";
+
+            for (const day of calendarDays) {
+                const dow = day.getDay() === 0 ? 7 : day.getDay();
+                const isWorkingDay = workingDays.includes(dow);
+                const isPastOrToday = day.getTime() <= params.today.getTime();
+                const att = empAtts.get(storedKey(day));
+
+                if (isWorkingDay && isPastOrToday) scheduledDays += 1;
+                if (!att && (!isWorkingDay || !isPastOrToday)) continue;
+
+                let ms = 0;
+                let incompleteDay = false;
+                if (att?.checkIn && att?.checkOut) {
+                    ms = Math.max(0, att.checkOut.getTime() - att.checkIn.getTime());
+                } else if (att?.checkIn && day.getTime() === params.today.getTime()) {
+                    ms = Math.max(0, params.now.getTime() - att.checkIn.getTime());
+                } else if (att?.checkIn) {
+                    incompleteDay = true;
+                }
+
+                if (ms > 0) {
+                    totalMs += ms;
+                    daysWorked += 1;
+                } else if (isWorkingDay && isPastOrToday) {
+                    if (incompleteDay) incompleteDays += 1;
+                    else if (att?.absenceReason) excusedDays += 1;
+                    else absentDays += 1;
+                }
+
+                if (att?.lateMinutes > 0) lateMinutes += att.lateMinutes;
+
+                if (day.getTime() === params.today.getTime()) {
+                    if (!isWorkingDay) todayStatus = "DAM_OLISH";
+                    else if (att?.checkIn && att?.checkOut) todayStatus = "COMPLETED";
+                    else if (att?.checkIn) todayStatus = "AT_WORK";
+                    else if (att?.absenceReason) todayStatus = "EXCUSED";
+                    else todayStatus = "ABSENT";
+                }
+
+                days.push({
+                    date: dayKey(day),
+                    weekday: dow,
+                    isWorkingDay,
+                    status: att?.status || (isWorkingDay ? "BELGILANMADI" : "DAM_OLISH"),
+                    checkIn: att?.checkIn ? att.checkIn.toISOString() : null,
+                    checkOut: att?.checkOut ? att.checkOut.toISOString() : null,
+                    hours: roundHours(ms),
+                    lateMinutes: att?.lateMinutes || 0,
+                    earlyMinutes: att?.earlyMinutes || 0,
+                    absenceReason: att?.absenceReason || null,
+                    checkOutConfirmed: Boolean(att?.checkOut),
+                    incomplete: incompleteDay,
+                });
+            }
+
+            const totalHours = roundHours(totalMs);
+            const expectedHours = Math.round(scheduledDays * dailyHours * 10) / 10;
+
+            return {
+                employeeId: emp.id,
+                employeeName: `${emp.firstName} ${emp.lastName}`.trim(),
+                department: emp.department?.name || "-",
+                position: emp.position?.title || "-",
+                scheduleName: schedule.name,
+                startTime: schedule.startTime,
+                endTime: schedule.endTime,
+                todayStatus,
+                totalHours,
+                expectedHours,
+                scheduledHoursRatio: expectedHours > 0 ? Math.min(100, Math.round((totalHours / expectedHours) * 100)) : 0,
+                daysWorked,
+                scheduledDays,
+                absentDays,
+                excusedDays,
+                incompleteDays,
+                lateCount: days.filter((d) => d.lateMinutes > 0).length,
+                lateMinutes,
+                days,
+            };
+        });
     }
 
     async getMobileDashboardData(rawUserId: string) {

@@ -25,6 +25,7 @@ import {
     updateEmployeeCompensation,
 } from "@/src/services/payroll-service";
 import { fetchAllUsers } from "@/src/services/user-service";
+import { hasWorkStarted } from "@/src/utils/work-started";
 import PayslipModal from "./PayslipModal";
 
 function PayrollCircularProgress({
@@ -257,7 +258,12 @@ export default function PayrollManager() {
             setPenaltySummaries(pMap);
 
             const validEmployees = (usersData || [])
-                .filter((u: any) => u.role !== "DIRECTOR" && u.role !== "SUPER_ADMIN")
+                .filter(
+                    (u: any) =>
+                        u.role !== "DIRECTOR" &&
+                        u.role !== "SUPER_ADMIN" &&
+                        hasWorkStarted(u.employee?.hireDate)
+                )
                 .map((u: any) => u.employee ? { ...u.employee, email: u.email } : null)
                 .filter(Boolean);
             setEmployees(validEmployees);

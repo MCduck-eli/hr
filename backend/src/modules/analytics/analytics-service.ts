@@ -1,4 +1,5 @@
 import prisma from "../../config/db";
+import { workStartedWhere } from "../../utils/employee-availability";
 
 export class AnalyticsService {
     private async resolveCallerCompany(currentUser?: any): Promise<string | null> {
@@ -25,6 +26,7 @@ export class AnalyticsService {
                 ...(callerCompany ? { companyName: callerCompany } : {}),
                 role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
             },
+            AND: [workStartedWhere()],
             ...(query.departmentId ? { departmentId: query.departmentId } : {}),
         };
 
@@ -303,7 +305,7 @@ export class AnalyticsService {
                     id: emp.department.id,
                     name: emp.department.name,
                     companyName: emp.department.companyName,
-                    employees: activeEmployees.filter((e) => e.departmentId === emp.department.id),
+                    employees: activeEmployees.filter((e) => e.departmentId === emp.departmentId),
                 });
             }
         }

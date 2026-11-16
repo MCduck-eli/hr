@@ -29,7 +29,7 @@ export class EnpsController {
         try {
             const user = (req as any).user;
             const companyName = user?.companyName || null;
-            const { id } = req.params;
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
             const result = await enpsService.updateQuestion(id, companyName, req.body);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
@@ -41,7 +41,7 @@ export class EnpsController {
         try {
             const user = (req as any).user;
             const companyName = user?.companyName || null;
-            const { id } = req.params;
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
             const result = await enpsService.deleteQuestion(id, companyName);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {

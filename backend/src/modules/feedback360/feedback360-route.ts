@@ -16,7 +16,7 @@ feedback360Router.use(authenticate);
 
 feedback360Router.get(
     "/cycles",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "EMPLOYEE", "CEO", "ACCOUNTANT"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DIRECTOR", "EMPLOYEE", "ACCOUNTANT"),
     feedback360Controller.getCycles,
 );
 
@@ -78,7 +78,7 @@ feedback360Router.post(
 
 feedback360Router.get(
     "/report/:employeeId",
-    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE", "ACCOUNTANT", "DIRECTOR", "CEO", "RECRUITER"),
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD", "EMPLOYEE", "ACCOUNTANT", "DIRECTOR", "RECRUITER"),
     feedback360Controller.getTargetReport,
 );
 

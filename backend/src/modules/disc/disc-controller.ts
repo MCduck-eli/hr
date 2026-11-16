@@ -15,7 +15,7 @@ export class DiscController {
     async updateQuestion(req: Request, res: Response, next: NextFunction) {
         try {
             const currentUser = (req as any).user;
-            const result = await discService.updateQuestion(req.params.id, req.body, currentUser);
+            const result = await discService.updateQuestion((Array.isArray(req.params.id) ? req.params.id[0] : req.params.id), req.body, currentUser);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -25,7 +25,7 @@ export class DiscController {
     async deleteQuestion(req: Request, res: Response, next: NextFunction) {
         try {
             const currentUser = (req as any).user;
-            const result = await discService.deleteQuestion(req.params.id, currentUser);
+            const result = await discService.deleteQuestion((Array.isArray(req.params.id) ? req.params.id[0] : req.params.id), currentUser);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);

@@ -6,6 +6,7 @@ import {
     checkInSchema,
     checkOutSchema,
     getAttendanceQuerySchema,
+    getWorkedHoursQuerySchema,
 } from "./attendance-validation";
 
 const attendanceRouter = Router();
@@ -80,6 +81,13 @@ attendanceRouter.get(
     authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"),
     validate(getAttendanceQuerySchema),
     attendanceController.getAllAttendance,
+);
+
+attendanceRouter.get(
+    "/worked-hours",
+    authorize("SUPER_ADMIN", "HR_ADMIN", "DEPARTMENT_HEAD"),
+    validate(getWorkedHoursQuerySchema),
+    attendanceController.getWorkedHoursSummary,
 );
 
 export default attendanceRouter;

@@ -41,6 +41,30 @@ export class AuthService {
         }
     }
 
+    async register(payload: {
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+    }) {
+        const email = payload.email.trim().toLowerCase();
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) {
+            throw new AppError("Ushbu email bilan foydalanuvchi allaqachon mavjud", 400);
+        }
+        await prisma.user.create({
+            data: {
+                email,
+                password: await hashPassword(payload.password),
+                role: "EMPLOYEE",
+                employee: {
+                    create: { firstName: payload.firstName, lastName: payload.lastName },
+                },
+            },
+        });
+        return this.login({ email, password: payload.password });
+    }
+
     async login(payload: any) {
         const { email, password } = payload;
 

@@ -28,7 +28,7 @@ export class EmployeeStatusController {
     async updateStatus(req: Request, res: Response, next: NextFunction) {
         try {
             const data = await employeeStatusService.updateStatus(
-                req.params.id,
+                (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id),
                 req.body,
                 (req as any).user,
             );
@@ -41,7 +41,7 @@ export class EmployeeStatusController {
     async deleteStatus(req: Request, res: Response, next: NextFunction) {
         try {
             const data = await employeeStatusService.deleteStatus(
-                req.params.id,
+                (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id),
                 (req as any).user,
             );
             res.status(200).json({ status: "success", data });

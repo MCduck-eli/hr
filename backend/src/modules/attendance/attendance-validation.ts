@@ -31,6 +31,15 @@ export const getAttendanceQuerySchema = z.object({
         .optional(),
 });
 
+export const getWorkedHoursQuerySchema = z.object({
+    query: z
+        .object({
+            month: z.string().optional(),
+            search: z.string().optional(),
+        })
+        .optional(),
+});
+
 export const gpsCheckInSchema = z.object({
     body: z.object({
         latitude: z.number(),

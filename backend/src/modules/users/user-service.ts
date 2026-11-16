@@ -929,13 +929,13 @@ export class UserService {
             await prisma.feedbackAssignment.deleteMany({
                 where: { OR: [{ reviewerId: emp.id }, { targetId: emp.id }] },
             }).catch(() => {});
-            await prisma.okrCheckIn.deleteMany({ where: { objective: { employeeId: emp.id } } }).catch(() => {});
+            await prisma.okrCheckIn.deleteMany({ where: { keyResult: { objective: { employeeId: emp.id } } } }).catch(() => {});
             await prisma.keyResult.deleteMany({ where: { objective: { employeeId: emp.id } } }).catch(() => {});
             await prisma.objective.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
             await prisma.discUserResponse.deleteMany({ where: { assessment: { employeeId: emp.id } } }).catch(() => {});
             await prisma.discAssessment.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
-            await prisma.employeeOnboardingTask.deleteMany({ where: { employeeOnboarding: { employeeId: emp.id } } }).catch(() => {});
-            await prisma.employeeOnboardingCourse.deleteMany({ where: { employeeOnboarding: { employeeId: emp.id } } }).catch(() => {});
+            await prisma.employeeOnboardingTask.deleteMany({ where: { onboarding: { employeeId: emp.id } } }).catch(() => {});
+            await prisma.employeeOnboardingCourse.deleteMany({ where: { onboarding: { employeeId: emp.id } } }).catch(() => {});
             await prisma.employeeOnboarding.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
             await prisma.policySignature.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});
             await prisma.courseProgress.deleteMany({ where: { employeeId: emp.id } }).catch(() => {});

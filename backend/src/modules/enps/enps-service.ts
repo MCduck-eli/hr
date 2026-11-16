@@ -1,5 +1,5 @@
 import prisma from "../../config/db";
-import { AppError } from "../../middlewares/error-middleware";
+import { AppError } from "../../utils/appError";
 
 export class EnpsService {
     async getQuestions(companyName?: string | null, activeOnly = false) {

@@ -119,7 +119,7 @@ export class AttendanceController {
     async deleteWorkSchedule(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await attendanceService.deleteWorkSchedule(
-                req.params.id,
+                (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id),
             );
             res.status(200).json({
                 status: "success",
@@ -149,6 +149,18 @@ export class AttendanceController {
     async getAllAttendance(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await attendanceService.getAllAttendance(req.query, req.user);
+            res.status(200).json({
+                status: "success",
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getWorkedHoursSummary(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await attendanceService.getWorkedHoursSummary(req.query, req.user);
             res.status(200).json({
                 status: "success",
                 data: result,

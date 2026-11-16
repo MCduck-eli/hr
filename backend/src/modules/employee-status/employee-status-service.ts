@@ -1,4 +1,5 @@
 import prisma from "../../config/db";
+import { Prisma } from "@prisma/client";
 import { AppError } from "../../utils/appError";
 
 export class EmployeeStatusService {
@@ -35,59 +36,46 @@ export class EmployeeStatusService {
     }
 
     async seedDefaultStatuses(companyName?: string | null) {
-        const activeStatus = await prisma.employeeStatusConfig.upsert({
-            where: {
-                code_companyName: {
-                    code: "ACTIVE",
-                    companyName: companyName || null,
-                },
-            },
-            update: {},
-            create: {
-                name: "Faol",
-                code: "ACTIVE",
-                color: "#10b981",
-                durationDays: null,
-                isSystem: true,
-                companyName: companyName || null,
-            },
+        const ensureStatus = async (data: Prisma.EmployeeStatusConfigUncheckedCreateInput) => {
+            if (companyName) {
+                return prisma.employeeStatusConfig.upsert({
+                    where: { code_companyName: { code: data.code, companyName } },
+                    update: {},
+                    create: data,
+                });
+            }
+            // Nullable company names cannot be used in Prisma compound unique inputs.
+            const existing = await prisma.employeeStatusConfig.findFirst({
+                where: { code: data.code, companyName: null },
+            });
+            return existing ?? prisma.employeeStatusConfig.create({ data });
+        };
+        const activeStatus = await ensureStatus({
+            name: "Faol",
+            code: "ACTIVE",
+            color: "#10b981",
+            durationDays: null,
+            isSystem: true,
+            companyName: companyName || null,
         });
 
-        const newStatus = await prisma.employeeStatusConfig.upsert({
-            where: {
-                code_companyName: {
-                    code: "NEW",
-                    companyName: companyName || null,
-                },
-            },
-            update: {},
-            create: {
-                name: "Yangi xodim",
-                code: "NEW",
-                color: "#f59e0b",
-                durationDays: 30,
-                nextStatusId: activeStatus.id,
-                isSystem: true,
-                companyName: companyName || null,
-            },
+        const newStatus = await ensureStatus({
+            name: "Yangi xodim",
+            code: "NEW",
+            color: "#f59e0b",
+            durationDays: 30,
+            nextStatusId: activeStatus.id,
+            isSystem: true,
+            companyName: companyName || null,
         });
 
-        await prisma.employeeStatusConfig.upsert({
-            where: {
-                code_companyName: {
-                    code: "INACTIVE",
-                    companyName: companyName || null,
-                },
-            },
-            update: {},
-            create: {
-                name: "Nofaol",
-                code: "INACTIVE",
-                color: "#6b7280",
-                durationDays: null,
-                isSystem: true,
-                companyName: companyName || null,
-            },
+        await ensureStatus({
+            name: "Nofaol",
+            code: "INACTIVE",
+            color: "#6b7280",
+            durationDays: null,
+            isSystem: true,
+            companyName: companyName || null,
         });
 
         const whereEmp: any = { statusConfigId: null };

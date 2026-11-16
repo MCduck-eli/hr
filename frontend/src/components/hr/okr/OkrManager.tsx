@@ -16,6 +16,7 @@ import { fetchDepartments } from "@/src/services/department-service";
 import Skeleton from "@/src/components/ui/Skeleton";
 import GirihPattern from "@/src/components/ui/GirihPattern";
 import { getQueryData, setQueryData, isQueryStale, invalidateQuery } from "@/src/utils/query-cache";
+import { hasWorkStarted } from "@/src/utils/work-started";
 import { motion } from "framer-motion";
 
 export default function OkrManager() {
@@ -183,7 +184,11 @@ export default function OkrManager() {
                 const data = await res.json();
                 setEmployees(
                     data.data?.filter(
-                        (u: any) => u.employee && u.role !== "SUPER_ADMIN" && u.role !== "DIRECTOR"
+                        (u: any) =>
+                            u.employee &&
+                            u.role !== "SUPER_ADMIN" &&
+                            u.role !== "DIRECTOR" &&
+                            hasWorkStarted(u.employee.hireDate)
                     ) || []
                 );
             }

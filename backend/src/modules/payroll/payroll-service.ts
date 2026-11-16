@@ -2,6 +2,7 @@ import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 import { PayrollStatus, Role } from "@prisma/client";
 import { notificationService } from "../notification/notification-service";
+import { workStartedWhere } from "../../utils/employee-availability";
 import { randomUUID } from "crypto";
 
 export class PayrollService {
@@ -302,6 +303,7 @@ export class PayrollService {
                         role: { notIn: ["SUPER_ADMIN", "DIRECTOR"] },
                         ...(companyFilter ? { companyName: companyFilter } : {}),
                     },
+                    AND: [workStartedWhere()],
                 },
                 select: {
                     id: true,
@@ -1837,6 +1839,7 @@ export class PayrollService {
             user: {
                 role: { notIn: [Role.DIRECTOR, Role.SUPER_ADMIN] },
             },
+            AND: [workStartedWhere()],
         };
         if (payload.employeeId) {
             employeeWhere.id = payload.employeeId;

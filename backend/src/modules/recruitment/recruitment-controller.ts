@@ -14,7 +14,7 @@ export class RecruitmentController {
 
     async updateVacancy(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await recruitmentService.updateVacancy(req.params.id, req.body, (req as any).user);
+            const result = await recruitmentService.updateVacancy(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, req.body, (req as any).user);
             res.status(200).json({ status: "success", data: result });
         } catch (error) {
             next(error);
@@ -23,7 +23,7 @@ export class RecruitmentController {
 
     async deleteVacancy(req: Request, res: Response, next: NextFunction) {
         try {
-            await recruitmentService.deleteVacancy(req.params.id, (req as any).user);
+            await recruitmentService.deleteVacancy(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, (req as any).user);
             res.status(200).json({ status: "success", message: "Vacancy deleted" });
         } catch (error) {
             next(error);
@@ -58,7 +58,8 @@ export class RecruitmentController {
 
     async getPublicVacancy(req: Request, res: Response, next: NextFunction) {
         try {
-            const vacancy = await recruitmentService.getPublicVacancy(req.params.id);
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const vacancy = await recruitmentService.getPublicVacancy(id);
             res.status(200).json({ status: "success", data: vacancy });
         } catch (error) {
             next(error);

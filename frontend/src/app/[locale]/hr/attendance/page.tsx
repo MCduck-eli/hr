@@ -11,10 +11,15 @@ import {
     WorkScheduleInfo,
     AbsentRecord,
     ThreeMonthSummary,
+    WorkedHoursEmployee,
+    WorkedHoursResponse,
     fetchAllAttendance,
+    fetchWorkedHours,
 } from "@/src/services/attendance-service";
 import WorkScheduleModal from "@/src/components/hr/attendance/work-schedule-modal";
 import AbsenceReasonModal from "@/src/components/hr/attendance/absence-reason-modal";
+import EmployeeHoursModal from "@/src/components/hr/attendance/employee-hours-modal";
+import Skeleton from "@/src/components/ui/Skeleton";
 
 function useCountUp(target: number, duration = 1500) {
     const [value, setValue] = useState(0);
@@ -80,10 +85,19 @@ export default function HRAttendancePage() {
     const router = useRouter();
     const locale = (params?.locale as string) || "uz";
 
-    const [mainTab, setMainTab] = useState<"daily" | "absent" | "threeMonth">("daily");
+    const [mainTab, setMainTab] = useState<"daily" | "absent" | "threeMonth" | "hours">("daily");
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [absentRecords, setAbsentRecords] = useState<AbsentRecord[]>([]);
     const [threeMonthSummary, setThreeMonthSummary] = useState<ThreeMonthSummary | null>(null);
+
+    const [hoursData, setHoursData] = useState<WorkedHoursResponse | null>(null);
+    const [hoursLoading, setHoursLoading] = useState(false);
+    const [hoursMonth, setHoursMonth] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    });
+    const [hoursSearch, setHoursSearch] = useState("");
+    const [selectedHoursEmployee, setSelectedHoursEmployee] = useState<WorkedHoursEmployee | null>(null);
 
     const [summary, setSummary] = useState<AttendanceSummary>({
         totalEmployees: 0,
@@ -132,6 +146,22 @@ export default function HRAttendancePage() {
             setLoading(false);
         }
     };
+
+    const loadHours = async () => {
+        setHoursLoading(true);
+        try {
+            const data = await fetchWorkedHours({ month: hoursMonth });
+            setHoursData(data);
+        } catch (err) {
+        } finally {
+            setHoursLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (mainTab !== "hours") return;
+        loadHours();
+    }, [mainTab, hoursMonth, locale]);
 
     useEffect(() => {
         const userStr = localStorage.getItem("user");
@@ -186,6 +216,41 @@ export default function HRAttendancePage() {
             (ar.absenceReason || "").toLowerCase().includes(q)
         );
     });
+
+    const hoursMonthLabel = (() => {
+        const parts = hoursMonth.split("-");
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+        const intlLocale = locale === "uz" ? "uz-UZ" : locale === "ru" ? "ru-RU" : "en-US";
+        return d.toLocaleDateString(intlLocale, { month: "long", year: "numeric" });
+    })();
+
+    const filteredHoursItems = (hoursData?.items || []).filter((item) => {
+        if (!hoursSearch.trim()) return true;
+        const q = hoursSearch.toLowerCase();
+        return (
+            item.employeeName.toLowerCase().includes(q) ||
+            item.department.toLowerCase().includes(q) ||
+            item.position.toLowerCase().includes(q)
+        );
+    });
+
+    const todayStatusLabel = (status: string) => {
+        if (status === "AT_WORK") return t("todayAtWork");
+        if (status === "COMPLETED") return t("todayCompleted");
+        if (status === "EXCUSED") return t("todayExcused");
+        if (status === "ABSENT") return t("todayAbsent");
+        if (status === "DAM_OLISH") return t("todayOff");
+        return t("todayNoRecord");
+    };
+
+    const todayStatusClass = (status: string) => {
+        if (status === "AT_WORK") return "bg-blue-50 text-blue-700 border-blue-200";
+        if (status === "COMPLETED") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        if (status === "EXCUSED") return "bg-amber-50 text-amber-700 border-amber-200";
+        if (status === "ABSENT") return "bg-rose-50 text-rose-700 border-rose-200";
+        if (status === "DAM_OLISH") return "bg-slate-100 text-slate-500 border-slate-200";
+        return "bg-slate-50 text-slate-400 border-slate-200";
+    };
 
     const departmentStats = (() => {
         const map = new Map<string, { total: number; present: number; late: number; onTime: number; early: number; checkedOut: number; unmarked: number }>();
@@ -718,6 +783,17 @@ export default function HRAttendancePage() {
                     <span>📊</span>
                     <span>{t("threeMonthTab")}</span>
                 </button>
+                <button
+                    onClick={() => setMainTab("hours")}
+                    className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
+                        mainTab === "hours"
+                            ? "bg-violet-100 text-violet-700 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                    }`}
+                >
+                    <span>⏱️</span>
+                    <span>{t("hoursTab")} ({hoursData?.items.length ?? 0})</span>
+                </button>
             </div>
 
             {mainTab === "daily" && (
@@ -1219,6 +1295,175 @@ export default function HRAttendancePage() {
                         </>
                     )}
                 </div>
+            )}
+
+            {mainTab === "hours" && (
+                <div className="flex flex-col gap-6">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+                        <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
+                            <div className="flex items-center gap-3">
+                                <span className="w-9 h-9 rounded-xl bg-[#9327FF]/10 text-[#9327FF] flex items-center justify-center text-base">
+                                    ⏱️
+                                </span>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-slate-900">{t("hoursTab")}</span>
+                                    <span className="text-[11px] text-slate-500 font-medium capitalize">{hoursMonthLabel}</span>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                    type="month"
+                                    value={hoursMonth}
+                                    onChange={(e) => e.target.value && setHoursMonth(e.target.value)}
+                                    className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#9327FF] focus:ring-2 focus:ring-[#9327FF]/10 transition-all"
+                                />
+                                <input
+                                    type="text"
+                                    value={hoursSearch}
+                                    onChange={(e) => setHoursSearch(e.target.value)}
+                                    placeholder={t("searchPlaceholder")}
+                                    className="px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-gray-200 rounded-xl outline-none focus:border-[#9327FF] focus:ring-2 focus:ring-[#9327FF]/10 transition-all w-44"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-gray-100">
+                            {hoursLoading && !hoursData ? (
+                                Array.from({ length: 4 }).map((_, i) => (
+                                    <div key={`hours-stat-${i}`} className="p-4 border border-gray-100 rounded-2xl flex flex-col gap-2">
+                                        <Skeleton className="w-24 h-3 rounded-md" />
+                                        <Skeleton className="w-16 h-6 rounded-lg" />
+                                    </div>
+                                ))
+                            ) : (
+                                <>
+                                    <div className="p-4 border border-gray-100 rounded-2xl bg-slate-50/40">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("hoursTotalLabel")}</div>
+                                        <div className="text-xl font-extrabold text-[#9327FF] mt-1">
+                                            {hoursData?.totals.totalHours ?? 0} <span className="text-xs font-bold text-slate-400">{t("hoursUnit")}</span>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 border border-gray-100 rounded-2xl bg-slate-50/40">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("hoursExpectedLabel")}</div>
+                                        <div className="text-xl font-extrabold text-slate-700 mt-1">
+                                            {hoursData?.totals.expectedHours ?? 0} <span className="text-xs font-bold text-slate-400">{t("hoursUnit")}</span>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 border border-gray-100 rounded-2xl bg-slate-50/40">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{t("hoursEmployeesLabel")}</div>
+                                        <div className="text-xl font-extrabold text-slate-700 mt-1">{hoursData?.items.length ?? 0}</div>
+                                    </div>
+                                    <div className="p-4 border border-gray-100 rounded-2xl bg-emerald-50/50">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">{t("hoursAtWorkLabel")}</div>
+                                        <div className="text-xl font-extrabold text-emerald-700 mt-1">{hoursData?.totals.atWork ?? 0}</div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+                                    <tr>
+                                        <th className="py-3.5 px-5">{t("hHoursEmployee")}</th>
+                                        <th className="py-3.5 px-5 text-center">{t("hHoursToday")}</th>
+                                        <th className="py-3.5 px-5 text-center">{t("hHoursDays")}</th>
+                                        <th className="py-3.5 px-5">{t("hHoursWorked")}</th>
+                                        <th className="py-3.5 px-5 text-center">{t("hHoursAction")}</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50 text-xs">
+                                    {hoursLoading && !hoursData ? (
+                                        Array.from({ length: 4 }).map((_, i) => (
+                                            <tr key={`hours-row-${i}`}>
+                                                <td className="py-3.5 px-5">
+                                                    <div className="flex items-center gap-3">
+                                                        <Skeleton className="w-8 h-8 rounded-xl" />
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <Skeleton className="w-32 h-3 rounded-md" />
+                                                            <Skeleton className="w-20 h-2 rounded-md" />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3.5 px-5 text-center"><Skeleton className="w-16 h-5 rounded-lg mx-auto" /></td>
+                                                <td className="py-3.5 px-5 text-center"><Skeleton className="w-10 h-5 rounded-lg mx-auto" /></td>
+                                                <td className="py-3.5 px-5"><Skeleton className="w-24 h-4 rounded-md" /></td>
+                                                <td className="py-3.5 px-5 text-center"><Skeleton className="w-16 h-6 rounded-xl mx-auto" /></td>
+                                            </tr>
+                                        ))
+                                    ) : filteredHoursItems.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="py-12 text-center text-slate-400 font-semibold tracking-wider">
+                                                {t("hoursEmpty")}
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredHoursItems.map((item) => (
+                                            <tr
+                                                key={item.employeeId}
+                                                onClick={() => setSelectedHoursEmployee(item)}
+                                                className="hover:bg-purple-50/30 cursor-pointer transition-colors"
+                                            >
+                                                <td className="py-3.5 px-5">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-xl bg-purple-50 text-[#9327FF] flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                                            {item.employeeName.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="font-bold text-slate-900 truncate">{item.employeeName}</span>
+                                                            <span className="text-[10px] text-slate-400 font-medium truncate">
+                                                                {item.department} • {item.position}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3.5 px-5 text-center">
+                                                    <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border w-fit inline-block ${todayStatusClass(item.todayStatus)}`}>
+                                                        {todayStatusLabel(item.todayStatus)}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3.5 px-5 text-center font-mono font-bold text-slate-700">
+                                                    {item.daysWorked}/{item.scheduledDays}
+                                                </td>
+                                                <td className="py-3.5 px-5">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="font-extrabold text-slate-900 font-mono">
+                                                                {item.totalHours} <span className="text-[10px] text-slate-400 font-bold">{t("hoursUnit")}</span>
+                                                            </span>
+                                                            <span className="text-[10px] font-bold text-slate-400">
+                                                                {t("ofPrefix")} {item.expectedHours} {t("hoursUnit")}
+                                                            </span>
+                                                        </div>
+                                                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-[#9327FF] rounded-full transition-all"
+                                                                style={{ width: `${item.scheduledHoursRatio}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3.5 px-5 text-center">
+                                                    <span className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl">
+                                                        {t("hHoursOpen")}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedHoursEmployee && (
+                <EmployeeHoursModal
+                    employee={selectedHoursEmployee}
+                    monthLabel={hoursMonthLabel}
+                    onClose={() => setSelectedHoursEmployee(null)}
+                />
             )}
 
             {isScheduleModalOpen && (

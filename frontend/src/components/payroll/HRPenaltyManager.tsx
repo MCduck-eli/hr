@@ -197,8 +197,15 @@ export default function HRPenaltyManager() {
                 fetchPenaltyRules().catch(() => []),
             ]);
 
+            const endOfToday = new Date();
+            endOfToday.setHours(23, 59, 59, 999);
+
             const validEmployees = (usersData || [])
-                .filter((u: any) => u.employee && u.role !== "SUPER_ADMIN" && u.role !== "DIRECTOR")
+                .filter((u: any) => {
+                    if (!u.employee || u.role === "SUPER_ADMIN" || u.role === "DIRECTOR") return false;
+                    const hireDate = u.employee.hireDate;
+                    return !hireDate || new Date(hireDate).getTime() <= endOfToday.getTime();
+                })
                 .map((u: any) => ({
                     id: u.employee.id,
                     userId: u.id,

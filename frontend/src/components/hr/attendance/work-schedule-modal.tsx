@@ -14,6 +14,7 @@ import {
 } from "@/src/services/attendance-service";
 import { fetchDepartments } from "@/src/services/department-service";
 import { fetchAllUsers } from "@/src/services/user-service";
+import { hasWorkStarted } from "@/src/utils/work-started";
 
 interface WorkScheduleModalProps {
     isOpen: boolean;
@@ -104,7 +105,8 @@ export default function WorkScheduleModal({
                         u.role !== "HR_ADMIN" &&
                         u.id !== currentUserId &&
                         u.employee?.id !== currentUserEmpId &&
-                        u.email !== "admin@hrplatform.com",
+                        u.email !== "admin@hrplatform.com" &&
+                        hasWorkStarted(u.employee?.hireDate),
                 )
                 .map((u: any) => {
                     const firstName = u.employee?.firstName || u.firstName || "";

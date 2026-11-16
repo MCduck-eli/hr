@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { Prisma } from "@prisma/client";
 import prisma from "../../config/db";
 import { AppError } from "../../utils/appError";
 import { hashPassword } from "../../utils/password";
@@ -185,7 +186,7 @@ export class LifecycleService {
                 orderBy: { changedAt: "desc" as const },
             },
             objectives: {
-                include: { keyResults: true },
+                include: { keyResults: true, cycle: true },
                 orderBy: { createdAt: "desc" as const },
             },
             discAssessments: {
@@ -210,7 +211,7 @@ export class LifecycleService {
                 },
             },
             offboarding: true,
-        };
+        } satisfies Prisma.EmployeeInclude;
 
         let employee = await prisma.employee.findUnique({
             where: { id: employeeId },
@@ -397,7 +398,7 @@ export class LifecycleService {
                     stage: "PERFORMANCE_REVIEWED",
                     title: `OKR Maqsadi: ${obj.title}`,
                     date: obj.createdAt,
-                    details: `Davr: ${obj.quarter} ${obj.year}. Bajarilishi: ${obj.progress}%. Holat: ${obj.status}. Key Results soni: ${obj.keyResults.length} ta.`,
+                    details: `Davr: ${obj.cycle.title}. Bajarilishi: ${obj.progress}%. Holat: ${obj.status}. Key Results soni: ${obj.keyResults.length} ta.`,
                     isCustom: false,
                 });
             });
@@ -434,7 +435,7 @@ export class LifecycleService {
                     stage: "PERFORMANCE_REVIEWED",
                     title: `360 Baholash: ${fb.cycle.title}`,
                     date: fb.createdAt,
-                    details: `Baholash sikli: ${fb.cycle.title}. Holati: ${fb.status}.`,
+                    details: `Baholash sikli: ${fb.cycle.title}. Holati: ${fb.cycle.status}.`,
                     isCustom: false,
                 });
             });

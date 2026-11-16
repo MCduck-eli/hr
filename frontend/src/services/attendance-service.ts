@@ -187,6 +187,73 @@ export const fetchAllAttendance = async (params?: {
     return data.data;
 };
 
+export interface WorkedHoursDay {
+    date: string;
+    weekday: number;
+    isWorkingDay: boolean;
+    status: string;
+    checkIn: string | null;
+    checkOut: string | null;
+    hours: number;
+    lateMinutes: number;
+    earlyMinutes: number;
+    absenceReason: string | null;
+    checkOutConfirmed: boolean;
+    incomplete: boolean;
+}
+
+export interface WorkedHoursEmployee {
+    employeeId: string;
+    employeeName: string;
+    department: string;
+    position: string;
+    scheduleName: string;
+    startTime: string;
+    endTime: string;
+    todayStatus: string;
+    totalHours: number;
+    expectedHours: number;
+    scheduledHoursRatio: number;
+    daysWorked: number;
+    scheduledDays: number;
+    absentDays: number;
+    excusedDays: number;
+    incompleteDays: number;
+    lateCount: number;
+    lateMinutes: number;
+    days: WorkedHoursDay[];
+}
+
+export interface WorkedHoursResponse {
+    month: string;
+    year: number;
+    monthNumber: number;
+    items: WorkedHoursEmployee[];
+    totals: {
+        employees: number;
+        totalHours: number;
+        expectedHours: number;
+        atWork: number;
+    };
+}
+
+export const fetchWorkedHours = async (params?: {
+    month?: string;
+    search?: string;
+}): Promise<WorkedHoursResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.month) searchParams.append("month", params.month);
+    if (params?.search) searchParams.append("search", params.search);
+
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    const res = await fetch(`${API_URL}/attendance/worked-hours${query}`, {
+        headers: getHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Ishlagan soatlarni olishda xatolik");
+    return data.data;
+};
+
 export const fetchAllWorkSchedules = async (): Promise<WorkScheduleInfo[]> => {
     const res = await fetch(`${API_URL}/attendance/schedules`, {
         headers: getHeaders(),
